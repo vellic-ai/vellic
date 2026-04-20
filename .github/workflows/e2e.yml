@@ -1,0 +1,124 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright smoke (5 critical paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vellic
+          POSTGRES_PASSWORD: vellic_test
+          POSTGRES_DB: vellic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Python / Admin ──────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install admin service
+        run: pip install uv && uv pip install --system -e "admin"
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+        working-directory: admin
+        env:
+          DATABASE_URL: postgresql://vellic:vellic_test@localhost:5432/vellic
+
+      - name: Seed E2E test data
+        run: |
+          PGPASSWORD=vellic_test psql \
+            -h localhost -U vellic -d vellic \
+            -f scripts/e2e-seed.sql
+
+      - name: Start admin service
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8001 &
+          until curl -sf http://localhost:8001/health; do sleep 1; done
+          echo "Admin service ready"
+        working-directory: admin
+        env:
+          DATABASE_URL: postgresql://vellic:vellic_test@localhost:5432/vellic
+          REDIS_URL: redis://localhost:6379
+          PORT: "8001"
+          VELLIC_ADMIN_V2: "1"
+
+      # ── Node / Frontend ─────────────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE: http://localhost:8001
+
+      - name: Start frontend preview
+        run: |
+          npm run preview -- --host --port 5173 &
+          until curl -sf http://localhost:5173; do sleep 1; done
+          echo "Frontend preview ready"
+        working-directory: frontend
+
+      # ── E2E ─────────────────────────────────────────────────────────────────
+      - name: Run Playwright smoke tests
+        run: npm run test:e2e
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:5173
+          E2E_API_BASE: http://localhost:8001
+          E2E_ADMIN_PASSWORD: vellic_test
+          CI: "true"
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ github.run_id }}
+          path: |
+            frontend/playwright-results/
+            frontend/playwright-report/
+          retention-days: 7
