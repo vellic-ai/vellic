@@ -195,10 +195,14 @@ export default function SettingsPage() {
       .filter((r) => r.provider === kind)
       .map((r) => ({ id: r.id, full_name: r.slug, model: r.model ?? "" }));
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSave = (_kind: string, _state: ProviderState) => {
-    if (!llmData) return;
-    saveLLM.mutate(llmData as import("@/api").LLMSettingsIn);
+  const handleSave = (kind: string, state: ProviderState) => {
+    saveLLM.mutate({
+      provider: kind,
+      base_url: state.base_url ?? null,
+      model: llmData?.model ?? "",
+      api_key: state.key_edited ? (state.api_key_raw ?? null) : null,
+      extra: llmData?.extra ?? {},
+    });
   };
 
   return (
