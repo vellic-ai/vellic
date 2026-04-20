@@ -10,6 +10,7 @@ RUN groupadd --gid 1001 appuser && useradd --uid 1001 --gid 1001 --no-create-hom
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app/ ./app/
+COPY static/ ./static/
 USER appuser
 EXPOSE 8001
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \

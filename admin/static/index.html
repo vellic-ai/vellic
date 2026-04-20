@@ -2245,9 +2245,8 @@
             setTimeout(() => pw.focus(), 50);
           }
           if (mode === 'setup') {
-            const pw = document.getElementById('setup-pw');
-            pw.value = '';
-            setTimeout(() => pw.focus(), 50);
+            const pw = document.getElementById('wiz-pw');
+            if (pw) { pw.value = ''; setTimeout(() => pw.focus(), 50); }
           }
         }
 
@@ -2328,46 +2327,6 @@
           });
         }
 
-        function bindSetup() {
-          const pw    = document.getElementById('setup-pw');
-          const btn   = document.getElementById('setup-btn');
-          const spin  = document.getElementById('setup-spinner');
-          const errEl = document.getElementById('setup-error');
-
-          bindToggle('setup-pw', 'setup-pw-toggle', 'setup-eye-show', 'setup-eye-hide');
-
-          pw.addEventListener('input', () => {
-            btn.disabled = !pw.value;
-            pw.classList.remove('error');
-            errEl.classList.add('hidden');
-          });
-
-          document.getElementById('setup-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!pw.value) return;
-            btn.disabled = true;
-            spin.classList.remove('hidden');
-            errEl.classList.add('hidden');
-            try {
-              const res = await fetch('/admin/auth/setup', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pw.value }),
-              });
-              if (res.status === 409) { showAuthPage('login'); return; }
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              showApp();
-            } catch (err) {
-              errEl.textContent = 'Setup failed. Please try again.';
-              errEl.classList.remove('hidden');
-              pw.classList.add('error');
-            } finally {
-              spin.classList.add('hidden');
-              btn.disabled = !pw.value;
-            }
-          });
-        }
-
         function bindLogout() {
           document.getElementById('logout-btn').addEventListener('click', async () => {
             try { await fetch('/admin/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
@@ -2375,7 +2334,7 @@
           });
         }
 
-        return { init, bindLogin, bindSetup, bindLogout, showLogin: () => showAuthPage('login') };
+        return { init, bindLogin, bindLogout, showLogin: () => showAuthPage('login') };
       })();
 
       // ── Jobs ────────────────────────────────────────────────────────────
@@ -3257,9 +3216,365 @@
         return { load };
       })();
 
+      // ── Onboarding Wizard ───────────────────────────────────────────────
+      (() => {
+        const STEPS = 5;
+        const CLOUD_PROVIDERS = new Set(['openai', 'anthropic', 'claude_code']);
+        const MODEL_DEFAULTS = {
+          ollama: 'qwen2.5-coder:14b', vllm: 'Qwen2.5-Coder-32B',
+          openai: 'gpt-4o-mini', anthropic: 'claude-sonnet-4', claude_code: 'claude-sonnet-4',
+        };
+        const BASE_URL_DEFAULTS = {
+          ollama: 'http://ollama:11434', vllm: 'http://vllm:8000',
+          openai: '', anthropic: '', claude_code: '',
+        };
+
+        // completed steps tracker for summary
+        const done = {};
+
+        function g(id) { return document.getElementById(id); }
+
+        function setProgress(step) {
+          const pct = Math.round((step / STEPS) * 100);
+          g('wiz-progress').style.width = pct + '%';
+          g('wiz-step-label').textContent = `Step ${step} of ${STEPS}`;
+          g('wiz-pct').textContent = pct + '%';
+        }
+
+        function showStep(n) {
+          for (let i = 1; i <= STEPS; i++) {
+            const el = g(`wiz-s${i}`);
+            if (el) el.classList.toggle('hidden', i !== n);
+          }
+          setProgress(n);
+        }
+
+        // ── Password strength ────────────────────────────────────────────
+        function strengthScore(pw) {
+          let s = 0;
+          if (pw.length >= 8)  s++;
+          if (pw.length >= 12) s++;
+          if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+          if (/[0-9]/.test(pw)) s++;
+          if (/[^A-Za-z0-9]/.test(pw)) s++;
+          return Math.min(4, Math.max(0, Math.round(s * 0.8)));
+        }
+        const STRENGTH_COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
+
+        function updateStrength(pw) {
+          const bars = g('wiz-strength-bars');
+          if (!pw) { bars.classList.add('hidden'); return; }
+          bars.classList.remove('hidden');
+          const score = strengthScore(pw);
+          for (let i = 0; i < 4; i++) {
+            const bar = g(`wiz-sb${i}`);
+            bar.style.background = i < score ? STRENGTH_COLORS[score - 1] : 'var(--border)';
+          }
+        }
+
+        function checkS1Ready() {
+          const pw  = g('wiz-pw').value;
+          const pw2 = g('wiz-pw2').value;
+          const match = pw === pw2;
+          g('wiz-pw-mismatch').classList.toggle('hidden', !pw2 || match);
+          g('wiz-s1-next').disabled = !(pw.length >= 8 && match);
+        }
+
+        // ── Step 1 ───────────────────────────────────────────────────────
+        function bindStep1() {
+          const pwEl  = g('wiz-pw');
+          const pw2El = g('wiz-pw2');
+          const next  = g('wiz-s1-next');
+          const spin  = g('wiz-s1-spin');
+          const errEl = g('wiz-s1-error');
+
+          // password toggle
+          g('wiz-pw-toggle').addEventListener('click', () => {
+            const isPass = pwEl.type === 'password';
+            pwEl.type = isPass ? 'text' : 'password';
+            g('wiz-eye-show').classList.toggle('hidden', isPass);
+            g('wiz-eye-hide').classList.toggle('hidden', !isPass);
+          });
+
+          pwEl.addEventListener('input',  () => { updateStrength(pwEl.value); checkS1Ready(); });
+          pw2El.addEventListener('input', checkS1Ready);
+
+          next.addEventListener('click', async () => {
+            const pw = pwEl.value;
+            next.disabled = true;
+            spin.classList.remove('hidden');
+            errEl.classList.add('hidden');
+            try {
+              const res = await fetch('/admin/auth/setup', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pw }),
+              });
+              if (res.status === 409) {
+                // already set up — go straight to login
+                document.getElementById('auth-setup').classList.add('hidden');
+                document.getElementById('auth-login').classList.remove('hidden');
+                return;
+              }
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              done.password = true;
+              showStep(2);
+            } catch (err) {
+              errEl.textContent = err.message || 'Setup failed.';
+              errEl.classList.remove('hidden');
+            } finally {
+              spin.classList.add('hidden');
+              checkS1Ready();
+            }
+          });
+        }
+
+        // ── Step 2 ───────────────────────────────────────────────────────
+        function bindStep2() {
+          const provider = g('wiz-provider');
+          const baseUrlField = g('wiz-base-url-field');
+          const apiKeyField  = g('wiz-api-key-field');
+          const baseUrlInput = g('wiz-base-url');
+          const modelInput   = g('wiz-model');
+          const cloudWarn    = g('wiz-cloud-warn');
+          const errEl        = g('wiz-s2-error');
+
+          function updateProviderUI() {
+            const p = provider.value;
+            const isCloud = CLOUD_PROVIDERS.has(p);
+            cloudWarn.classList.toggle('hidden', !isCloud);
+            baseUrlField.classList.toggle('hidden', isCloud);
+            apiKeyField.classList.toggle('hidden', !isCloud);
+            if (BASE_URL_DEFAULTS[p]) baseUrlInput.value = BASE_URL_DEFAULTS[p];
+            if (MODEL_DEFAULTS[p]) modelInput.value = MODEL_DEFAULTS[p];
+          }
+
+          provider.addEventListener('change', updateProviderUI);
+          updateProviderUI();
+
+          async function saveAndAdvance() {
+            const p = provider.value;
+            const body = {
+              provider: p,
+              model: modelInput.value.trim() || MODEL_DEFAULTS[p],
+              base_url: CLOUD_PROVIDERS.has(p) ? null : (baseUrlInput.value.trim() || null),
+              api_key:  CLOUD_PROVIDERS.has(p) ? (g('wiz-api-key').value.trim() || null) : null,
+            };
+            g('wiz-s2-next').disabled = true;
+            g('wiz-s2-spin').classList.remove('hidden');
+            errEl.classList.add('hidden');
+            try {
+              const res = await fetch('/admin/settings/llm', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              done.llm = true;
+            } catch (err) {
+              errEl.textContent = err.message || 'Save failed.';
+              errEl.classList.remove('hidden');
+              g('wiz-s2-next').disabled = false;
+              g('wiz-s2-spin').classList.add('hidden');
+              return;
+            }
+            g('wiz-s2-spin').classList.add('hidden');
+            g('wiz-s2-next').disabled = false;
+            showStep(3);
+            rotateHmacIfNeeded();
+          }
+
+          g('wiz-s2-next').addEventListener('click', saveAndAdvance);
+          g('wiz-s2-skip').addEventListener('click', () => { showStep(3); rotateHmacIfNeeded(); });
+          g('wiz-s2-back').addEventListener('click', () => showStep(1));
+        }
+
+        // ── Step 3 ───────────────────────────────────────────────────────
+        let hmacGenerated = false;
+
+        async function rotateHmacIfNeeded() {
+          if (hmacGenerated) return;
+          hmacGenerated = true;
+          const hmacInput = g('wiz-hmac');
+          const copyBtn   = g('wiz-hmac-copy');
+          hmacInput.placeholder = 'Generating…';
+          try {
+            const res = await fetch('/admin/settings/webhook/rotate', { method: 'POST' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            hmacInput.value = data.hmac;
+            copyBtn.disabled = false;
+          } catch {
+            hmacInput.placeholder = 'Failed — click Back and retry.';
+          }
+        }
+
+        function bindStep3() {
+          const urlInput  = g('wiz-wh-url');
+          const savedCb   = g('wiz-hmac-saved');
+          const nextBtn   = g('wiz-s3-next');
+          const errEl     = g('wiz-s3-error');
+
+          // Copy button
+          g('wiz-hmac-copy').addEventListener('click', async () => {
+            const v = g('wiz-hmac').value;
+            if (!v) return;
+            try { await navigator.clipboard.writeText(v); } catch {
+              const t = document.createElement('textarea');
+              t.value = v; document.body.appendChild(t); t.select();
+              document.execCommand('copy'); t.remove();
+            }
+          });
+
+          // Enable Continue only after URL filled and secret saved checkbox ticked
+          function checkS3() {
+            nextBtn.disabled = !(urlInput.value.trim() && savedCb.checked);
+          }
+          urlInput.addEventListener('input', checkS3);
+          savedCb.addEventListener('change', checkS3);
+
+          // Collapsibles
+          ['wiz-gh-toggle', 'wiz-gl-toggle'].forEach(btnId => {
+            const btn = g(btnId);
+            const bodyId = btnId.replace('toggle', 'body');
+            const chevId = btnId.replace('toggle', 'chev');
+            btn.addEventListener('click', () => {
+              const body = g(bodyId);
+              const open = !body.classList.contains('hidden');
+              body.classList.toggle('hidden', open);
+              g(chevId).style.transform = open ? '' : 'rotate(180deg)';
+            });
+          });
+
+          g('wiz-s3-next').addEventListener('click', async () => {
+            nextBtn.disabled = true;
+            g('wiz-s3-spin').classList.remove('hidden');
+            errEl.classList.add('hidden');
+            const saves = [];
+
+            // Save webhook URL
+            saves.push(fetch('/admin/settings/webhook', {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: urlInput.value.trim() }),
+            }));
+
+            // Optional GitHub App
+            const ghApp = g('wiz-gh-app-id').value.trim();
+            if (ghApp) {
+              saves.push(fetch('/admin/settings/github', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  app_id: ghApp,
+                  installation_id: g('wiz-gh-inst-id').value.trim(),
+                  private_key: g('wiz-gh-key').value.trim() || undefined,
+                }),
+              }));
+            }
+
+            // Optional GitLab token
+            const glToken = g('wiz-gl-token').value.trim();
+            if (glToken) {
+              saves.push(fetch('/admin/settings/gitlab', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: glToken }),
+              }));
+            }
+
+            try {
+              const results = await Promise.all(saves);
+              for (const r of results) {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              }
+              done.webhook = true;
+              showStep(4);
+            } catch (err) {
+              errEl.textContent = err.message || 'Save failed.';
+              errEl.classList.remove('hidden');
+            } finally {
+              g('wiz-s3-spin').classList.add('hidden');
+              nextBtn.disabled = !(urlInput.value.trim() && savedCb.checked);
+            }
+          });
+
+          g('wiz-s3-back').addEventListener('click', () => showStep(2));
+        }
+
+        // ── Step 4 ───────────────────────────────────────────────────────
+        function bindStep4() {
+          const errEl = g('wiz-s4-error');
+
+          async function saveAndAdvance() {
+            const platform = g('wiz-repo-platform').value;
+            const org      = g('wiz-repo-org').value.trim();
+            const repo     = g('wiz-repo-name').value.trim();
+            errEl.classList.add('hidden');
+
+            if (!org || !repo) {
+              errEl.textContent = 'Organization and repository are required.';
+              errEl.classList.remove('hidden');
+              return;
+            }
+
+            g('wiz-s4-next').disabled = true;
+            g('wiz-s4-spin').classList.remove('hidden');
+            try {
+              const res = await fetch('/admin/settings/repos', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform, org, repo }),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              done.repo = true;
+            } catch (err) {
+              errEl.textContent = err.message || 'Save failed.';
+              errEl.classList.remove('hidden');
+              g('wiz-s4-next').disabled = false;
+              g('wiz-s4-spin').classList.add('hidden');
+              return;
+            }
+            g('wiz-s4-spin').classList.add('hidden');
+            showStep(5);
+            renderSummary();
+          }
+
+          g('wiz-s4-next').addEventListener('click', saveAndAdvance);
+          g('wiz-s4-skip').addEventListener('click', () => { showStep(5); renderSummary(); });
+          g('wiz-s4-back').addEventListener('click', () => showStep(3));
+        }
+
+        // ── Step 5 (Summary) ─────────────────────────────────────────────
+        function renderSummary() {
+          const items = [
+            { key: 'password', label: 'Admin password set' },
+            { key: 'llm',      label: 'LLM provider configured' },
+            { key: 'webhook',  label: 'Webhook configured' },
+            { key: 'repo',     label: 'First repository added' },
+          ];
+          const check = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"><path d="M3 8l4 4 6-6"/></svg>`;
+          const skip  = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`;
+          g('wiz-summary').innerHTML = items.map(item =>
+            `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13.5px">
+               ${done[item.key] ? check : skip}
+               <span style="color:${done[item.key] ? 'var(--text)' : 'var(--text-muted)'}">${item.label}</span>
+             </div>`
+          ).join('');
+        }
+
+        function bindStep5() {
+          g('wiz-go-dashboard').addEventListener('click', () => {
+            document.getElementById('auth-page').classList.add('hidden');
+            Auth.init();
+          });
+        }
+
+        // ── Init ─────────────────────────────────────────────────────────
+        bindStep1();
+        bindStep2();
+        bindStep3();
+        bindStep4();
+        bindStep5();
+        showStep(1);
+      })();
+
       // ── Boot ─────────────────────────────────────────────────────────────
       Auth.bindLogin();
-      Auth.bindSetup();
       Auth.bindLogout();
       Auth.init();
     })();
