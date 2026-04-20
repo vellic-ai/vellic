@@ -38,7 +38,7 @@ It is self-hosted, swap the LLM with a single env var, and adding a new VCS plat
 - **[LLM-agnostic provider registry](docs/llm-providers.md)** — Ollama (default, on-prem), vLLM, OpenAI, Anthropic, Claude Code. Swap with one env var, no rebuild.
 - **[4-stage async pipeline](docs/architecture.md)** — diff fetch → context gather → LLM analysis → VCS feedback posting, all via Redis/Arq with full job tracking.
 - **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
-- **[Admin panel](http://localhost:8001)** — replay events, inspect jobs, tune config without redeploying.
+- **[Admin SPA](http://localhost:80)** — replay events, inspect jobs, tune LLM config. React SPA served by nginx; admin FastAPI serves the REST API on port 8001.
 - **[Kubernetes-ready](docs/deployment.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
 - **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers show a privacy warning in the Admin UI when selected.
 
@@ -107,7 +107,9 @@ POSTGRES_PASSWORD=changeme
 GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
 ```
 
-LLM provider, model, API keys, and per-repo settings are configured in the Admin UI — not in `.env`.
+LLM provider, model, API keys, and per-repo settings are configured in the Admin SPA — not in `.env`.
+
+Set `VELLIC_ADMIN_V2=1` on the `admin` service (default in `docker-compose.yml`) to enable nginx-served SPA mode. Without it, the admin falls back to serving legacy static files from `admin/static/`.
 
 Full infrastructure reference: [docs/configuration.md](docs/configuration.md)
 
@@ -121,9 +123,10 @@ vellic/
 │       ├── pipeline/   4 stages: diff → context → llm → feedback
 │       ├── llm/        Provider registry + adapters
 │       └── adapters/   VCS platform adapters
-├── admin/        Admin panel (FastAPI, port 8001)
+├── admin/        Admin API (FastAPI, port 8001) — auth, stats, settings, delivery replay
+├── frontend/     Admin SPA (Vite + React + TypeScript) — served by nginx on port 80
 ├── infra/k8s/    Kubernetes manifests + HPA
-├── scripts/      Dev tooling (setup, health-check, test-webhook)
+├── scripts/      Dev tooling (setup, health-check, test-webhook, e2e-local)
 └── docs/         Detailed documentation
 ```
 
