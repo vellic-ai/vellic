@@ -11,6 +11,7 @@ dependencies = [
     "cryptography>=42.0.0",
     "aiofiles>=23.0.0",
     "bcrypt>=4.0.0",
+    "PyJWT[crypto]>=2.8.0",
 ]
 
 [project.optional-dependencies]
