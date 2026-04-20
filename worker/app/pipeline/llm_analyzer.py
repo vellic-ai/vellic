@@ -97,7 +97,7 @@ async def analyze(
             file=c.get("file", ""),
             line=int(c.get("line", 0)),
             body=c.get("body", ""),
-            confidence=float(c.get("confidence", 0.5)),
+            confidence=max(0.0, min(1.0, float(c.get("confidence", 0.5)))),
             rationale=c.get("rationale", ""),
         )
         for c in data.get("comments", [])
@@ -107,5 +107,5 @@ async def analyze(
     return AnalysisResult(
         comments=comments,
         summary=str(data.get("summary", "")),
-        generic_ratio=float(data.get("generic_ratio", 0.0)),
+        generic_ratio=max(0.0, min(1.0, float(data.get("generic_ratio", 0.0)))),
     )

@@ -244,6 +244,27 @@ async def test_analyze_handles_bad_json():
     assert result.generic_ratio == 1.0
 
 
+@pytest.mark.asyncio
+async def test_analyze_clamps_out_of_range_values():
+    ctx = PRContext("acme/x", 1, "sha", "title", "", "main")
+    chunks = [DiffChunk("app.py", ["+x = 1"])]
+    llm_response = json.dumps(
+        {
+            "comments": [
+                {"file": "app.py", "line": 1, "body": "bad", "confidence": 1.7, "rationale": "r"}
+            ],
+            "summary": "s",
+            "generic_ratio": 1.7,
+        }
+    )
+    llm = MagicMock()
+    llm.complete = AsyncMock(return_value=llm_response)
+
+    result = await analyze(ctx, chunks, llm)
+    assert result.generic_ratio == 1.0
+    assert result.comments[0].confidence == 1.0
+
+
 # ---------------------------------------------------------------------------
 # result_persister
 # ---------------------------------------------------------------------------

@@ -20,12 +20,15 @@ async def run_pipeline(
     job_id: uuid.UUID,
     arq_redis,
 ) -> str:
+    # Stage 1: gather context
     context = gather_context(event)
-    logger.info("pipeline start repo=%s pr=%d sha=%s", context.repo, context.pr_number, context.commit_sha)
+    logger.info("stage1 complete repo=%s pr=%d sha=%s", context.repo, context.pr_number, context.commit_sha)
 
+    # Stage 2: fetch and chunk diff
     chunks = await fetch_diff_chunks(event.diff_url)
-    logger.info("stage1 complete chunks=%d", len(chunks))
+    logger.info("stage2 complete chunks=%d", len(chunks))
 
+    # Stage 3: LLM analysis
     result = await analyze(context, chunks, llm)
     logger.info(
         "stage3 complete comments=%d generic_ratio=%.2f",
@@ -33,6 +36,7 @@ async def run_pipeline(
         result.generic_ratio,
     )
 
+    # Stage 4: persist + enqueue
     pr_review_id = await persist(pool, context, result, job_id, arq_redis)
     logger.info("stage4 complete pr_review_id=%s", pr_review_id)
     return pr_review_id
