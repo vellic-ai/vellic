@@ -22,6 +22,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-ruff-${{ runner.os }}
+          restore-keys: pip-ruff-${{ runner.os }}
       - name: Install ruff
         run: pip install ruff
       - name: Run ruff
@@ -39,6 +44,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('{0}/pyproject.toml', matrix.service)) }}
+          restore-keys: uv-${{ runner.os }}-${{ matrix.service }}-
       - name: Install dependencies
         run: |
           pip install uv
