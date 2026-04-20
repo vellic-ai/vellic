@@ -3035,13 +3035,14 @@
             dismiss();
             try {
               const res = await fetch('/admin/settings/webhook/rotate', { method: 'POST' });
-              const body = res.ok ? await res.json() : null;
-              if (body?.hmac) { data.hmac = body.hmac; }
-              else {
-                data.hmac = 'whsec_' + Array.from({length:32}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
+              if (res.ok) {
+                const body = await res.json();
+                data.hmac = body.hmac;
+                render();
+                toast('HMAC secret rotated — update it in your VCS.', 'success');
+              } else {
+                toast('Rotate failed — secret unchanged.', 'error');
               }
-              render();
-              toast('HMAC secret rotated — update it in your VCS.', 'success');
             } catch { toast('Rotate failed.', 'error'); }
           });
         }
