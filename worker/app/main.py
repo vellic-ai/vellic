@@ -3,8 +3,22 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import asyncpg
+
+from .jobs import process_webhook
+
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    delivery_id  TEXT        PRIMARY KEY,
+    event_type   TEXT        NOT NULL,
+    payload      JSONB       NOT NULL,
+    received_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ
+);
+"""
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -21,7 +35,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        pass  # suppress default access log noise
+        pass
 
 
 def start_health_server() -> None:
@@ -31,10 +45,25 @@ def start_health_server() -> None:
     server.serve_forever()
 
 
-# Arq worker settings — full job definitions added in Sprint 1
+async def startup(ctx: dict) -> None:
+    pool = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=2, max_size=10)
+    async with pool.acquire() as conn:
+        await conn.execute(_SCHEMA)
+    ctx["db_pool"] = pool
+    logger.info("worker db pool ready")
+
+
+async def shutdown(ctx: dict) -> None:
+    pool: asyncpg.Pool = ctx.get("db_pool")
+    if pool:
+        await pool.close()
+
+
 class WorkerSettings:
-    redis_settings = None  # populated from env at startup
-    functions: list = []
+    redis_settings = None  # populated from env at startup via arq's from_dsn
+    functions = [process_webhook]
+    on_startup = startup
+    on_shutdown = shutdown
     max_jobs = 10
     job_timeout = 300
     keep_result = 60
@@ -42,9 +71,12 @@ class WorkerSettings:
 
 if __name__ == "__main__":
     import arq
+    from arq.connections import RedisSettings
 
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     logger.info("vellic worker starting, redis=%s", redis_url)
+    WorkerSettings.redis_settings = RedisSettings.from_dsn(redis_url)
+
     thread = threading.Thread(target=start_health_server, daemon=True)
     thread.start()
     arq.run_worker(WorkerSettings)
