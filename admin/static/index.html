@@ -795,6 +795,8 @@
     .jobs-table tbody tr:hover { background: rgba(255,255,255,0.025); }
     .jobs-table tbody tr.row-failed { background: rgba(239,68,68,0.04); }
     .jobs-table tbody tr.row-failed:hover { background: rgba(239,68,68,0.07); }
+    .jobs-table tbody tr.row-retried { background: rgba(245,158,11,0.04); }
+    .jobs-table tbody tr.row-retried:hover { background: rgba(245,158,11,0.07); }
     .jobs-mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
     /* Drawer */
@@ -2861,7 +2863,7 @@
           }
 
           tbody.innerHTML = items.map(job => {
-            const rowClass = job.status === 'failed' ? ' row-failed' : '';
+            const rowClass = job.status === 'failed' ? ' row-failed' : (job.retry_count ?? 0) >= 2 ? ' row-retried' : '';
             const retryColor = (job.retry_count ?? 0) >= 2 ? 'color:var(--warning-text)' : 'color:var(--text-muted)';
             const prCell = job.pr_number
               ? `<a href="https://github.com/${esc(job.repo)}/pull/${esc(job.pr_number)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px" onclick="event.stopPropagation()">#${esc(job.pr_number)} ↗</a>`

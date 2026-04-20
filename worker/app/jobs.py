@@ -26,7 +26,9 @@ _RETRY_DELAYS = [5, 25]
 _FEEDBACK_RETRY_DELAYS = [60, 300]
 
 
-async def _get_or_create_job(pool: asyncpg.Pool, delivery_id: str) -> uuid.UUID:
+async def _get_or_create_job(
+    pool: asyncpg.Pool, delivery_id: str, repo: str | None = None, pr_number: int | None = None
+) -> uuid.UUID:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id FROM pipeline_jobs WHERE delivery_id = $1 ORDER BY created_at DESC LIMIT 1",
@@ -34,9 +36,11 @@ async def _get_or_create_job(pool: asyncpg.Pool, delivery_id: str) -> uuid.UUID:
         )
         if row is None:
             row = await conn.fetchrow(
-                "INSERT INTO pipeline_jobs (delivery_id, status)"
-                " VALUES ($1, 'running') RETURNING id",
+                "INSERT INTO pipeline_jobs (delivery_id, status, repo, pr_number)"
+                " VALUES ($1, 'running', $2, $3) RETURNING id",
                 delivery_id,
+                repo,
+                pr_number,
             )
         else:
             await conn.execute(
@@ -172,7 +176,10 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
     )
 
     event = normalize_pr(delivery_id, payload)
-    job_id = await _get_or_create_job(pool, delivery_id)
+    pr_repo = (payload.get("repository") or {}).get("full_name") or None
+    pr_num_raw = (payload.get("pull_request") or {}).get("number")
+    pr_num = int(pr_num_raw) if pr_num_raw is not None else None
+    job_id = await _get_or_create_job(pool, delivery_id, repo=pr_repo, pr_number=pr_num)
 
     try:
         await run_pipeline(event, pool, llm, job_id, arq_redis)
