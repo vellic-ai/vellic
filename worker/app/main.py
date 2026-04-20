@@ -6,6 +6,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import asyncpg
 
 from .jobs import process_webhook
+from .llm import build_provider
+from .llm.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -51,6 +53,15 @@ async def startup(ctx: dict) -> None:
         await conn.execute(_SCHEMA)
     ctx["db_pool"] = pool
     logger.info("worker db pool ready")
+
+    provider = build_provider(
+        LLM_PROVIDER,
+        base_url=LLM_BASE_URL,
+        model=LLM_MODEL,
+        api_key=LLM_API_KEY,
+    )
+    ctx["llm"] = provider
+    logger.info("LLM provider ready: provider=%s model=%s", LLM_PROVIDER, LLM_MODEL)
 
 
 async def shutdown(ctx: dict) -> None:
