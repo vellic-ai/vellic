@@ -173,7 +173,8 @@ async def put_github_settings(body: GitHubAppIn) -> dict:
         if encrypted_key:
             row = await conn.fetchrow(
                 """
-                INSERT INTO webhook_config (id, github_app_id, github_installation_id, github_private_key, updated_at)
+                INSERT INTO webhook_config
+                    (id, github_app_id, github_installation_id, github_private_key, updated_at)
                 VALUES (1, $1, $2, $3, NOW())
                 ON CONFLICT (id) DO UPDATE SET
                     github_app_id = EXCLUDED.github_app_id,
@@ -223,7 +224,10 @@ async def test_github_connection() -> dict:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(
                 "https://api.github.com/app",
-                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                },
             )
         if r.status_code != 200:
             raise HTTPException(status_code=502, detail=f"GitHub API returned {r.status_code}")
