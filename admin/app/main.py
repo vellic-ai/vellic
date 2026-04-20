@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import arq_pool, db
@@ -57,8 +57,10 @@ async def health() -> dict:
 
 
 @app.get("/")
-async def admin_root() -> FileResponse:
+async def admin_root() -> Response:
     # @deprecated (VELLIC_ADMIN_V2): when flag=1, nginx serves / directly from SPA dist.
+    if _ADMIN_V2:
+        return Response(status_code=404, content="served by nginx")
     return FileResponse(str(_STATIC / "index.html"))
 
 
@@ -181,7 +183,9 @@ async def list_jobs(
 
 
 @app.get("/{path:path}")
-async def admin_spa(path: str) -> FileResponse:
+async def admin_spa(path: str) -> Response:
+    if _ADMIN_V2:
+        return Response(status_code=404, content="served by nginx")
     return FileResponse(str(_STATIC / "index.html"))
 
 
