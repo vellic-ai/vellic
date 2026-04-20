@@ -1,22 +1,21 @@
 """Unit tests for admin auth middleware and endpoints."""
 
-import hashlib
-import hmac
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import bcrypt
 import pytest
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
 from app.auth_router import (
-    AdminAuthMiddleware,
     COOKIE_NAME,
     SESSION_TTL,
+    AdminAuthMiddleware,
     _sign_cookie,
     _verify_cookie,
+)
+from app.auth_router import (
     router as auth_router,
 )
 

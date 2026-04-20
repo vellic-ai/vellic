@@ -87,7 +87,9 @@ async def test_get_webhook_with_secrets_set(client):
         hmac=encrypt("whsec_xyz"),
         github_app_id="12345",
         github_installation_id="67890",
-        github_private_key=encrypt("-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----"),
+        github_private_key=encrypt(
+            "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----"
+        ),
         gitlab_token=encrypt("glpat-abc"),
     )
     pool, _ = _make_pool(row)
@@ -162,7 +164,9 @@ async def test_put_github_with_key(client):
     row = _make_db_row(
         github_app_id="999",
         github_installation_id="888",
-        github_private_key=encrypt("-----BEGIN RSA PRIVATE KEY-----\nnewkey\n-----END RSA PRIVATE KEY-----"),
+        github_private_key=encrypt(
+            "-----BEGIN RSA PRIVATE KEY-----\nnewkey\n-----END RSA PRIVATE KEY-----"
+        ),
     )
     pool, _ = _make_pool(row)
     with patch("app.settings_router.db.get_pool", return_value=pool):
@@ -172,7 +176,9 @@ async def test_put_github_with_key(client):
                 json={
                     "app_id": "999",
                     "installation_id": "888",
-                    "private_key": "-----BEGIN RSA PRIVATE KEY-----\nnewkey\n-----END RSA PRIVATE KEY-----",
+                    "private_key": (
+                        "-----BEGIN RSA PRIVATE KEY-----\nnewkey\n-----END RSA PRIVATE KEY-----"
+                    ),
                 },
             )
     assert r.status_code == 200
