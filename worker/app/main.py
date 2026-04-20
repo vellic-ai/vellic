@@ -7,7 +7,7 @@ import asyncpg
 from arq import create_pool as arq_create_pool
 from arq.connections import RedisSettings
 
-from .jobs import process_webhook
+from .jobs import post_feedback, process_webhook
 from .llm import build_provider
 from .llm.config import LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, _EXTERNAL_PROVIDERS
 
@@ -72,7 +72,7 @@ async def shutdown(ctx: dict) -> None:
 
 class WorkerSettings:
     redis_settings = None  # populated at __main__ time from REDIS_URL
-    functions = [process_webhook]
+    functions = [process_webhook, post_feedback]
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 10
