@@ -27,10 +27,10 @@ function fmtAbsolute(ts: string | null | undefined) {
 }
 
 function DeliveryStatusBadge({ status }: { status: string }) {
-  if (status === "processed")
+  if (status === "done" || status === "processed")
     return (
       <Badge variant="success" className="text-xs">
-        <StatusDot status="processed" /> processed
+        <StatusDot status="processed" /> done
       </Badge>
     );
   if (status === "failed")
@@ -41,7 +41,7 @@ function DeliveryStatusBadge({ status }: { status: string }) {
     );
   return (
     <Badge variant="default" className="text-xs">
-      <StatusDot status="queued" /> queued
+      <StatusDot status="queued" /> pending
     </Badge>
   );
 }
@@ -103,10 +103,11 @@ export default function DeliveriesPage() {
           onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
           className="w-36"
           aria-label="Filter by status"
+          data-testid="status-filter"
         >
           <option value="all">All statuses</option>
-          <option value="queued">Queued</option>
-          <option value="processed">Processed</option>
+          <option value="pending">Pending</option>
+          <option value="done">Done</option>
           <option value="failed">Failed</option>
         </NativeSelect>
 
@@ -153,7 +154,7 @@ export default function DeliveriesPage() {
         />
       ) : (
         <>
-          <div className="bg-surface border border-border rounded overflow-hidden">
+          <div data-testid="deliveries-table" className="bg-surface border border-border rounded overflow-hidden">
             <table className="w-full text-sm border-collapse" role="table">
               <thead>
                 <tr className="bg-surface border-b border-border text-text-muted text-xs uppercase tracking-[.04em]">
@@ -179,6 +180,7 @@ export default function DeliveriesPage() {
                   items.map((d) => (
                     <tr
                       key={d.delivery_id}
+                      data-testid="delivery-row"
                       className={`border-b border-border last:border-b-0 hover:bg-surface-2/30 transition-colors ${d.status === "failed" ? "bg-error/[0.02]" : ""}`}
                     >
                       <td className="px-4 py-2.5">

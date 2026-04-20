@@ -36,7 +36,7 @@ function StatTile({
   loading?: boolean;
 }) {
   return (
-    <div className="bg-surface border border-border rounded p-5">
+    <div data-testid="metric-card" className="bg-surface border border-border rounded p-5">
       <div className="text-xs text-text-muted mb-2 uppercase tracking-[.04em] font-medium">
         {label}
       </div>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+      <div data-testid="dashboard-metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <StatTile
           label="PRs reviewed"
           value={statsError ? "—" : stats?.prs_reviewed_24h}

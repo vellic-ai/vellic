@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import { Shell, PageHeader, StatusDot, EmptyState, Skeleton } from "@/components/Shell";
 import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -116,7 +117,7 @@ function JobDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
             className="grid text-sm mb-5"
             style={{ gridTemplateColumns: "120px 1fr", rowGap: 10, columnGap: 12 }}
           >
-            <Field label="Repo" value={<span className="font-mono">{job.repo}</span>} />
+            <Field label="Repo" value={<span data-testid="job-repo" className="font-mono">{job.repo}</span>} />
             <Field
               label="PR"
               value={
@@ -130,8 +131,8 @@ function JobDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
                 </a>
               }
             />
-            <Field label="Status" value={<JobStatusBadge status={job.status ?? "queued"} />} />
-            <Field label="Duration" value={fmtDuration(job.duration_ms)} />
+            <Field label="Status" value={<span data-testid="job-status"><JobStatusBadge status={job.status ?? "queued"} /></span>} />
+            <Field label="Duration" value={<span data-testid="job-duration">{fmtDuration(job.duration_ms)}</span>} />
             <Field label="Created" value={fmtAbsolute(job.created_at)} />
           </div>
 
@@ -189,8 +190,9 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function JobsPage() {
+  const navigate = useNavigate();
+  const { jobId } = useParams<{ jobId?: string }>();
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading } = useJobs({
     limit: 50,
@@ -198,7 +200,7 @@ export default function JobsPage() {
   });
 
   const jobs = (data?.items ?? []) as Job[];
-  const selected = jobs.find((j) => j.id === selectedId);
+  const selected = jobs.find((j) => j.id === jobId) ?? null;
 
   return (
     <Shell>
@@ -251,15 +253,15 @@ export default function JobsPage() {
               {jobs.map((j) => (
                 <tr
                   key={j.id}
+                  data-testid="job-row"
                   className={cn(
                     "border-b border-border last:border-b-0 cursor-pointer hover:bg-surface-2/40 transition-colors",
                     j.status === "failed" && "bg-error/[0.02]",
-                    selectedId === j.id && "bg-surface-2",
+                    jobId === j.id && "bg-surface-2",
                   )}
-                  onClick={() => setSelectedId(j.id)}
+                  onClick={() => navigate(`/jobs/${j.id}`)}
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && setSelectedId(j.id)}
-                  role="button"
+                  onKeyDown={(e) => e.key === "Enter" && navigate(`/jobs/${j.id}`)}
                   aria-label={`View job ${j.id}`}
                 >
                   <td className="px-4 py-2.5">
@@ -293,7 +295,7 @@ export default function JobsPage() {
       )}
 
       {selected && (
-        <JobDrawer job={selected} onClose={() => setSelectedId(null)} />
+        <JobDrawer job={selected} onClose={() => navigate("/jobs")} />
       )}
     </Shell>
   );
