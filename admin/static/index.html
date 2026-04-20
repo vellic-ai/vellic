@@ -751,9 +751,160 @@
     @media (max-width: 400px) {
       .stats-grid { grid-template-columns: 1fr; }
     }
+
+    /* ── Auth page ── */
+    .auth-page {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+    }
+
+    .auth-card { width: 100%; max-width: 380px; }
+
+    .auth-wordmark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .auth-wordmark-text {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+
+    .input.error { border-color: var(--error); }
+    .input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.15); border-color: var(--error); }
+
+    .field-error { font-size: 12px; color: var(--error); margin-top: 4px; }
+
+    .btn-lg { padding: 11px 18px; font-size: 14px; }
+
+    .label { font-size: 13px; font-weight: 500; color: var(--text); }
+
+    .auth-footer { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-muted); }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--border);
+      padding: 10px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sidebar-version {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .auth-setup-intro {
+      margin-bottom: 18px;
+    }
+
+    .auth-setup-intro h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .auth-setup-intro p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
+  <!-- Auth page (covers app until authenticated) -->
+  <div id="auth-page" class="auth-page">
+    <div class="auth-card">
+      <div class="auth-wordmark">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="vellicG" x1="0" y1="24" x2="24" y2="0">
+              <stop offset="0%" stop-color="#4b7cff"/>
+              <stop offset="100%" stop-color="#8c7cff"/>
+            </linearGradient>
+          </defs>
+          <path d="M4 21L12 3L20 21" stroke="url(#vellicG)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="auth-wordmark-text">vellic <span class="text-muted" style="font-weight:400">admin</span></span>
+      </div>
+
+      <!-- Login form -->
+      <div id="auth-login">
+        <form id="login-form" class="card" style="padding:28px" autocomplete="off" novalidate>
+          <div class="field" style="margin-bottom:18px">
+            <label class="label" for="login-pw">Admin password</label>
+            <div class="password-wrap" style="margin-top:6px">
+              <input id="login-pw" class="input" type="password" placeholder="Enter password" autofocus />
+              <button type="button" class="password-toggle" id="login-pw-toggle" aria-label="Toggle visibility">
+                <svg id="login-eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <ellipse cx="8" cy="8" rx="6.5" ry="4"/>
+                  <circle cx="8" cy="8" r="1.8"/>
+                </svg>
+                <svg id="login-eye-hide" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden">
+                  <path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/>
+                  <path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/>
+                </svg>
+              </button>
+            </div>
+            <div id="login-error" class="field-error hidden"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" id="login-btn" style="width:100%" disabled>
+            <span class="spinner hidden" id="login-spinner"></span>
+            Sign in
+          </button>
+        </form>
+        <div class="auth-footer">Self-hosted instance · v0.4.2</div>
+      </div>
+
+      <!-- Setup form (first run) -->
+      <div id="auth-setup" class="hidden">
+        <form id="setup-form" class="card" style="padding:28px" autocomplete="off" novalidate>
+          <div class="auth-setup-intro">
+            <h2>Set admin password</h2>
+            <p>First launch — choose a password to secure this instance.</p>
+          </div>
+          <div class="field" style="margin-bottom:18px">
+            <label class="label" for="setup-pw">Password</label>
+            <div class="password-wrap" style="margin-top:6px">
+              <input id="setup-pw" class="input" type="password" placeholder="Choose a password" />
+              <button type="button" class="password-toggle" id="setup-pw-toggle" aria-label="Toggle visibility">
+                <svg id="setup-eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <ellipse cx="8" cy="8" rx="6.5" ry="4"/>
+                  <circle cx="8" cy="8" r="1.8"/>
+                </svg>
+                <svg id="setup-eye-hide" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden">
+                  <path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/>
+                  <path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/>
+                </svg>
+              </button>
+            </div>
+            <div id="setup-error" class="field-error hidden"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" id="setup-btn" style="width:100%" disabled>
+            <span class="spinner hidden" id="setup-spinner"></span>
+            Set password &amp; continue
+          </button>
+        </form>
+        <div class="auth-footer">Self-hosted instance · v0.4.2</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
@@ -786,6 +937,16 @@
         <span>LLM Provider</span>
       </a>
     </nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" id="logout-btn" style="color:var(--text-muted);font-size:12px;padding:6px 8px;gap:7px">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M10.5 5.5V3H2v10h8.5v-2.5"/>
+          <path d="M6.5 8H14M11.5 5.5L14 8l-2.5 2.5"/>
+        </svg>
+        <span>Log out</span>
+      </button>
+      <span class="sidebar-version">v0.4.2</span>
+    </div>
   </aside>
 
   <!-- Main -->
@@ -1415,7 +1576,7 @@
 
           try {
             const res = await fetch(`/admin/deliveries?${params}`);
-            if (res.status === 401) { location.href = '/login'; return; }
+            if (res.status === 401) { Auth.showLogin(); return; }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             total = data.total;
@@ -1462,7 +1623,7 @@
               btn.disabled = true;
               try {
                 const res = await fetch(`/admin/replay/${encodeURIComponent(id)}`, { method: 'POST' });
-                if (res.status === 401) { location.href = '/login'; return; }
+                if (res.status === 401) { Auth.showLogin(); return; }
                 if (!res.ok) {
                   const detail = await res.json().then(d => d.detail).catch(() => `HTTP ${res.status}`);
                   throw new Error(detail);
@@ -1515,8 +1676,159 @@
         return { load };
       })();
 
+      // ── Auth ─────────────────────────────────────────────────────────────
+
+      const Auth = (() => {
+        function showAuthPage(mode) {
+          document.getElementById('auth-page').classList.remove('hidden');
+          document.getElementById('auth-login').classList.toggle('hidden', mode !== 'login');
+          document.getElementById('auth-setup').classList.toggle('hidden', mode !== 'setup');
+          if (mode === 'login') {
+            const pw = document.getElementById('login-pw');
+            pw.value = '';
+            pw.classList.remove('error');
+            document.getElementById('login-error').classList.add('hidden');
+            setTimeout(() => pw.focus(), 50);
+          }
+          if (mode === 'setup') {
+            const pw = document.getElementById('setup-pw');
+            pw.value = '';
+            setTimeout(() => pw.focus(), 50);
+          }
+        }
+
+        function showApp() {
+          document.getElementById('auth-page').classList.add('hidden');
+          render();
+        }
+
+        async function init() {
+          try {
+            const res = await fetch('/admin/auth/status');
+            if (!res.ok) { showAuthPage('login'); return; }
+            const data = await res.json();
+            if (data.setup_required) { showAuthPage('setup'); return; }
+            if (!data.authenticated) { showAuthPage('login'); return; }
+            showApp();
+          } catch {
+            showAuthPage('login');
+          }
+        }
+
+        function bindToggle(inputId, toggleBtnId, eyeShowId, eyeHideId) {
+          document.getElementById(toggleBtnId).addEventListener('click', () => {
+            const inp = document.getElementById(inputId);
+            const isPass = inp.type === 'password';
+            inp.type = isPass ? 'text' : 'password';
+            document.getElementById(eyeShowId).classList.toggle('hidden', isPass);
+            document.getElementById(eyeHideId).classList.toggle('hidden', !isPass);
+          });
+        }
+
+        function bindLogin() {
+          const pw    = document.getElementById('login-pw');
+          const btn   = document.getElementById('login-btn');
+          const spin  = document.getElementById('login-spinner');
+          const errEl = document.getElementById('login-error');
+
+          bindToggle('login-pw', 'login-pw-toggle', 'login-eye-show', 'login-eye-hide');
+
+          pw.addEventListener('input', () => {
+            btn.disabled = !pw.value;
+            pw.classList.remove('error');
+            errEl.classList.add('hidden');
+          });
+
+          document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!pw.value) return;
+            btn.disabled = true;
+            spin.classList.remove('hidden');
+            errEl.classList.add('hidden');
+            pw.classList.remove('error');
+            try {
+              const res = await fetch('/admin/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pw.value }),
+              });
+              if (res.status === 401) {
+                errEl.textContent = 'Incorrect password.';
+                errEl.classList.remove('hidden');
+                pw.classList.add('error');
+                pw.value = '';
+                pw.focus();
+                return;
+              }
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              showApp();
+            } catch (err) {
+              if (!errEl.textContent) {
+                errEl.textContent = 'Login failed. Please try again.';
+                errEl.classList.remove('hidden');
+              }
+            } finally {
+              spin.classList.add('hidden');
+              btn.disabled = !pw.value;
+            }
+          });
+        }
+
+        function bindSetup() {
+          const pw    = document.getElementById('setup-pw');
+          const btn   = document.getElementById('setup-btn');
+          const spin  = document.getElementById('setup-spinner');
+          const errEl = document.getElementById('setup-error');
+
+          bindToggle('setup-pw', 'setup-pw-toggle', 'setup-eye-show', 'setup-eye-hide');
+
+          pw.addEventListener('input', () => {
+            btn.disabled = !pw.value;
+            pw.classList.remove('error');
+            errEl.classList.add('hidden');
+          });
+
+          document.getElementById('setup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!pw.value) return;
+            btn.disabled = true;
+            spin.classList.remove('hidden');
+            errEl.classList.add('hidden');
+            try {
+              const res = await fetch('/admin/auth/setup', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pw.value }),
+              });
+              if (res.status === 409) { showAuthPage('login'); return; }
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              showApp();
+            } catch (err) {
+              errEl.textContent = 'Setup failed. Please try again.';
+              errEl.classList.remove('hidden');
+              pw.classList.add('error');
+            } finally {
+              spin.classList.add('hidden');
+              btn.disabled = !pw.value;
+            }
+          });
+        }
+
+        function bindLogout() {
+          document.getElementById('logout-btn').addEventListener('click', async () => {
+            try { await fetch('/admin/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+            showAuthPage('login');
+          });
+        }
+
+        return { init, bindLogin, bindSetup, bindLogout, showLogin: () => showAuthPage('login') };
+      })();
+
       // ── Boot ─────────────────────────────────────────────────────────────
-      render();
+      Auth.bindLogin();
+      Auth.bindSetup();
+      Auth.bindLogout();
+      Auth.init();
     })();
   </script>
 </body>
