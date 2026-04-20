@@ -16,19 +16,8 @@ test("deliveries list: filter by done shows results", async ({ page }) => {
     .or(page.getByRole("table"));
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  // Open the status filter and select "done" (labelled "Success" or "Done" in UI).
-  const statusFilter = page
-    .locator("[data-testid=status-filter]")
-    .or(page.getByRole("combobox", { name: /status/i }))
-    .or(page.getByLabel(/status/i));
-  await statusFilter.click();
-
-  const doneOption = page
-    .getByRole("option", { name: /done|success/i })
-    .or(page.locator("[data-value=done]"))
-    .first();
-  await expect(doneOption).toBeVisible({ timeout: 5_000 });
-  await doneOption.click();
+  // Select "done" status using selectOption — the filter is a native <select>.
+  await page.locator("[data-testid=status-filter]").selectOption("done");
 
   // At least one delivery row appears.
   const rows = page
