@@ -27,6 +27,7 @@ const routes = [
       { path: "/dashboard", element: <DashboardPage /> },
       { path: "/deliveries", element: <DeliveriesPage /> },
       { path: "/jobs", element: <JobsPage /> },
+      { path: "/jobs/:jobId", element: <JobsPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/repos", element: <ReposPage /> },
       { path: "*", element: <NotFoundPage /> },
