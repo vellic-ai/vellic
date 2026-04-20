@@ -65,7 +65,7 @@ _RECENT_SQL = """
 SELECT
   wd.delivery_id,
   wd.event_type,
-  wd.payload->>'repo' AS repo,
+  wd.payload->'repository'->>'full_name' AS repo,
   wd.received_at,
   COALESCE(
     (
