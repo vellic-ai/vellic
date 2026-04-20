@@ -723,6 +723,160 @@
     .del-pg-info { font-size: 12px; color: var(--text-muted); }
     .del-pg-btns { display: flex; gap: 8px; }
 
+    /* ── Jobs page ── */
+
+    .jobs-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .jobs-filters .select-wrap { width: auto; }
+    .jobs-filters .select { min-width: 150px; width: auto; }
+
+    .jobs-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .jobs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    .jobs-table th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .jobs-table th:first-child { padding-left: 20px; }
+
+    .jobs-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: var(--text);
+    }
+
+    .jobs-table td:first-child { padding-left: 20px; }
+    .jobs-table tr:last-child td { border-bottom: none; }
+    .jobs-table tbody tr { cursor: pointer; transition: background 0.12s; }
+    .jobs-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+    .jobs-table tbody tr.row-failed { background: rgba(239,68,68,0.04); }
+    .jobs-table tbody tr.row-failed:hover { background: rgba(239,68,68,0.07); }
+    .jobs-mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+    /* Drawer */
+    .drawer-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      animation: jfade-in 0.15s ease;
+    }
+
+    @keyframes jfade-in { from { opacity: 0; } to { opacity: 1; } }
+
+    .drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 420px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 101;
+      display: flex;
+      flex-direction: column;
+      animation: jslide-in 0.2s ease;
+    }
+
+    @keyframes jslide-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .drawer-id-label { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
+    .drawer-id-value { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); }
+
+    .drawer-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); display: flex; align-items: center;
+      padding: 4px; border-radius: 6px; transition: color .12s, background .12s;
+    }
+
+    .drawer-close:hover { color: var(--text); background: var(--surface-2); }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .drawer-grid {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      row-gap: 10px;
+      column-gap: 12px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    .drawer-label { color: var(--text-muted); font-size: 12px; align-self: center; }
+
+    .drawer-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .pipeline-track {
+      display: flex;
+      align-items: center;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .pipeline-stage { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+    .pipeline-stage-icon {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .pipeline-connector { flex: 0.4; height: 1px; background: var(--border); margin-top: -18px; }
+    .pipeline-stage-label { font-size: 11.5px; color: var(--text-muted); }
+    .pipeline-stage-label.active { color: var(--text); }
+
+    .job-error-pre {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--error);
+      border-radius: var(--radius);
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.55;
+      color: #ffb5bf;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0;
+    }
+
     /* Responsive */
     @media (max-width: 900px) {
       .sidebar {
@@ -920,13 +1074,20 @@
         </svg>
         <span>Dashboard</span>
       </a>
-      <div class="nav-section-label">Webhooks</div>
+      <div class="nav-section-label">Observe</div>
       <a class="nav-item" href="/deliveries" data-navlink>
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
           <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
           <path d="M1.5 6l6.5 3.5L14.5 6"/>
         </svg>
         <span>Deliveries</span>
+      </a>
+      <a class="nav-item" href="/jobs" data-navlink>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6.5"/>
+          <path d="M8 4.5v3.5l2.5 1.5"/>
+        </svg>
+        <span>Jobs</span>
       </a>
       <div class="nav-section-label" style="margin-top:8px">Settings</div>
       <a class="nav-item" href="/settings/llm" data-navlink>
@@ -1091,6 +1252,54 @@
       </div>
     </div>
 
+    <!-- Jobs page -->
+    <div id="page-jobs" class="content content-wide page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Jobs</h1>
+        <p class="page-desc">Analysis pipeline runs per PR/MR.</p>
+      </div>
+
+      <div class="jobs-filters">
+        <div class="select-wrap">
+          <select id="jobs-filter-status" class="select">
+            <option value="">All statuses</option>
+            <option value="queued">Queued</option>
+            <option value="running">Running</option>
+            <option value="done">Done</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+        <span class="text-muted" id="jobs-count" style="font-size:12.5px"></span>
+      </div>
+
+      <div class="jobs-table-wrap">
+        <table class="jobs-table">
+          <thead>
+            <tr>
+              <th style="width:160px">Job ID</th>
+              <th>Repo</th>
+              <th style="width:80px">PR</th>
+              <th style="width:120px">Status</th>
+              <th style="width:90px">Retries</th>
+              <th style="width:100px">Duration</th>
+              <th style="width:130px">Created</th>
+            </tr>
+          </thead>
+          <tbody id="jobs-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="del-pagination hidden" id="jobs-pagination">
+        <span class="del-pg-info" id="jobs-pg-info"></span>
+        <div class="del-pg-btns">
+          <button class="btn btn-ghost btn-sm" id="jobs-btn-prev">← Prev</button>
+          <button class="btn btn-ghost btn-sm" id="jobs-btn-next">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Job drawer (injected dynamically) -->
+
     <!-- Placeholder page for unimplemented routes -->
     <div id="page-placeholder" class="content content-narrow page hidden">
       <div class="page-header">
@@ -1110,7 +1319,8 @@
       const ROUTES = {
         '/':              { page: 'dashboard',    breadcrumb: ['Dashboard'] },
         '/settings/llm':  { page: 'settings-llm', breadcrumb: ['Settings', 'LLM Provider'] },
-        '/deliveries':    { page: 'deliveries',   breadcrumb: ['Webhooks', 'Deliveries'] },
+        '/deliveries':    { page: 'deliveries',   breadcrumb: ['Observe', 'Deliveries'] },
+        '/jobs':          { page: 'jobs',          breadcrumb: ['Observe', 'Jobs'] },
         '/settings/repos':{ page: 'placeholder',  breadcrumb: ['Settings', 'Repositories'], title: 'Repositories' },
       };
 
@@ -1153,6 +1363,7 @@
         if (route.page === 'dashboard')    Dashboard.load();
         if (route.page === 'settings-llm') LLMSettings.load();
         if (route.page === 'deliveries')   Deliveries.load();
+        if (route.page === 'jobs')         Jobs.load();
       }
 
       document.addEventListener('click', e => {
@@ -1822,6 +2033,265 @@
         }
 
         return { init, bindLogin, bindSetup, bindLogout, showLogin: () => showAuthPage('login') };
+      })();
+
+      // ── Jobs ────────────────────────────────────────────────────────────
+
+      const Jobs = (() => {
+        const LIMIT = 50;
+        let offset  = 0;
+        let total   = 0;
+        let bound   = false;
+        let selectedJob = null;
+
+        function esc(s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function relTime(iso) {
+          if (!iso) return '<span class="text-muted">—</span>';
+          const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+          if (s < 60)  return s + 's ago';
+          if (s < 3600) return Math.floor(s / 60) + 'm ago';
+          if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+          return Math.floor(s / 86400) + 'd ago';
+        }
+
+        function absTime(iso) {
+          if (!iso) return '—';
+          return new Date(iso).toLocaleString();
+        }
+
+        function fmtDuration(ms) {
+          if (ms === null || ms === undefined) return '—';
+          if (ms < 1000) return ms + 'ms';
+          if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+          return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+        }
+
+        function statusBadge(s) {
+          const map = {
+            queued:  'status-badge-pending',
+            running: 'status-badge-running',
+            done:    'status-badge-done',
+            failed:  'status-badge-failed',
+          };
+          const label = { queued: 'Queued', running: 'Running', done: 'Done', failed: 'Failed' }[s] ?? s;
+          const cls = map[s] ?? 'status-badge-pending';
+          return `<span class="status-badge ${esc(cls)}"><span class="status-dot ${esc(s)}"></span>${esc(label)}</span>`;
+        }
+
+        function stageIconSvg(state) {
+          if (state === 'done') {
+            return `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"><path d="M3 8l4 4 6-6"/></svg>`;
+          }
+          if (state === 'failed') {
+            return `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--error)" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`;
+          }
+          if (state === 'running') {
+            return `<span class="spinner" style="width:10px;height:10px;border-width:1.5px;border-top-color:var(--accent)"></span>`;
+          }
+          return `<span style="width:8px;height:8px;border-radius:50%;border:1.5px solid var(--border);display:inline-block"></span>`;
+        }
+
+        function deriveStages(job) {
+          const status = job.status;
+          if (status === 'queued') return ['pending', 'pending', 'pending', 'pending'];
+          if (status === 'done')   return ['done', 'done', 'done', 'done'];
+          if (status === 'failed') return ['done', 'failed', 'pending', 'pending'];
+          if (status === 'running') return ['done', 'running', 'pending', 'pending'];
+          return ['pending', 'pending', 'pending', 'pending'];
+        }
+
+        function renderDrawer(job) {
+          closeDrawer();
+          const stages = deriveStages(job);
+          const stageLabels = ['Fetch', 'Analyze', 'Format', 'Post'];
+
+          const pipelineHtml = stages.map((state, i) => {
+            const connector = i < stages.length - 1 ? '<div class="pipeline-connector"></div>' : '';
+            const active = state === 'running' ? ' active' : '';
+            return `
+              <div class="pipeline-stage">
+                <div class="pipeline-stage-icon">${stageIconSvg(state)}</div>
+                <span class="pipeline-stage-label${esc(active)}">${esc(stageLabels[i])}</span>
+              </div>
+              ${connector}`;
+          }).join('');
+
+          const errorHtml = job.error ? `
+            <div class="drawer-section-title" style="margin-top:0">Error</div>
+            <pre class="job-error-pre">${esc(job.error)}</pre>` : '';
+
+          const prLink = job.pr_number
+            ? `<a href="https://github.com/${esc(job.repo)}/pull/${esc(job.pr_number)}" target="_blank" rel="noopener" style="color:var(--accent)">#${esc(job.pr_number)} ↗</a>`
+            : '—';
+
+          const overlay = document.createElement('div');
+          overlay.className = 'drawer-overlay';
+          overlay.addEventListener('click', closeDrawer);
+
+          const drawer = document.createElement('div');
+          drawer.className = 'drawer';
+          drawer.id = 'job-drawer';
+          drawer.innerHTML = `
+            <div class="drawer-header">
+              <div>
+                <div class="drawer-id-label">Job</div>
+                <div class="drawer-id-value">${esc(job.id)}</div>
+              </div>
+              <button class="drawer-close" id="drawer-close-btn" aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                  <path d="M4 4l8 8M12 4l-8 8"/>
+                </svg>
+              </button>
+            </div>
+            <div class="drawer-body">
+              <div class="drawer-grid">
+                <div class="drawer-label">Repo</div>
+                <div><span class="jobs-mono">${esc(job.repo ?? '—')}</span></div>
+                <div class="drawer-label">PR</div>
+                <div>${prLink}</div>
+                <div class="drawer-label">Status</div>
+                <div>${statusBadge(job.status)}</div>
+                <div class="drawer-label">Retries</div>
+                <div style="color:${(job.retry_count ?? 0) >= 2 ? 'var(--warning-text)' : 'var(--text)'};">${esc(String(job.retry_count ?? 0))}</div>
+                <div class="drawer-label">Duration</div>
+                <div class="text-muted">${esc(fmtDuration(job.duration_ms))}</div>
+                <div class="drawer-label">Created</div>
+                <div class="text-muted" style="font-size:12px">${esc(absTime(job.created_at))}</div>
+              </div>
+
+              <div class="drawer-section-title">Pipeline</div>
+              <div class="pipeline-track">${pipelineHtml}</div>
+
+              ${errorHtml}
+            </div>`;
+
+          document.body.appendChild(overlay);
+          document.body.appendChild(drawer);
+          document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
+
+          document.addEventListener('keydown', onEsc);
+        }
+
+        function onEsc(e) {
+          if (e.key === 'Escape') closeDrawer();
+        }
+
+        function closeDrawer() {
+          document.getElementById('job-drawer')?.remove();
+          document.querySelector('.drawer-overlay')?.remove();
+          document.removeEventListener('keydown', onEsc);
+          selectedJob = null;
+        }
+
+        async function fetchAndRender() {
+          const tbody = document.getElementById('jobs-tbody');
+          if (!tbody) return;
+
+          const status = document.getElementById('jobs-filter-status')?.value ?? '';
+          const params = new URLSearchParams({ limit: LIMIT, offset, status });
+          tbody.innerHTML = `<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text-muted)">Loading…</td></tr>`;
+
+          try {
+            const res = await fetch(`/admin/jobs?${params}`);
+            if (res.status === 401) { location.href = '/login'; return; }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            total = data.total;
+            renderRows(tbody, data.items);
+            renderPagination();
+            const countEl = document.getElementById('jobs-count');
+            if (countEl) countEl.textContent = `${total} job${total === 1 ? '' : 's'}`;
+          } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="7">
+              <div class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <circle cx="20" cy="20" r="16"/>
+                  <path d="M20 12v9l5 3"/>
+                </svg>
+                <h3>Failed to load jobs</h3>
+                <p>${esc(err.message)}</p>
+              </div>
+            </td></tr>`;
+          }
+        }
+
+        function renderRows(tbody, items) {
+          if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="7">
+              <div class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <circle cx="20" cy="20" r="16"/>
+                  <path d="M20 12v9l5 3"/>
+                </svg>
+                <h3>No jobs yet</h3>
+                <p>Jobs appear here once PRs are processed.</p>
+              </div>
+            </td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = items.map(job => {
+            const rowClass = job.status === 'failed' ? ' row-failed' : '';
+            const retryColor = (job.retry_count ?? 0) >= 2 ? 'color:var(--warning-text)' : 'color:var(--text-muted)';
+            const prCell = job.pr_number
+              ? `<a href="https://github.com/${esc(job.repo)}/pull/${esc(job.pr_number)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px" onclick="event.stopPropagation()">#${esc(job.pr_number)} ↗</a>`
+              : '<span class="text-muted">—</span>';
+            return `<tr class="${rowClass}" data-id="${esc(job.id)}">
+              <td><span class="jobs-mono">${esc(job.id.slice(0, 14))}</span></td>
+              <td><span class="jobs-mono">${esc(job.repo ?? '—')}</span></td>
+              <td>${prCell}</td>
+              <td>${statusBadge(job.status)}</td>
+              <td><span style="font-size:12.5px;${retryColor}">${esc(String(job.retry_count ?? 0))}</span></td>
+              <td><span class="text-muted" style="font-size:12.5px">${esc(fmtDuration(job.duration_ms))}</span></td>
+              <td><span class="text-muted" style="font-size:12.5px" title="${esc(absTime(job.created_at))}">${relTime(job.created_at)}</span></td>
+            </tr>`;
+          }).join('');
+
+          tbody.querySelectorAll('tr[data-id]').forEach(row => {
+            const id = row.dataset.id;
+            row.addEventListener('click', () => {
+              const job = items.find(j => j.id === id);
+              if (job) renderDrawer(job);
+            });
+          });
+        }
+
+        function renderPagination() {
+          const pg   = document.getElementById('jobs-pagination');
+          const info = document.getElementById('jobs-pg-info');
+          const prev = document.getElementById('jobs-btn-prev');
+          const next = document.getElementById('jobs-btn-next');
+          if (!pg) return;
+          if (total <= LIMIT) { pg.classList.add('hidden'); return; }
+          pg.classList.remove('hidden');
+          info.textContent = `${offset + 1}–${Math.min(offset + LIMIT, total)} of ${total}`;
+          prev.disabled = offset === 0;
+          next.disabled = offset + LIMIT >= total;
+        }
+
+        function load() {
+          if (!bound) {
+            bound = true;
+            document.getElementById('jobs-filter-status')?.addEventListener('change', () => {
+              offset = 0; fetchAndRender();
+            });
+            document.getElementById('jobs-btn-prev')?.addEventListener('click', () => {
+              offset = Math.max(0, offset - LIMIT); fetchAndRender();
+            });
+            document.getElementById('jobs-btn-next')?.addEventListener('click', () => {
+              offset += LIMIT; fetchAndRender();
+            });
+          }
+          closeDrawer();
+          fetchAndRender();
+        }
+
+        return { load };
       })();
 
       // ── Boot ─────────────────────────────────────────────────────────────
