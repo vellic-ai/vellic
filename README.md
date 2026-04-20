@@ -58,10 +58,27 @@ bash scripts/health-check.sh            # verify all three services are healthy
 All services respond `{"status": "ok"}` when ready:
 
 ```
-http://localhost:8000/health   api
-http://localhost:8001/health   admin
-http://localhost:8002/health   worker
+http://localhost:8000/health   api       webhook ingestion
+http://localhost:8001/health   admin     REST API for the SPA
+http://localhost:8002/health   worker    async pipeline
+http://localhost:80            frontend  admin SPA (nginx)
 ```
+
+### Accessing the admin panel
+
+Open **http://localhost:80** in your browser. On first launch you will be prompted to set an admin password.
+
+Once logged in you can:
+
+| Page | URL | What it does |
+|---|---|---|
+| Dashboard | `/dashboard` | Live metrics — PRs reviewed, latency p50/p95, failure rate |
+| Deliveries | `/deliveries` | Inbound webhooks, status, replay any delivery |
+| Jobs | `/jobs` | Pipeline runs per PR — status, duration, error logs |
+| Providers | `/settings` | Configure LLM provider, model, API key, base URL |
+| Repositories | `/repos` | Per-repo model overrides and enable/disable toggles |
+
+> **Note:** the `frontend` Docker image must be running. It is included in `docker-compose.yml` and starts automatically with `docker compose up`.
 
 Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: [VCS Integrations](docs/vcs-integrations.md).
 
