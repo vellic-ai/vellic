@@ -195,6 +195,7 @@ export default function SettingsPage() {
       .filter((r) => r.provider === kind)
       .map((r) => ({ id: r.id, full_name: r.slug, model: r.model ?? "" }));
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSave = (_kind: string, _state: ProviderState) => {
     if (!llmData) return;
     saveLLM.mutate(llmData as import("@/api").LLMSettingsIn);

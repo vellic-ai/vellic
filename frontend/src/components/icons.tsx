@@ -36,6 +36,7 @@ function Icon({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const Icons = {
   dashboard: ({ size = 16 }: IconProps) => (
     <Icon size={size} d={<path d="M3 12l9-8 9 8M5 10v10h4v-6h6v6h4V10" />} />
