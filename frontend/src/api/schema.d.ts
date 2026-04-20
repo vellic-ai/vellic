@@ -1,0 +1,437 @@
+/**
+ * Hand-maintained until `npm run gen:api` is executed against a running admin server.
+ * Run: npm run gen:api
+ * Source: http://localhost:8001/openapi.json
+ *
+ * Types mirror admin/app/{auth,stats,repos,settings}_router.py Pydantic models exactly.
+ */
+
+export interface paths {
+  "/health": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["HealthResponse"] } };
+      };
+    };
+  };
+
+  "/admin/auth/status": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["AuthStatus"] } };
+      };
+    };
+  };
+
+  "/admin/auth/setup": {
+    put: {
+      requestBody: { content: { "application/json": components["schemas"]["SetupBody"] } };
+      responses: {
+        204: { content?: never };
+        409: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/auth/login": {
+    post: {
+      requestBody: { content: { "application/json": components["schemas"]["LoginBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["LoginResponse"] } };
+        401: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/auth/logout": {
+    post: {
+      responses: {
+        204: { content?: never };
+      };
+    };
+  };
+
+  "/admin/auth/change-password": {
+    post: {
+      requestBody: {
+        content: { "application/json": components["schemas"]["ChangePasswordBody"] };
+      };
+      responses: {
+        204: { content?: never };
+        401: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/stats": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["StatsResponse"] } };
+      };
+    };
+  };
+
+  "/admin/deliveries": {
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          offset?: number;
+          status?: string;
+          event_type?: string;
+        };
+      };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["DeliveryList"] } };
+      };
+    };
+  };
+
+  "/admin/replay/{delivery_id}": {
+    post: {
+      parameters: {
+        path: { delivery_id: string };
+      };
+      responses: {
+        202: { content: { "application/json": components["schemas"]["ReplayResponse"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/jobs": {
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          offset?: number;
+          status?: string;
+        };
+      };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["JobList"] } };
+      };
+    };
+  };
+
+  "/admin/settings/llm": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["LLMSettingsOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    put: {
+      requestBody: { content: { "application/json": components["schemas"]["LLMSettingsIn"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["LLMSettingsOut"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/webhook": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["WebhookSettingsOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    put: {
+      requestBody: {
+        content: { "application/json": components["schemas"]["WebhookEndpointIn"] };
+      };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["WebhookSettingsOut"] } };
+      };
+    };
+  };
+
+  "/admin/settings/webhook/rotate": {
+    post: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["RotateHmacResponse"] } };
+      };
+    };
+  };
+
+  "/admin/settings/github": {
+    put: {
+      requestBody: { content: { "application/json": components["schemas"]["GitHubAppIn"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["WebhookSettingsOut"] } };
+      };
+    };
+  };
+
+  "/admin/settings/github/test": {
+    post: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["TestConnectionResponse"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        502: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/gitlab": {
+    put: {
+      requestBody: { content: { "application/json": components["schemas"]["GitLabIn"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["WebhookSettingsOut"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/gitlab/test": {
+    post: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["TestConnectionResponse"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        502: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["RepoList"] } };
+      };
+    };
+    post: {
+      requestBody: { content: { "application/json": components["schemas"]["RepoBody"] } };
+      responses: {
+        201: { content: { "application/json": components["schemas"]["RepoItem"] } };
+        409: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos/{repo_id}": {
+    patch: {
+      parameters: {
+        path: { repo_id: string };
+      };
+      requestBody: { content: { "application/json": components["schemas"]["RepoBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["RepoItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    delete: {
+      parameters: {
+        path: { repo_id: string };
+      };
+      responses: {
+        204: { content?: never };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos/{repo_id}/toggle": {
+    post: {
+      parameters: {
+        path: { repo_id: string };
+      };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["RepoItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+}
+
+export interface components {
+  schemas: {
+    HealthResponse: {
+      status: string;
+      service: string;
+    };
+
+    ErrorDetail: {
+      detail: string;
+    };
+
+    AuthStatus: {
+      setup_required: boolean;
+      authenticated: boolean;
+    };
+
+    SetupBody: {
+      password: string;
+    };
+
+    LoginBody: {
+      password: string;
+    };
+
+    LoginResponse: {
+      authenticated: boolean;
+    };
+
+    ChangePasswordBody: {
+      current_password: string;
+      new_password: string;
+    };
+
+    RecentDelivery: {
+      delivery_id: string;
+      event_type: string;
+      repo: string | null;
+      received_at: string | null;
+      status: string;
+    };
+
+    StatsResponse: {
+      prs_reviewed_24h: number;
+      prs_reviewed_7d: number;
+      latency_p50_ms: number;
+      latency_p95_ms: number;
+      failure_rate_pct: number;
+      llm_provider: string | null;
+      llm_model: string | null;
+      recent_deliveries: components["schemas"]["RecentDelivery"][];
+    };
+
+    DeliveryItem: {
+      delivery_id: string;
+      event_type: string;
+      received_at: string | null;
+      processed_at: string | null;
+      status: string;
+      job_id: string | null;
+    };
+
+    DeliveryList: {
+      items: components["schemas"]["DeliveryItem"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+
+    ReplayResponse: {
+      status: string;
+      delivery_id: string;
+      event_type: string;
+    };
+
+    JobItem: {
+      id: string;
+      delivery_id: string;
+      status: string;
+      retry_count: number;
+      created_at: string | null;
+      duration_ms: number | null;
+      repo: string | null;
+      pr_number: string | null;
+      platform: string;
+      error: string | null;
+    };
+
+    JobList: {
+      items: components["schemas"]["JobItem"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+
+    LLMSettingsIn: {
+      provider: string;
+      base_url: string | null;
+      model: string;
+      api_key: string | null;
+      extra: Record<string, unknown>;
+    };
+
+    LLMSettingsOut: {
+      provider: string;
+      base_url: string | null;
+      model: string;
+      api_key: string | null;
+      extra: Record<string, unknown>;
+      updated_at: string | null;
+    };
+
+    WebhookSettingsOut: {
+      url: string;
+      hmac: string;
+      github_app_id: string;
+      github_installation_id: string;
+      github_key_set: boolean;
+      gitlab_token_set: boolean;
+    };
+
+    WebhookEndpointIn: {
+      url: string;
+    };
+
+    GitHubAppIn: {
+      app_id: string;
+      installation_id: string;
+      private_key: string | null;
+    };
+
+    GitLabIn: {
+      token: string | null;
+    };
+
+    RotateHmacResponse: {
+      hmac: string;
+    };
+
+    TestConnectionResponse: {
+      ok: boolean;
+    };
+
+    RepoBody: {
+      platform: string;
+      org: string | null;
+      repo: string | null;
+      slug: string | null;
+      provider: string;
+      model: string;
+      enabled: boolean;
+    };
+
+    RepoItem: {
+      id: string;
+      platform: string;
+      org: string;
+      repo: string;
+      slug: string;
+      enabled: boolean;
+      provider: string;
+      model: string;
+      created_at: string | null;
+    };
+
+    RepoList: {
+      items: components["schemas"]["RepoItem"][];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
+}
+
+export type $defs = Record<string, never>;
+export type webhooks = Record<string, never>;
+
+export type AuthStatus = components["schemas"]["AuthStatus"];
+export type StatsResponse = components["schemas"]["StatsResponse"];
+export type DeliveryItem = components["schemas"]["DeliveryItem"];
+export type DeliveryList = components["schemas"]["DeliveryList"];
+export type JobItem = components["schemas"]["JobItem"];
+export type JobList = components["schemas"]["JobList"];
+export type LLMSettingsIn = components["schemas"]["LLMSettingsIn"];
+export type LLMSettingsOut = components["schemas"]["LLMSettingsOut"];
+export type WebhookSettingsOut = components["schemas"]["WebhookSettingsOut"];
+export type RepoItem = components["schemas"]["RepoItem"];
+export type RepoBody = components["schemas"]["RepoBody"];
