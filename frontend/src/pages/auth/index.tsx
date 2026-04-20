@@ -39,6 +39,8 @@ export default function AuthPage() {
           <Wordmark size={28} />
         </div>
 
+        <h1 className="sr-only">Vellic</h1>
+
         <form
           onSubmit={handleSubmit}
           className="bg-surface border border-border rounded p-7"
