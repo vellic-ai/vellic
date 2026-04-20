@@ -1,1 +1,1 @@
-from . import anthropic, ollama, openai, vllm  # noqa: F401
+from . import anthropic, claude_code, ollama, openai, vllm  # noqa: F401

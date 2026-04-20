@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import pytest
 import pytest_asyncio
@@ -5,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.llm import LLMProvider, build_provider
 from app.llm.registry import _REGISTRY
+from app.llm.providers.claude_code import ClaudeCodeProvider
 from app.llm.providers.ollama import OllamaProvider
 from app.llm.providers.vllm import VLLMProvider
 from app.llm.providers.openai import OpenAIProvider
@@ -14,7 +16,7 @@ from app.llm.providers.anthropic import AnthropicProvider
 # --- registry ---
 
 def test_registry_contains_all_providers():
-    assert set(_REGISTRY) >= {"ollama", "vllm", "openai", "anthropic"}
+    assert set(_REGISTRY) >= {"ollama", "vllm", "openai", "anthropic", "claude_code"}
 
 
 def test_build_provider_unknown_raises():
@@ -140,3 +142,99 @@ async def test_anthropic_complete_raises_not_implemented():
     provider = AnthropicProvider()
     with pytest.raises(NotImplementedError, match="Anthropic"):
         await provider.complete("prompt", max_tokens=100)
+
+
+# --- Claude Code adapter ---
+
+def test_claude_code_conforms_to_protocol():
+    provider = ClaudeCodeProvider()
+    assert isinstance(provider, LLMProvider)
+
+
+def test_claude_code_logs_closed_loop_warning(caplog):
+    with caplog.at_level(logging.WARNING, logger="worker.llm.claude_code"):
+        ClaudeCodeProvider()
+    assert "PR diff content will leave your infrastructure" in caplog.text
+
+
+def _make_fake_process(returncode: int, stdout: bytes = b"", stderr: bytes = b""):
+    proc = MagicMock()
+    proc.returncode = returncode
+    proc.communicate = AsyncMock(return_value=(stdout, stderr))
+    return proc
+
+
+@pytest.mark.asyncio
+async def test_claude_code_complete_returns_stdout():
+    provider = ClaudeCodeProvider(bin_path="claude")
+    fake_proc = _make_fake_process(0, stdout=b"  review result\n")
+
+    with patch("asyncio.create_subprocess_exec", return_value=fake_proc) as mock_exec:
+        result = await provider.complete("review this diff", max_tokens=512)
+
+    assert result == "review result"
+    call_args = mock_exec.call_args[0]
+    assert call_args[0] == "claude"
+    assert "--print" in call_args
+
+
+@pytest.mark.asyncio
+async def test_claude_code_complete_passes_model():
+    provider = ClaudeCodeProvider(bin_path="claude", model="claude-opus-4-7")
+    fake_proc = _make_fake_process(0, stdout=b"ok")
+
+    with patch("asyncio.create_subprocess_exec", return_value=fake_proc) as mock_exec:
+        await provider.complete("prompt", max_tokens=256)
+
+    cmd = list(mock_exec.call_args[0])
+    assert "--model" in cmd
+    assert "claude-opus-4-7" in cmd
+
+
+@pytest.mark.asyncio
+async def test_claude_code_complete_no_model_flag_when_unset():
+    provider = ClaudeCodeProvider(bin_path="claude", model="")
+    fake_proc = _make_fake_process(0, stdout=b"ok")
+
+    with patch("asyncio.create_subprocess_exec", return_value=fake_proc) as mock_exec:
+        await provider.complete("prompt", max_tokens=256)
+
+    cmd = list(mock_exec.call_args[0])
+    assert "--model" not in cmd
+
+
+@pytest.mark.asyncio
+async def test_claude_code_complete_raises_on_nonzero_exit():
+    provider = ClaudeCodeProvider(bin_path="claude")
+    fake_proc = _make_fake_process(1, stderr=b"authentication required")
+
+    with patch("asyncio.create_subprocess_exec", return_value=fake_proc):
+        with pytest.raises(RuntimeError, match="authentication required"):
+            await provider.complete("prompt", max_tokens=512)
+
+
+@pytest.mark.asyncio
+async def test_claude_code_health_true_when_binary_found_and_version_ok():
+    provider = ClaudeCodeProvider(bin_path="claude")
+    fake_proc = _make_fake_process(0)
+
+    with patch("shutil.which", return_value="/usr/local/bin/claude"), \
+         patch("asyncio.create_subprocess_exec", return_value=fake_proc):
+        assert await provider.health() is True
+
+
+@pytest.mark.asyncio
+async def test_claude_code_health_false_when_binary_missing():
+    provider = ClaudeCodeProvider(bin_path="claude")
+
+    with patch("shutil.which", return_value=None):
+        assert await provider.health() is False
+
+
+@pytest.mark.asyncio
+async def test_claude_code_health_false_on_subprocess_exception():
+    provider = ClaudeCodeProvider(bin_path="claude")
+
+    with patch("shutil.which", return_value="/usr/local/bin/claude"), \
+         patch("asyncio.create_subprocess_exec", side_effect=OSError("not found")):
+        assert await provider.health() is False
