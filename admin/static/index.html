@@ -732,6 +732,8 @@
     .del-table td:first-child { padding-left: 20px; }
     .del-table tr:last-child td { border-bottom: none; }
     .del-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .del-table tbody tr.row-failed { background: rgba(239,68,68,0.04); }
+    .del-table tbody tr.row-failed:hover { background: rgba(239,68,68,0.07); }
     .del-table td.muted { color: var(--text-muted); }
     .del-mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
@@ -1565,6 +1567,14 @@
           </select>
         </div>
         <input id="del-filter-event" type="text" class="input del-filter-input" placeholder="Filter by event type…" />
+        <div style="flex:1"></div>
+        <button class="btn btn-sm btn-ghost" id="del-btn-refresh">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c2 0 3.7.9 4.9 2.2L14.5 6"/>
+            <path d="M14.5 2.5V6h-3.5"/>
+          </svg>
+          Refresh
+        </button>
       </div>
 
       <div class="del-table-wrap">
@@ -2156,9 +2166,20 @@
 
           tbody.innerHTML = items.map(row => {
             const isRunning = row.status === 'running';
-            return `<tr>
-              <td><span class="del-mono">${esc(row.delivery_id.slice(0, 8))}</span></td>
-              <td>${esc(row.event_type)}</td>
+            const rowClass  = row.status === 'failed' ? ' class="row-failed"' : '';
+            return `<tr${rowClass}>
+              <td>
+                <span style="display:inline-flex;align-items:center;gap:6px">
+                  <span class="del-mono">${esc(row.delivery_id.slice(0, 14))}</span>
+                  <button class="btn btn-ghost btn-sm del-copy-btn" data-id="${esc(row.delivery_id)}" title="Copy full ID"
+                    style="padding:0 4px;height:20px;display:inline-flex;align-items:center">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 011-1h8"/>
+                    </svg>
+                  </button>
+                </span>
+              </td>
+              <td><span class="del-mono">${esc(row.event_type)}</span></td>
               <td title="${esc(row.received_at ?? '')}">${relTime(row.received_at)}</td>
               <td>${fmtAbs(row.processed_at)}</td>
               <td>${statusBadge(row.status)}</td>
@@ -2189,6 +2210,15 @@
                 toast(`Replay failed: ${err.message}`, 'error');
                 btn.disabled = false;
               }
+            });
+          });
+
+          tbody.querySelectorAll('.del-copy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              navigator.clipboard?.writeText(btn.dataset.id).catch(() => {});
+              const orig = btn.innerHTML;
+              btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"><path d="M3 8l4 4 6-6"/></svg>';
+              setTimeout(() => { btn.innerHTML = orig; }, 1000);
             });
           });
         }
@@ -2224,6 +2254,7 @@
             document.getElementById('del-btn-next')?.addEventListener('click', () => {
               offset += LIMIT; fetchAndRender();
             });
+            document.getElementById('del-btn-refresh')?.addEventListener('click', fetchAndRender);
           }
           fetchAndRender();
         }
