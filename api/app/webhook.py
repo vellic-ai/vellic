@@ -3,7 +3,7 @@ import hmac
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
@@ -68,7 +68,7 @@ async def github_webhook(request: Request) -> Response:
             delivery_id,
             event_type,
             json.dumps(payload),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
     if row is None:

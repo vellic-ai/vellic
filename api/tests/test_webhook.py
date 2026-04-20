@@ -51,10 +51,12 @@ def mock_db_conn():
 @pytest.fixture()
 def mock_db_pool(mock_db_conn):
     pool = MagicMock()
-    pool.acquire = MagicMock(return_value=AsyncMock(
-        __aenter__=AsyncMock(return_value=mock_db_conn),
-        __aexit__=AsyncMock(return_value=False),
-    ))
+    pool.acquire = MagicMock(
+        return_value=AsyncMock(
+            __aenter__=AsyncMock(return_value=mock_db_conn),
+            __aexit__=AsyncMock(return_value=False),
+        )
+    )
     return pool
 
 
@@ -125,7 +127,9 @@ class TestEventFiltering:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ignored"
 
-    async def test_pull_request_review_accepted(self, client, env_secret, mock_db_conn, mock_arq_pool):
+    async def test_pull_request_review_accepted(
+        self, client, env_secret, mock_db_conn, mock_arq_pool
+    ):
         mock_db_conn.fetchrow = AsyncMock(return_value=MagicMock(delivery_id=DELIVERY_ID))
         body = json.dumps(REVIEW_PAYLOAD).encode()
         headers = _pr_headers(body, event="pull_request_review", delivery_id="review-1")

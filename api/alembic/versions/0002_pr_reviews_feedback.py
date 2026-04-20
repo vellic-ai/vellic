@@ -5,6 +5,7 @@ Revises: 0001
 Create Date: 2026-04-20
 
 """
+
 from alembic import op
 
 revision: str = "0002"
