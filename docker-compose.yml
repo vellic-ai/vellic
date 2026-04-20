@@ -112,7 +112,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-vellic}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vellic}
       REDIS_URL: redis://redis:6379
       PORT: "8001"
-      VELLIC_ADMIN_V2: ${VELLIC_ADMIN_V2:-0}
+      VELLIC_ADMIN_V2: ${VELLIC_ADMIN_V2:-1}
     depends_on:
       postgres:
         condition: service_healthy
