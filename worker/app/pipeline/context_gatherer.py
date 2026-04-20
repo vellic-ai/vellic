@@ -1,14 +1,13 @@
+from ..events import PREvent
 from .models import PRContext
 
 
-def gather_context(payload: dict) -> PRContext:
-    """Extract PR context from a GitHub pull_request webhook payload."""
-    pr = payload["pull_request"]
+def gather_context(event: PREvent) -> PRContext:
     return PRContext(
-        repo=payload["repository"]["full_name"],
-        pr_number=pr["number"],
-        commit_sha=pr["head"]["sha"],
-        title=pr.get("title") or "",
-        body=pr.get("body") or "",
-        base_branch=pr["base"]["ref"],
+        repo=event.repo,
+        pr_number=event.pr_number,
+        commit_sha=event.head_sha,
+        title=event.title,
+        body=event.description,
+        base_branch=event.base_branch,
     )

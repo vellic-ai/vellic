@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.adapters.github import normalize_pr
+from app.events import PREvent
 from app.pipeline.context_gatherer import gather_context
 from app.pipeline.diff_fetcher import _chunk_patch, _is_generated, fetch_diff_chunks
 from app.pipeline.llm_analyzer import _build_prompt, _extract_json, analyze
@@ -22,33 +24,90 @@ def test_diff_chunk_patch_property():
 
 
 # ---------------------------------------------------------------------------
-# context_gatherer
+# adapters/github — normalize_pr
 # ---------------------------------------------------------------------------
 
 _SAMPLE_PAYLOAD = {
+    "action": "opened",
     "repository": {"full_name": "acme/backend"},
     "pull_request": {
         "number": 42,
         "head": {"sha": "abc123"},
+        "base": {"sha": "def456", "ref": "main"},
         "title": "Add caching layer",
         "body": "Caches DB results in Redis.",
-        "base": {"ref": "main"},
+        "diff_url": "https://github.com/acme/backend/pull/42.diff",
     },
 }
 
 
-def test_gather_context_happy_path():
-    ctx = gather_context(_SAMPLE_PAYLOAD)
+def test_normalize_pr_fields():
+    event = normalize_pr("delivery-1", _SAMPLE_PAYLOAD)
+    assert isinstance(event, PREvent)
+    assert event.platform == "github"
+    assert event.delivery_id == "delivery-1"
+    assert event.repo == "acme/backend"
+    assert event.pr_number == 42
+    assert event.head_sha == "abc123"
+    assert event.base_sha == "def456"
+    assert event.base_branch == "main"
+    assert event.title == "Add caching layer"
+    assert event.description == "Caches DB results in Redis."
+    assert event.diff_url == "https://api.github.com/repos/acme/backend/pulls/42/files"
+
+
+def test_normalize_pr_null_body():
+    payload = {**_SAMPLE_PAYLOAD, "pull_request": {**_SAMPLE_PAYLOAD["pull_request"], "body": None}}
+    event = normalize_pr("delivery-2", payload)
+    assert event.description == ""
+
+
+# ---------------------------------------------------------------------------
+# context_gatherer
+# ---------------------------------------------------------------------------
+
+_SAMPLE_EVENT = PREvent(
+    platform="github",
+    event_type="pull_request",
+    delivery_id="delivery-1",
+    repo="acme/backend",
+    pr_number=42,
+    action="opened",
+    diff_url="https://api.github.com/repos/acme/backend/pulls/42/files",
+    base_sha="def456",
+    head_sha="abc123",
+    base_branch="main",
+    title="Add caching layer",
+    description="Caches DB results in Redis.",
+)
+
+
+def test_gather_context_from_event():
+    ctx = gather_context(_SAMPLE_EVENT)
     assert ctx.repo == "acme/backend"
     assert ctx.pr_number == 42
     assert ctx.commit_sha == "abc123"
     assert ctx.title == "Add caching layer"
+    assert ctx.body == "Caches DB results in Redis."
     assert ctx.base_branch == "main"
 
 
-def test_gather_context_null_body():
-    payload = {**_SAMPLE_PAYLOAD, "pull_request": {**_SAMPLE_PAYLOAD["pull_request"], "body": None}}
-    ctx = gather_context(payload)
+def test_gather_context_empty_description():
+    event = PREvent(
+        platform="github",
+        event_type="pull_request",
+        delivery_id="d",
+        repo="acme/backend",
+        pr_number=1,
+        action="opened",
+        diff_url="https://api.github.com/repos/acme/backend/pulls/1/files",
+        base_sha="s",
+        head_sha="h",
+        base_branch="main",
+        title="t",
+        description="",
+    )
+    ctx = gather_context(event)
     assert ctx.body == ""
 
 
@@ -107,7 +166,10 @@ async def test_fetch_diff_chunks_filters_binary_and_generated():
     with patch("app.pipeline.diff_fetcher.httpx.AsyncClient") as MockClient:
         instance = MockClient.return_value.__aenter__.return_value
         instance.get = AsyncMock(return_value=mock_resp)
-        chunks = await fetch_diff_chunks("acme/backend", 42, github_token="tok")
+        chunks = await fetch_diff_chunks(
+            "https://api.github.com/repos/acme/backend/pulls/42/files",
+            token="tok",
+        )
 
     assert len(chunks) == 1
     assert chunks[0].filename == "src/app.py"

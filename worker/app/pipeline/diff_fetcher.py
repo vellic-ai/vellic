@@ -18,7 +18,6 @@ def _is_generated(filename: str) -> bool:
         return True
     if any(seg in filename for seg in _SKIP_PATH_SEGMENTS):
         return True
-    # package-lock and yarn.lock are caught by .lock suffix above
     return False
 
 
@@ -33,17 +32,22 @@ def _chunk_patch(filename: str, patch: str) -> list[DiffChunk]:
 
 
 async def fetch_diff_chunks(
-    repo: str,
-    pr_number: int,
-    github_token: str | None = None,
+    diff_url: str,
+    token: str | None = None,
 ) -> list[DiffChunk]:
-    token = github_token or os.getenv("GITHUB_TOKEN", "")
-    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    """Fetch and chunk PR file diffs from a platform files API URL.
 
-    async with httpx.AsyncClient(base_url="https://api.github.com", timeout=30.0) as client:
-        resp = await client.get(f"/repos/{repo}/pulls/{pr_number}/files", headers=headers)
+    The URL is expected to return a JSON array of file objects, each with
+    ``filename`` and optional ``patch`` fields — the shape returned by both
+    the GitHub and GitLab files/changes APIs.
+    """
+    resolved_token = token or os.getenv("GITHUB_TOKEN", "")
+    headers: dict[str, str] = {"Accept": "application/json"}
+    if resolved_token:
+        headers["Authorization"] = f"Bearer {resolved_token}"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(diff_url, headers=headers)
         resp.raise_for_status()
         files = resp.json()
 
@@ -62,5 +66,5 @@ async def fetch_diff_chunks(
 
         chunks.extend(_chunk_patch(filename, patch))
 
-    logger.info("fetched %d chunks from %d files for %s#%d", len(chunks), len(files), repo, pr_number)
+    logger.info("fetched %d chunks from %d files via %s", len(chunks), len(files), diff_url)
     return chunks

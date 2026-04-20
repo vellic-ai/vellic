@@ -5,6 +5,7 @@ import uuid
 import asyncpg
 from arq.exceptions import Retry
 
+from .adapters.github import normalize_pr
 from .llm.protocol import LLMProvider
 from .pipeline.runner import run_pipeline
 
@@ -87,10 +88,11 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
         logger.info("non-PR event %s — marked processed", event_type)
         return
 
+    event = normalize_pr(delivery_id, payload)
     job_id = await _get_or_create_job(pool, delivery_id)
 
     try:
-        await run_pipeline(payload, pool, llm, job_id, arq_redis)
+        await run_pipeline(event, pool, llm, job_id, arq_redis)
         await pool.execute(
             "UPDATE webhook_deliveries SET processed_at = NOW() WHERE delivery_id = $1",
             delivery_id,
