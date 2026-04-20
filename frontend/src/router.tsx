@@ -9,6 +9,7 @@ import ReposPage from "@/pages/repos";
 import NotFoundPage from "@/pages/NotFoundPage";
 import DesignShowcase from "@/pages/design-showcase";
 
+// eslint-disable-next-line react-refresh/only-export-components
 function AppRoot() {
   return (
     <ToastRoot>
