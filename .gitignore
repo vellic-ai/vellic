@@ -7,3 +7,6 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# K8s secret manifests contain real credentials — never commit
+infra/k8s/**/secret.yaml
