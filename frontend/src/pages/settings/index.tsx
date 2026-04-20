@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Shell, PageHeader, Skeleton } from "@/components/Shell";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Icons, Spinner } from "@/components/icons";
 import { useLLMSettings, useSaveLLMSettings, useRepos } from "@/api";
 import { useToast } from "@/lib/toast";
@@ -106,34 +107,35 @@ export default function SettingsPage() {
         >
           {/* Provider */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-muted" htmlFor="provider-select">
+            <label className="text-sm font-medium text-text-muted" id="provider-label">
               Provider
             </label>
-            <select
-              id="provider-select"
-              data-testid="provider-select"
-              aria-label="Provider"
+            <Select
               value={provider}
-              onChange={(e) => {
-                setProvider(e.target.value);
+              onValueChange={(val) => {
+                setProvider(val);
                 setModel("");
                 setBaseUrl("");
                 setApiKey("");
                 setKeyEdited(false);
                 setSaved(false);
               }}
-              className={cn(
-                "h-[34px] w-full rounded border bg-input-bg border-border text-text px-3 text-sm",
-                "transition-[border-color,box-shadow] duration-[120ms]",
-                "focus:border-accent focus:shadow-[0_0_0_3px_rgba(108,99,255,0.18)] focus:outline-none",
-              )}
             >
-              {PROVIDER_ORDER.map((p) => (
-                <option key={p} value={p}>
-                  {PROVIDER_LABELS[p]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                data-testid="provider-select"
+                aria-label="Provider"
+                aria-labelledby="provider-label"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDER_ORDER.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PROVIDER_LABELS[p]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Model */}

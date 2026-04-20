@@ -253,7 +253,6 @@ export default function JobsPage() {
               {jobs.map((j) => (
                 <tr
                   key={j.id}
-                  data-testid="job-row"
                   className={cn(
                     "border-b border-border last:border-b-0 cursor-pointer hover:bg-surface-2/40 transition-colors",
                     j.status === "failed" && "bg-error/[0.02]",

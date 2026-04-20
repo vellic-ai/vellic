@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Playwright smoke (5 critical paths)
+    name: Playwright smoke tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -104,11 +104,6 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: frontend
 
-      - name: Install Playwright OS deps (cached browser)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-        working-directory: frontend
-
       - name: Build frontend
         run: npm run build
         working-directory: frontend
@@ -124,7 +119,7 @@ jobs:
 
       # ── E2E ─────────────────────────────────────────────────────────────────
       - name: Run Playwright smoke tests
-        run: npm run test:e2e
+        run: npm run test:e2e -- --reporter=list
         working-directory: frontend
         env:
           E2E_BASE_URL: http://localhost:5173
