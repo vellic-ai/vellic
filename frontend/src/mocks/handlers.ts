@@ -1,7 +1,3 @@
-import { http, HttpResponse } from "msw";
+import { apiHandlers } from "@/api/msw";
 
-export const handlers = [
-  http.get("/health", () => {
-    return HttpResponse.json({ status: "ok" });
-  }),
-];
+export const handlers = [...apiHandlers];
