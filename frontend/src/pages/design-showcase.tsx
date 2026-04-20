@@ -166,7 +166,7 @@ export default function DesignShowcase() {
                   <TableRow key={r.id}>
                     <TableCell><code className="font-mono text-text-muted">{r.id}</code></TableCell>
                     <TableCell>
-                      <Badge variant={r.status as any}>{r.status}</Badge>
+                      <Badge variant={r.status as "default" | "success" | "error" | "warning" | "info"}>{r.status}</Badge>
                     </TableCell>
                     <TableCell>{r.repo}</TableCell>
                     <TableCell><code className="font-mono text-sm">{r.ref}</code></TableCell>
