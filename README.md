@@ -1,65 +1,76 @@
-<div align="center">
+<p align="center">
+  <img src="docs/assets/vellic-banner.svg" alt="vellic" width="600" />
+</p>
 
-<br/>
+<p align="center">
+  <strong>AI integration for your entire development workflow.</strong><br/>
+  Any VCS. Any LLM. No lock-in.
+</p>
+
+<p align="center">
+  <a href="https://github.com/vellic-ai/vellic/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/vellic-ai/vellic/ci.yml?branch=main&style=for-the-badge" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
+  <a href="https://github.com/vellic-ai/vellic/releases"><img src="https://img.shields.io/github/v/release/vellic-ai/vellic?include_prereleases&style=for-the-badge" alt="Release"></a>
+  <a href="https://github.com/vellic-ai/vellic/stargazers"><img src="https://img.shields.io/github/stars/vellic-ai/vellic?style=for-the-badge" alt="Stars"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/vcs-integrations.md">VCS Integrations</a> ·
+  <a href="docs/llm-providers.md">LLM Providers</a> ·
+  <a href="docs/deployment.md">Deployment</a> ·
+  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="docs/contributing.md">Contributing</a>
+</p>
+
+---
+
+**vellic** connects your Git platform to an AI analysis pipeline. Every pull request gets reviewed, every diff gets analysed, and structured feedback lands directly inside your existing VCS workflow — with no code changes and no new tools to learn.
+
+It is self-hosted, swap the LLM with a single env var, and adding a new VCS platform is a single file.
+
+> GitHub, GitLab, Bitbucket, and any platform that emits webhooks. Ollama, vLLM, OpenAI, Anthropic, Claude Code — or bring your own endpoint.
+
+## Highlights
+
+- **[VCS-agnostic webhook adapter](docs/vcs-integrations.md)** — normalises GitHub, GitLab, Bitbucket, and custom webhooks into one platform-agnostic `PREvent` model. Adding a new platform is one file.
+- **[LLM-agnostic provider registry](docs/llm-providers.md)** — Ollama (default, on-prem), vLLM, OpenAI, Anthropic, Claude Code. Swap with one env var, no rebuild.
+- **[4-stage async pipeline](docs/architecture.md)** — diff fetch → context gather → LLM analysis → VCS feedback posting, all via Redis/Arq with full job tracking.
+- **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
+- **[Admin panel](http://localhost:8001)** — replay events, inspect jobs, tune config without redeploying.
+- **[Kubernetes-ready](docs/deployment.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
+- **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers log a startup warning when selected.
+
+## Quick start
+
+Runtime: **Docker ≥ 24 + Docker Compose v2**.
+
+```bash
+git clone https://github.com/vellic-ai/vellic.git
+cd vellic
+cp .env.example .env          # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
+make up                        # builds images and boots the stack
+bash scripts/health-check.sh  # verify all three services are healthy
+```
+
+All services respond `{"status": "ok"}` when ready:
 
 ```
- ██╗   ██╗███████╗██╗     ██╗     ██╗ ██████╗
- ██║   ██║██╔════╝██║     ██║     ██║██╔════╝
- ██║   ██║█████╗  ██║     ██║     ██║██║
- ╚██╗ ██╔╝██╔══╝  ██║     ██║     ██║██║
-  ╚████╔╝ ███████╗███████╗███████╗██║╚██████╗
-   ╚═══╝  ╚══════╝╚══════╝╚══════╝╚═╝ ╚═════╝
+http://localhost:8000/health   api
+http://localhost:8001/health   admin
+http://localhost:8002/health   worker
 ```
 
-### Bring AI into every step of your development workflow.
-### Any VCS. Any LLM. No lock-in.
-
-<br/>
-
-[![CI](https://github.com/vellic-ai/vellic/actions/workflows/ci.yml/badge.svg)](https://github.com/vellic-ai/vellic/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
-[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white)](infra/k8s/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/contributing.md)
-
-<br/>
-
----
-
-</div>
-
-Vellic is an **open-source AI integration platform for developer workflows**. Point it at your Git platform and an LLM of your choice, and it starts augmenting your team — automated code review, PR analysis, and more — delivered directly inside the tools your engineers already use.
-
-It is designed to be:
-
-- **VCS agnostic** — GitHub, GitLab, Bitbucket, and any platform that emits webhooks
-- **LLM agnostic** — Ollama, vLLM, OpenAI, Anthropic, Claude Code, or your own endpoint
-- **Self-hostable** — runs on Docker Compose locally or Kubernetes in production
-- **Extensible** — clean adapter interfaces; adding a new VCS or LLM is a single file
-
----
-
-## What it does today
-
-| Capability | Description |
-|---|---|
-| **AI Code Review** | Analyses every PR diff and posts inline review comments via the VCS Reviews API |
-| **Multi-platform webhooks** | Receives, validates (HMAC), and normalises events from any VCS into a unified internal model |
-| **Async job pipeline** | 4-stage pipeline: diff fetch → context gathering → LLM analysis → feedback posting |
-| **Admin panel** | Replay events, inspect jobs, tune configuration — no redeploy needed |
-
-> **Roadmap**: issue triage, commit summarisation, automated changelog, security scanning, and more. See [`docs/roadmap.md`](docs/roadmap.md).
-
----
+Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: [VCS Integrations](docs/vcs-integrations.md).
 
 ## Supported platforms
 
 <table>
 <tr>
-<td align="center"><strong>VCS</strong></td>
-<td>
+<td valign="top">
+
+**VCS**
 
 | Platform | Status |
 |---|---|
@@ -67,198 +78,70 @@ It is designed to be:
 | GitLab | 🚧 In progress |
 | Bitbucket | 📋 Planned |
 | Gitea / Forgejo | 📋 Planned |
-| Any webhook | ✅ Via custom adapter |
+| Custom webhook | ✅ One-file adapter |
 
 </td>
-<td align="center"><strong>LLM</strong></td>
-<td>
+<td valign="top">
 
-| Provider | `LLM_PROVIDER` |
-|---|---|
-| Ollama (default) | `ollama` |
-| vLLM | `vllm` |
-| OpenAI | `openai` |
-| Anthropic | `anthropic` |
-| Claude Code CLI | `claude_code` |
-| Custom endpoint | `vllm` (OpenAI-compatible) |
+**LLM**
+
+| Provider | `LLM_PROVIDER` | On-prem |
+|---|---|---|
+| Ollama | `ollama` | ✅ |
+| vLLM | `vllm` | ✅ |
+| OpenAI | `openai` | — |
+| Anthropic | `anthropic` | — |
+| Claude Code CLI | `claude_code` | — |
+| Custom OpenAI-compatible | `vllm` | ✅ |
 
 </td>
 </tr>
 </table>
 
-See [`docs/vcs-integrations.md`](docs/vcs-integrations.md) and [`docs/llm-providers.md`](docs/llm-providers.md) for detailed setup.
+## Configuration
 
----
-
-## Architecture
-
-```
- Webhook event (any VCS)
-        │
-        ▼
- ┌──────────────────────────────────────────────────────────┐
- │                        api  :8000                        │
- │  Validate signature → Normalise → Enqueue (Arq / Redis)  │
- └─────────────────────────┬────────────────────────────────┘
-                           │  Redis queue
-                           ▼
- ┌──────────────────────────────────────────────────────────┐
- │                      worker  :8002                       │
- │                                                          │
- │  ┌────────────┐  ┌─────────────────┐  ┌───────────────┐ │
- │  │ diff fetch │→ │ context gather  │→ │  LLM analyze  │ │
- │  └────────────┘  └─────────────────┘  └───────┬───────┘ │
- │                                               │         │
- │  ┌────────────────────────────────────────────▼───────┐ │
- │  │               feedback poster                      │ │
- │  │   VCS Reviews API  (GitHub / GitLab / …)           │ │
- │  └────────────────────────────────────────────────────┘ │
- └──────────────────────────────────────────────────────────┘
-        │                           │
-        ▼                           ▼
-   PostgreSQL :5432             Redis :6379
-
- ┌──────────────────────────────────────────────────────────┐
- │                      admin  :8001                        │
- │         Event replay · Job inspector · Config            │
- └──────────────────────────────────────────────────────────┘
-```
-
-Deep dive: [`docs/architecture.md`](docs/architecture.md)
-
----
-
-## Quick start
-
-### Prerequisites
-
-- Docker ≥ 24 + Docker Compose v2
-- A webhook endpoint reachable from your VCS (or use [ngrok](https://ngrok.com) for local dev)
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/vellic-ai/vellic.git
-cd vellic
-cp .env.example .env
-```
-
-Edit `.env` — two required fields:
+Two variables are required; everything else has a sensible default.
 
 ```dotenv
 POSTGRES_PASSWORD=changeme
-GITHUB_WEBHOOK_SECRET=your-hmac-secret
+GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
 ```
 
-### 2. Boot the stack
-
-```bash
-make up
-# shorthand for: docker compose up --build -d
-```
-
-### 3. Verify health
-
-```bash
-bash scripts/health-check.sh
-```
-
-All three services respond `{"status": "ok"}` when ready.
-
-```bash
-curl http://localhost:8000/health   # api
-curl http://localhost:8001/health   # admin
-curl http://localhost:8002/health   # worker
-```
-
-### 4. Connect your VCS
-
-Point your platform's webhook at `https://<your-host>/webhook/github` (or the matching adapter path) and configure the HMAC secret. Detailed per-platform setup: [`docs/vcs-integrations.md`](docs/vcs-integrations.md).
-
----
-
-## Configuration
-
-Full reference: [`docs/configuration.md`](docs/configuration.md)
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `POSTGRES_PASSWORD` | ✅ | — | Postgres password |
-| `GITHUB_WEBHOOK_SECRET` | ✅ | — | HMAC secret for webhook validation |
-| `LLM_PROVIDER` | | `ollama` | LLM backend |
-| `LLM_BASE_URL` | | `http://ollama:11434` | Base URL for self-hosted LLM |
-| `LLM_MODEL` | | `llama3.1:8b-instruct-q4_K_M` | Model name/ID |
-| `LLM_API_KEY` | | — | API key for cloud LLM providers |
-| `DATABASE_URL` | | derived | Full Postgres DSN |
-| `REDIS_URL` | | `redis://redis:6379` | Redis DSN |
-
-> **Privacy:** `openai`, `anthropic`, and `claude_code` providers send PR diff content to external services. A warning is logged at startup. Self-hosted providers (`ollama`, `vllm`) keep everything on-prem.
-
----
+Full reference: [docs/configuration.md](docs/configuration.md)
 
 ## Repository layout
 
 ```
 vellic/
-├── api/              Webhook ingestion service (FastAPI)
-├── worker/           Async analysis pipeline (Arq)
+├── api/          Webhook ingestion (FastAPI, port 8000)
+├── worker/       Async pipeline (Arq, port 8002)
 │   └── app/
-│       ├── pipeline/ 4-stage pipeline (diff → context → llm → feedback)
-│       ├── llm/      LLM provider registry + adapters
-│       └── adapters/ VCS platform adapters
-├── admin/            Admin panel (FastAPI)
-├── infra/
-│   └── k8s/          Kubernetes manifests + HPA
-├── scripts/          Dev tooling
-├── docs/             ← Detailed documentation lives here
-│   ├── architecture.md
-│   ├── vcs-integrations.md
-│   ├── llm-providers.md
-│   ├── configuration.md
-│   ├── deployment.md
-│   └── roadmap.md
-└── docker-compose.yml
+│       ├── pipeline/   4 stages: diff → context → llm → feedback
+│       ├── llm/        Provider registry + adapters
+│       └── adapters/   VCS platform adapters
+├── admin/        Admin panel (FastAPI, port 8001)
+├── infra/k8s/    Kubernetes manifests + HPA
+├── scripts/      Dev tooling (setup, health-check, test-webhook)
+└── docs/         Detailed documentation
 ```
-
----
-
-## CI/CD
-
-Pipeline runs on every PR and push to `main`:
-
-```
-Lint (ruff) → Test (pytest) → Build → Push to ghcr.io
-```
-
-Images tagged as `ghcr.io/vellic-ai/vellic-{service}:{sha}` and `:latest` (main only).
-
-Deployment guide: [`docs/deployment.md`](docs/deployment.md)
-
----
 
 ## Documentation
 
-| Doc | Description |
+| | |
 |---|---|
-| [`docs/architecture.md`](docs/architecture.md) | System design, service boundaries, data flow |
-| [`docs/vcs-integrations.md`](docs/vcs-integrations.md) | Connecting GitHub, GitLab, Bitbucket, custom platforms |
-| [`docs/llm-providers.md`](docs/llm-providers.md) | Configuring and swapping LLM backends |
-| [`docs/configuration.md`](docs/configuration.md) | Full environment variable reference |
-| [`docs/deployment.md`](docs/deployment.md) | Docker Compose, Kubernetes, rollback |
-| [`docs/roadmap.md`](docs/roadmap.md) | What's coming next |
-
----
+| [Architecture](docs/architecture.md) | System design, service boundaries, data flow, how to extend |
+| [VCS Integrations](docs/vcs-integrations.md) | GitHub, GitLab, Bitbucket, custom adapter guide |
+| [LLM Providers](docs/llm-providers.md) | All backends, env vars, privacy notes, adding a new provider |
+| [Configuration](docs/configuration.md) | Full environment variable reference |
+| [Deployment](docs/deployment.md) | Docker Compose, Kubernetes, rollback, secrets |
+| [Roadmap](docs/roadmap.md) | What is built and what is coming |
+| [Contributing](docs/contributing.md) | Dev setup, code style, PR checklist |
 
 ## Contributing
 
-We welcome contributions — new VCS adapters, LLM providers, pipeline stages, bug fixes, and docs improvements.
+Pull requests are welcome. The highest-impact contributions right now are new VCS adapters (GitLab, Bitbucket) and LLM providers.
 
-1. Read [`docs/contributing.md`](docs/contributing.md) before opening a PR
-2. Fork and create a branch: `git checkout -b feat/your-feature`
-3. Run `ruff check` and `pytest` locally
-4. Open a PR against `main`
-
----
+See [docs/contributing.md](docs/contributing.md) to get started.
 
 ## License
 
