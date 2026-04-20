@@ -6,12 +6,19 @@ import asyncpg
 from arq import Retry
 
 from .adapters.github import normalize_pr
-from .llm.protocol import LLMProvider
+from .llm import build_provider
+from .llm.config import _EXTERNAL_PROVIDERS, load_env_llm_config
+from .llm.db_config import load_llm_config_from_db
 from .pipeline.feedback_poster import GitHubClientError, RateLimitError, post_github_review
 from .pipeline.models import AnalysisResult, ReviewComment
 from .pipeline.runner import run_pipeline
 
 logger = logging.getLogger("worker.jobs")
+
+_EXTERNAL_PROVIDER_WARNING = (
+    "⚠️  External LLM provider active. "
+    "PR diff content will leave your infrastructure."
+)
 
 # Backoff delays between attempt N and N+1 (seconds): 5s → 25s → dead-letter
 _RETRY_DELAYS = [5, 25]
@@ -69,9 +76,33 @@ async def _dead_letter(
 
 async def process_webhook(ctx: dict, delivery_id: str) -> None:
     pool: asyncpg.Pool = ctx["db_pool"]
-    llm: LLMProvider = ctx["llm"]
     arq_redis = ctx["redis"]
     job_try: int = ctx.get("job_try", 1)
+
+    # Load LLM config: DB row takes precedence; fall back to env vars.
+    try:
+        cfg = await load_llm_config_from_db(pool)
+    except Exception as exc:
+        logger.warning("failed to load LLM config from DB, falling back to env vars: %s", exc)
+        cfg = None
+    if cfg is None:
+        cfg = load_env_llm_config()
+        logger.info("llm config: using env-var fallback (no DB row)")
+    else:
+        logger.info(
+            "llm config: loaded from DB provider=%s model=%s", cfg["provider"], cfg["model"]
+        )
+
+    if cfg["provider"] in _EXTERNAL_PROVIDERS:
+        logger.warning(_EXTERNAL_PROVIDER_WARNING)
+
+    llm = build_provider(
+        cfg["provider"],
+        base_url=cfg.get("base_url", ""),
+        model=cfg["model"],
+        api_key=cfg.get("api_key", ""),
+        bin_path=cfg.get("bin_path", "claude"),
+    )
 
     row = await pool.fetchrow(
         "SELECT event_type, payload FROM webhook_deliveries WHERE delivery_id = $1",
