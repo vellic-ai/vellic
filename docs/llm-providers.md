@@ -1,107 +1,78 @@
 # LLM Providers
 
-Vellic is LLM-agnostic. The worker loads a provider at startup based on `LLM_PROVIDER` and the rest of the pipeline never sees provider-specific code.
+Vellic is LLM-agnostic. You pick and configure the LLM provider through the **Admin UI** at `http://localhost:8001` — no env var editing, no restarts.
 
-## Provider summary
+## Configuring via Admin UI
 
-| Provider | `LLM_PROVIDER` | Self-hosted | Sends data externally |
-|---|---|---|---|
-| Ollama | `ollama` | ✅ | No |
-| vLLM | `vllm` | ✅ | No |
-| OpenAI | `openai` | No | ⚠️ Yes |
-| Anthropic | `anthropic` | No | ⚠️ Yes |
-| Claude Code CLI | `claude_code` | Depends | ⚠️ Yes |
-| Custom (OpenAI-compatible) | `vllm` | ✅ | Depends |
+1. Open the Admin panel at `http://localhost:8001`
+2. Go to **Settings → LLM Provider**
+3. Select your provider, enter the model name and any required credentials
+4. Save — the worker picks up the new config on the next job run
 
-> **Privacy note:** Providers marked ⚠️ send PR diff content to an external API. Vellic logs a warning at startup when these are selected.
+Changes take effect without restarting any service.
+
+## Supported providers
+
+| Provider | Self-hosted | Sends data externally |
+|---|---|---|
+| Ollama (default) | ✅ | No |
+| vLLM | ✅ | No |
+| OpenAI | No | ⚠️ Yes |
+| Anthropic | No | ⚠️ Yes |
+| Claude Code CLI | No | ⚠️ Yes |
+| Custom OpenAI-compatible endpoint | ✅ | Depends |
+
+> **Privacy:** Providers marked ⚠️ send PR diff content to an external service. The Admin UI displays a warning when one of these is selected.
 
 ---
 
 ## Ollama (default)
 
-Best for local development. Runs entirely on your machine.
+Best for local development and on-prem deployments. Ships pre-configured in the Docker Compose stack — just boot the stack and select Ollama in the Admin UI.
 
-```dotenv
-LLM_PROVIDER=ollama
-LLM_BASE_URL=http://ollama:11434
-LLM_MODEL=llama3.1:8b-instruct-q4_K_M
-```
-
-The `docker-compose.yml` includes an Ollama service that pulls the default model automatically on first boot.
-
-To use a different model:
-
-```dotenv
-LLM_MODEL=mistral:7b-instruct
-```
-
-Ollama pulls the model on first use. Pre-pull to avoid cold-start latency:
+To pull a different model into the running Ollama container:
 
 ```bash
 docker compose exec ollama ollama pull mistral:7b-instruct
 ```
 
+Then update the model name in the Admin UI.
+
 ---
 
 ## vLLM
 
-Use for production self-hosted deployments. Exposes an OpenAI-compatible API.
+For production self-hosted deployments. Exposes an OpenAI-compatible API.
 
-```dotenv
-LLM_PROVIDER=vllm
-LLM_BASE_URL=http://<your-vllm-host>:8000
-LLM_MODEL=mistralai/Mistral-7B-Instruct-v0.3
-LLM_API_KEY=optional-if-your-endpoint-requires-it
-```
+In the Admin UI: set provider to **vLLM**, enter your vLLM base URL and model ID.
 
 ---
 
 ## OpenAI
 
-```dotenv
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o
-LLM_API_KEY=sk-...
-```
-
-`LLM_BASE_URL` is ignored for the OpenAI provider — it always hits the official API.
+In the Admin UI: set provider to **OpenAI**, enter your model (e.g. `gpt-4o`) and API key.
 
 ---
 
 ## Anthropic
 
-```dotenv
-LLM_PROVIDER=anthropic
-LLM_MODEL=claude-sonnet-4-6
-LLM_API_KEY=sk-ant-...
-```
+In the Admin UI: set provider to **Anthropic**, enter your model (e.g. `claude-sonnet-4-6`) and API key.
 
 ---
 
 ## Claude Code CLI
 
-Uses the local `claude` binary. Useful when you want to leverage Claude Code's agentic capabilities.
+Uses the local `claude` binary. In the Admin UI: set provider to **Claude Code**, optionally specify a model override.
 
-```dotenv
-LLM_PROVIDER=claude_code
-CLAUDE_CODE_BIN=/usr/local/bin/claude
-CLAUDE_CODE_MODEL=claude-sonnet-4-6   # optional; uses CLI default if empty
-```
-
-The `claude` binary must be installed and authenticated in the worker container.
+The `claude` binary must be installed and authenticated inside the worker container.
 
 ---
 
 ## Custom / OpenAI-compatible endpoint
 
-Any endpoint that implements the OpenAI Chat Completions API works via the `vllm` provider:
+Any endpoint that implements the OpenAI Chat Completions API works.
 
-```dotenv
-LLM_PROVIDER=vllm
-LLM_BASE_URL=https://your-custom-endpoint.example.com
-LLM_MODEL=your-model-id
-LLM_API_KEY=your-key-if-needed
-```
+In the Admin UI: set provider to **vLLM**, enter your custom base URL, model ID, and API key (if required).
 
 ---
 
@@ -111,7 +82,6 @@ LLM_API_KEY=your-key-if-needed
 
 ```python
 from ..protocol import LLMProvider, AnalysisResult
-from ..config import LLM_MODEL
 
 class MyProvider(LLMProvider):
     async def analyze(self, context, chunks) -> AnalysisResult:
@@ -119,15 +89,6 @@ class MyProvider(LLMProvider):
 ```
 
 2. Register it in `worker/app/llm/registry.py`.
-3. Add `<name>` to the `_EXTERNAL_PROVIDERS` set in `config.py` if it sends data externally.
-4. Document it in this file and open a PR.
-
----
-
-## Switching providers at runtime
-
-No rebuild needed — just restart the worker with the new env var:
-
-```bash
-LLM_PROVIDER=openai LLM_MODEL=gpt-4o docker compose up -d worker
-```
+3. Mark it as external in `config.py` if it sends data off-prem (triggers the privacy warning in the Admin UI).
+4. Add it to the Admin UI provider selector.
+5. Document it in this file and open a PR.

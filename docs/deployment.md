@@ -3,17 +3,17 @@
 ## Local development (Docker Compose)
 
 ```bash
-# First boot — builds images and starts all services
-make up
+# First boot — build images and start all services
+docker compose up --build -d
 
 # Tail logs
-make logs
+docker compose logs -f
 
 # Stop everything (preserves volumes)
-make down
+docker compose down
 
 # Fire a test webhook
-make test-webhook
+bash scripts/test-webhook.sh
 ```
 
 Health check all services:

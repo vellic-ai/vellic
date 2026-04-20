@@ -15,8 +15,8 @@ Contributions are welcome — whether it's a new VCS adapter, an LLM provider, a
 ```bash
 git clone https://github.com/vellic-ai/vellic.git
 cd vellic
-cp .env.example .env   # set POSTGRES_PASSWORD and GITHUB_WEBHOOK_SECRET
-make up
+cp .env.example .env                 # set POSTGRES_PASSWORD and GITHUB_WEBHOOK_SECRET
+docker compose up --build -d
 ```
 
 ## Code style

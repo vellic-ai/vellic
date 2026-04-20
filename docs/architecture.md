@@ -55,7 +55,7 @@ Each VCS adapter (`worker/app/adapters/<platform>.py`) converts a raw webhook pa
 
 LLM providers implement the `LLMProvider` protocol (`worker/app/llm/protocol.py`). The pipeline calls `provider.analyze(context, chunks)` — it does not care whether the response comes from Ollama, OpenAI, or a local binary.
 
-The registry (`worker/app/llm/registry.py`) selects the active provider at startup based on `LLM_PROVIDER`.
+The registry (`worker/app/llm/registry.py`) loads the active provider based on the configuration stored by the Admin UI.
 
 ## Scaling
 

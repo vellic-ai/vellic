@@ -40,7 +40,7 @@ It is self-hosted, swap the LLM with a single env var, and adding a new VCS plat
 - **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
 - **[Admin panel](http://localhost:8001)** — replay events, inspect jobs, tune config without redeploying.
 - **[Kubernetes-ready](docs/deployment.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
-- **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers log a startup warning when selected.
+- **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers show a privacy warning in the Admin UI when selected.
 
 ## Quick start
 
@@ -49,9 +49,9 @@ Runtime: **Docker ≥ 24 + Docker Compose v2**.
 ```bash
 git clone https://github.com/vellic-ai/vellic.git
 cd vellic
-cp .env.example .env          # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
-make up                        # builds images and boots the stack
-bash scripts/health-check.sh  # verify all three services are healthy
+cp .env.example .env                    # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
+docker compose up --build -d            # build images and boot the stack
+bash scripts/health-check.sh            # verify all three services are healthy
 ```
 
 All services respond `{"status": "ok"}` when ready:
@@ -100,14 +100,16 @@ Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: 
 
 ## Configuration
 
-Two variables are required; everything else has a sensible default.
+Two variables are required. Everything else has a sensible default or is configured through the **Admin UI** at `http://localhost:8001`.
 
 ```dotenv
 POSTGRES_PASSWORD=changeme
 GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
 ```
 
-Full reference: [docs/configuration.md](docs/configuration.md)
+LLM provider, model, API keys, and per-repo settings are configured in the Admin UI — not in `.env`.
+
+Full infrastructure reference: [docs/configuration.md](docs/configuration.md)
 
 ## Repository layout
 
