@@ -9,6 +9,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import arq_pool, db
+from .auth_router import AdminAuthMiddleware
+from .auth_router import router as auth_router
 from .settings_router import router as settings_router
 
 _STATIC = Path(__file__).parent.parent / "static"
@@ -28,6 +30,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="vellic-admin", version="0.1.0", lifespan=lifespan)
+app.add_middleware(AdminAuthMiddleware)
+app.include_router(auth_router)
 app.include_router(settings_router)
 
 if _STATIC.is_dir():
@@ -39,7 +43,75 @@ async def health() -> dict:
     return {"status": "ok", "service": "admin"}
 
 
-@app.get("/settings/{path:path}")
+@app.get("/")
+async def admin_root() -> FileResponse:
+    return FileResponse(str(_STATIC / "index.html"))
+
+
+@app.get("/admin/deliveries")
+async def list_deliveries(
+    limit: int = 50,
+    offset: int = 0,
+    status: str = "",
+    event_type: str = "",
+) -> dict:
+    pool = db.get_pool()
+    et_pattern = f"%{event_type}%" if event_type else "%"
+
+    query = """
+    WITH ds AS (
+        SELECT
+            wd.delivery_id,
+            wd.event_type,
+            wd.received_at,
+            wd.processed_at,
+            COALESCE(
+                (SELECT CASE pj.status
+                    WHEN 'running' THEN 'running'
+                    WHEN 'done'    THEN 'done'
+                    WHEN 'failed'  THEN 'failed'
+                    ELSE 'running'
+                 END
+                 FROM pipeline_jobs pj
+                 WHERE pj.delivery_id = wd.delivery_id
+                 ORDER BY pj.created_at DESC
+                 LIMIT 1),
+                'pending'
+            ) AS status,
+            (SELECT id::text
+             FROM pipeline_jobs
+             WHERE delivery_id = wd.delivery_id
+             ORDER BY created_at DESC
+             LIMIT 1) AS job_id
+        FROM webhook_deliveries wd
+    )
+    SELECT *, COUNT(*) OVER() AS total_count
+    FROM ds
+    WHERE ($3::text = '' OR status = $3)
+      AND event_type ILIKE $4
+    ORDER BY received_at DESC
+    LIMIT $1 OFFSET $2
+    """
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, limit, offset, status, et_pattern)
+
+    row_total = rows[0]["total_count"] if rows else 0
+    items = [
+        {
+            "delivery_id": r["delivery_id"],
+            "event_type": r["event_type"],
+            "received_at": r["received_at"].isoformat() if r["received_at"] else None,
+            "processed_at": r["processed_at"].isoformat() if r["processed_at"] else None,
+            "status": r["status"],
+            "job_id": r["job_id"],
+        }
+        for r in rows
+    ]
+    return {"items": items, "total": row_total, "limit": limit, "offset": offset}
+
+
+@app.get("/{path:path}")
 async def admin_spa(path: str) -> FileResponse:
     return FileResponse(str(_STATIC / "index.html"))
 
