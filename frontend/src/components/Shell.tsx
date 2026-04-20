@@ -16,7 +16,7 @@ interface NavSection {
 }
 
 const NAV: Array<NavItem | NavSection> = [
-  { label: "Dashboard", to: "/", icon: <Icons.dashboard /> },
+  { label: "Dashboard", to: "/dashboard", icon: <Icons.dashboard /> },
   {
     section: "Observe",
     items: [
@@ -78,7 +78,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="w-[220px] shrink-0 bg-surface border-r border-border h-screen flex flex-col sticky top-0">
       <div className="px-4 pt-[18px] pb-3.5 flex items-center justify-between">
-        <NavLink to="/" aria-label="Dashboard">
+        <NavLink to="/dashboard" aria-label="Dashboard">
           <Wordmark />
         </NavLink>
         {onClose && (
