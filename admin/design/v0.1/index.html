@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vellic admin</title>
+<link rel="stylesheet" href="tokens.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="components/shell.jsx"></script>
+<script type="text/babel" src="components/mock.jsx"></script>
+<script type="text/babel" src="components/screens/login.jsx"></script>
+<script type="text/babel" src="components/screens/onboarding.jsx"></script>
+<script type="text/babel" src="components/screens/dashboard.jsx"></script>
+<script type="text/babel" src="components/screens/deliveries.jsx"></script>
+<script type="text/babel" src="components/screens/jobs.jsx"></script>
+<script type="text/babel" src="components/screens/llm.jsx"></script>
+<script type="text/babel" src="components/screens/repos.jsx"></script>
+<script type="text/babel" src="components/screens/webhook.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const ROUTE_META = {
+  '/':                { crumbs: [{ label: 'Dashboard' }] },
+  '/deliveries':      { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Deliveries' }] },
+  '/jobs':            { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Jobs' }] },
+  '/settings/llm':    { crumbs: [{ label: 'Settings' }, { label: 'Providers' }] },
+  '/settings/repos':  { crumbs: [{ label: 'Settings' }, { label: 'Repositories' }] },
+  '/settings/webhook':{ crumbs: [{ label: 'Settings' }, { label: 'Webhook' }] },
+};
+
+function App() {
+  // Persist current route
+  const [route, _setRoute] = useState(() => localStorage.getItem('vellic.route') || '/');
+  const setRoute = (r) => { _setRoute(r); localStorage.setItem('vellic.route', r); };
+
+  // App-wide mutable state
+  const [state, setState] = useState({
+    provider: { ...MOCK.provider },
+    repos: [...MOCK.repos],
+    dashError: false,
+  });
+
+  // Tweaks panel state
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const navigate = (r) => setRoute(r);
+
+  // Pre-auth routes render without shell
+  if (route === '/login') return (
+    <ToastProvider>
+      <LoginScreen navigate={navigate} />
+      {tweaksOpen && <TweaksPanel state={state} setState={setState} route={route} navigate={navigate} />}
+    </ToastProvider>
+  );
+  if (route === '/setup') return (
+    <ToastProvider>
+      <OnboardingScreen navigate={navigate} />
+      {tweaksOpen && <TweaksPanel state={state} setState={setState} route={route} navigate={navigate} />}
+    </ToastProvider>
+  );
+
+  const meta = ROUTE_META[route] || { crumbs: [{ label: 'Dashboard' }] };
+
+  let screen;
+  switch (route) {
+    case '/':                 screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/deliveries':       screen = <DeliveriesScreen navigate={navigate} />; break;
+    case '/jobs':             screen = <JobsScreen navigate={navigate} />; break;
+    case '/settings/llm':     screen = <LlmSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/repos':   screen = <ReposSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/webhook': screen = <WebhookSettingsScreen navigate={navigate} />; break;
+    default:                  screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />;
+  }
+
+  return (
+    <ToastProvider>
+      <Shell route={route} navigate={navigate} crumbs={meta.crumbs}>
+        {screen}
+      </Shell>
+      {tweaksOpen && <TweaksPanel state={state} setState={setState} route={route} navigate={navigate} />}
+    </ToastProvider>
+  );
+}
+
+// ---------- Tweaks panel ----------
+function TweaksPanel({ state, setState, route, navigate }) {
+  const cycleProvider = (kind) => {
+    setState(s => ({
+      ...s,
+      provider: {
+        ...s.provider,
+        kind,
+        model: kind === 'openai' ? 'gpt-4o-mini' : kind === 'anthropic' ? 'claude-sonnet-4' : kind === 'claude_code' ? 'claude-sonnet-4' : kind === 'vllm' ? 'Qwen2.5-Coder-32B' : 'qwen2.5-coder:14b',
+      }
+    }));
+  };
+  const clearRepos = () => setState(s => ({ ...s, repos: [] }));
+  const restoreRepos = () => setState(s => ({ ...s, repos: [...MOCK.repos] }));
+  const toggleDashErr = () => setState(s => ({ ...s, dashError: !s.dashError }));
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 16, right: 16, width: 280,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+      zIndex: 200, padding: 14, fontSize: 13,
+    }}>
+      <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Tweaks</div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Jump to screen</div>
+        <select className="select input" value={route} onChange={(e) => navigate(e.target.value)}>
+          <option value="/setup">/setup (onboarding)</option>
+          <option value="/login">/login</option>
+          <option value="/">/ (dashboard)</option>
+          <option value="/deliveries">/deliveries</option>
+          <option value="/jobs">/jobs</option>
+          <option value="/settings/llm">/settings/llm</option>
+          <option value="/settings/repos">/settings/repos</option>
+          <option value="/settings/webhook">/settings/webhook</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>LLM provider (affects cloud warnings)</div>
+        <select className="select input" value={state.provider.kind} onChange={(e) => cycleProvider(e.target.value)}>
+          <option value="ollama">Ollama (self-host)</option>
+          <option value="vllm">vLLM (self-host)</option>
+          <option value="openai">OpenAI (cloud)</option>
+          <option value="anthropic">Anthropic (cloud)</option>
+          <option value="claude_code">Claude Code (cloud)</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>States</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button className="btn btn-sm" onClick={state.repos.length ? clearRepos : restoreRepos}>
+            {state.repos.length ? 'Empty repos (dashboard empty state)' : 'Restore repos'}
+          </button>
+          <button className="btn btn-sm" onClick={toggleDashErr}>
+            {state.dashError ? 'Clear' : 'Trigger'} dashboard stats error
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
