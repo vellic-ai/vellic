@@ -31,7 +31,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if _ADMIN_V2:
         # @deprecated: admin/static/ is superseded by the nginx SPA bundle (VEL-52).
         # Scheduled for removal after 7 days of stable staging; track in VEL-52 deprecation plan.
-        logger.warning("VELLIC_ADMIN_V2=1: admin/static/ serving is deprecated — SPA served by nginx")
+        logger.warning(
+            "VELLIC_ADMIN_V2=1: admin/static/ serving is deprecated — SPA served by nginx"
+        )
     await db.init_pool()
     await arq_pool.init_pool()
     yield
