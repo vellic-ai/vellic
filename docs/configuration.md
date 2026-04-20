@@ -1,6 +1,8 @@
 # Configuration
 
-All configuration is through environment variables. In local dev they are read from `docker-compose.yml`. In production, inject via Kubernetes Secrets or an external secrets manager.
+Infrastructure configuration (database, Redis, ports) is done through environment variables. In local dev they are read from `docker-compose.yml`. In production, inject via Kubernetes Secrets or an external secrets manager.
+
+**LLM provider selection, model, API keys, and per-repository settings are configured through the Admin UI** (`http://localhost:8001`), not through environment variables.
 
 ## Required variables
 
@@ -22,19 +24,6 @@ All configuration is through environment variables. In local dev they are read f
 | Variable | Default | Description |
 |---|---|---|
 | `REDIS_URL` | `redis://redis:6379` | Redis DSN for Arq queue and cache. |
-
-## LLM
-
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_PROVIDER` | `ollama` | Provider: `ollama`, `vllm`, `openai`, `anthropic`, `claude_code` |
-| `LLM_BASE_URL` | `http://ollama:11434` | Base URL for self-hosted LLM endpoint. Ignored for OpenAI/Anthropic. |
-| `LLM_MODEL` | `llama3.1:8b-instruct-q4_K_M` | Model identifier. |
-| `LLM_API_KEY` | — | API key for cloud providers (OpenAI, Anthropic). |
-| `CLAUDE_CODE_BIN` | `claude` | Path to the Claude Code CLI binary. Used only when `LLM_PROVIDER=claude_code`. |
-| `CLAUDE_CODE_MODEL` | — | Model override for Claude Code CLI. Uses CLI default if empty. |
-
-See [`docs/llm-providers.md`](llm-providers.md) for per-provider setup details.
 
 ## Worker
 
