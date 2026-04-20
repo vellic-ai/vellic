@@ -18,13 +18,21 @@ from .stats_router import router as stats_router
 
 _STATIC = Path(__file__).parent.parent / "static"
 
+# VELLIC_ADMIN_V2=1 means the nginx frontend serves the SPA; admin/static/ is deprecated.
+# Set to 0 (default) until VEL-51 e2e green run confirms SPA stability.
+_ADMIN_V2 = os.getenv("VELLIC_ADMIN_V2", "0") == "1"
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("admin")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("vellic admin starting on port %s", os.getenv("PORT", "8001"))
+    logger.info("vellic admin starting on port %s (v2=%s)", os.getenv("PORT", "8001"), _ADMIN_V2)
+    if _ADMIN_V2:
+        # @deprecated: admin/static/ is superseded by the nginx SPA bundle (VEL-52).
+        # Scheduled for removal after 7 days of stable staging; track in VEL-52 deprecation plan.
+        logger.warning("VELLIC_ADMIN_V2=1: admin/static/ serving is deprecated — SPA served by nginx")
     await db.init_pool()
     await arq_pool.init_pool()
     yield
@@ -40,7 +48,8 @@ app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)
 
-if _STATIC.is_dir():
+# @deprecated (VELLIC_ADMIN_V2): static mount removed when flag=1; nginx handles SPA routing.
+if not _ADMIN_V2 and _STATIC.is_dir():
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 
@@ -51,6 +60,7 @@ async def health() -> dict:
 
 @app.get("/")
 async def admin_root() -> FileResponse:
+    # @deprecated (VELLIC_ADMIN_V2): when flag=1, nginx serves / directly from SPA dist.
     return FileResponse(str(_STATIC / "index.html"))
 
 

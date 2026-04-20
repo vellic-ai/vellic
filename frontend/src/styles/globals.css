@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* ─── VEL-43 design tokens ─────────────────────────────────────────── */
+:root {
+  --bg:              #0f1117;
+  --surface:         #1a1d27;
+  --surface-2:       #22263a;
+  --border:          #2e3347;
+  --text:            #e8eaf0;
+  --text-muted:      #7b82a0;
+  --accent:          #6c63ff;
+  --accent-hover:    #7c74ff;
+  --danger:          #ff4d6d;
+  --warning-bg:      #2a1f10;
+  --warning-border:  #c87941;
+  --warning-text:    #f0a05a;
+  --success:         #22c55e;
+  --error:           #ef4444;
+  --input-bg:        #12141e;
+  --radius:          8px;
+  --font:            -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono:       "SF Mono", "Fira Code", "Consolas", monospace;
+}
+
+/* ─── Tailwind v4 theme registration ───────────────────────────────── */
+@theme {
+  --color-bg:              var(--bg);
+  --color-surface:         var(--surface);
+  --color-surface-2:       var(--surface-2);
+  --color-border:          var(--border);
+  --color-text:            var(--text);
+  --color-text-muted:      var(--text-muted);
+  --color-accent:          var(--accent);
+  --color-accent-hover:    var(--accent-hover);
+  --color-danger:          var(--danger);
+  --color-success:         var(--success);
+  --color-error:           var(--error);
+  --color-input-bg:        var(--input-bg);
+  --color-warning-bg:      var(--warning-bg);
+  --color-warning-border:  var(--warning-border);
+  --color-warning-text:    var(--warning-text);
+
+  --border-radius-DEFAULT: var(--radius);
+  --border-radius-sm:      calc(var(--radius) - 2px);
+  --border-radius-lg:      calc(var(--radius) + 2px);
+  --border-radius-full:    9999px;
+
+  --font-family-sans: var(--font);
+  --font-family-mono: var(--font-mono);
+
+  --font-size-xs:   11.5px;
+  --font-size-sm:   12.5px;
+  --font-size-base: 14px;
+  --font-size-lg:   16px;
+}
+
+/* ─── Base reset ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a    { color: inherit; text-decoration: none; }
+button { font-family: inherit; font-size: inherit; cursor: pointer; }
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+input:focus, textarea:focus, select:focus { outline: none; }
+code, .mono { font-family: var(--font-mono); }
+
+/* ─── Slim scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2f44; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4058; }
+
+/* ─── shadcn/ui CSS variable aliases (required by shadcn primitives) ── */
+:root {
+  --background:       var(--bg);
+  --foreground:       var(--text);
+  --card:             var(--surface);
+  --card-foreground:  var(--text);
+  --popover:          var(--surface);
+  --popover-foreground: var(--text);
+  --primary:          var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary:        var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted:            var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent-shadcn:    var(--surface-2);
+  --accent-foreground:var(--text);
+  --destructive:      var(--danger);
+  --destructive-foreground: #ffffff;
+  --border-shadcn:    var(--border);
+  --input:            var(--input-bg);
+  --ring:             var(--accent);
+}
