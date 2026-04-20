@@ -2,11 +2,16 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import arq_pool, db
 from .settings_router import router as settings_router
+
+_STATIC = Path(__file__).parent.parent / "static"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("admin")
@@ -25,10 +30,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="vellic-admin", version="0.1.0", lifespan=lifespan)
 app.include_router(settings_router)
 
+if _STATIC.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
+
 
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok", "service": "admin"}
+
+
+@app.get("/settings/{path:path}")
+async def admin_spa(path: str) -> FileResponse:
+    return FileResponse(str(_STATIC / "index.html"))
 
 
 @app.post("/admin/replay/{delivery_id}", status_code=202)

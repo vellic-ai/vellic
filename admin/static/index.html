@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vellic Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-2: #22263a;
+      --border: #2e3347;
+      --text: #e8eaf0;
+      --text-muted: #7b82a0;
+      --accent: #6c63ff;
+      --accent-hover: #7c74ff;
+      --danger: #ff4d6d;
+      --warning-bg: #2a1f10;
+      --warning-border: #c87941;
+      --warning-text: #f0a05a;
+      --success: #22c55e;
+      --error: #ef4444;
+      --input-bg: #12141e;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo .wordmark {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--text);
+    }
+
+    .sidebar-logo .badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-left: 6px;
+      opacity: 0.9;
+    }
+
+    .sidebar-nav {
+      padding: 12px 10px;
+      flex: 1;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      padding: 8px 10px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .nav-item.active { background: var(--surface-2); color: var(--text); }
+    .nav-item.active .nav-icon { color: var(--accent); }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    /* Main content */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .breadcrumb .sep { opacity: 0.4; }
+    .breadcrumb .current { color: var(--text); font-weight: 500; }
+
+    .content {
+      flex: 1;
+      padding: 32px;
+      max-width: 720px;
+    }
+
+    .page-header {
+      margin-bottom: 28px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+
+    .page-desc {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .card-body { padding: 24px; }
+
+    /* Form */
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .field .hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .input, .select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 9px 12px;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .input:focus, .select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+    }
+
+    .input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      pointer-events: none;
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap .input { padding-right: 40px; font-family: var(--font-mono); }
+
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+    }
+
+    .password-toggle:hover { color: var(--text); }
+
+    /* Warning banner */
+    .warning-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      color: var(--warning-text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .warning-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* Actions */
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      text-decoration: none;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:not(:disabled):hover { background: var(--accent-hover); }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { color: var(--text); }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .save-status.ok { color: var(--success); }
+    .save-status.err { color: var(--error); }
+
+    /* Toast */
+    #toast-root {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      pointer-events: auto;
+      animation: slide-in 0.2s ease;
+      min-width: 260px;
+    }
+
+    .toast.success { border-color: rgba(34,197,94,0.3); }
+    .toast.error { border-color: rgba(239,68,68,0.3); }
+
+    .toast-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .toast.success .toast-dot { background: var(--success); }
+    .toast.error .toast-dot { background: var(--error); }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Skeleton / loading */
+    .skeleton {
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-field { height: 36px; }
+
+    /* Spinner */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Utilities */
+    .hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sidebar {
+        width: 56px;
+        overflow: hidden;
+      }
+      .sidebar-logo .badge,
+      .nav-item span,
+      .nav-section-label { display: none; }
+      .sidebar-logo .wordmark { font-size: 0; }
+      .sidebar-logo .wordmark::first-letter { font-size: 18px; }
+      .nav-item { justify-content: center; padding: 10px; }
+      .main { margin-left: 56px; }
+      .content { padding: 24px 20px; }
+    }
+
+    @media (max-width: 600px) {
+      .topbar { padding: 0 20px; }
+      .content { padding: 20px 16px; }
+      .card-body { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="wordmark">vellic</span><span class="badge">admin</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Settings</div>
+      <a class="nav-item active" href="/settings/llm">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2.5"/>
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"/>
+        </svg>
+        <span>LLM Provider</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <span>Settings</span>
+        <span class="sep">/</span>
+        <span class="current">LLM Provider</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-header">
+        <h1 class="page-title">LLM Provider</h1>
+        <p class="page-desc">Configure the language model used to analyse pull requests. Changes take effect on the next job run.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Provider configuration</div>
+        </div>
+        <div class="card-body">
+          <form id="llm-form" class="form-grid" autocomplete="off" novalidate>
+
+            <!-- Privacy warning -->
+            <div id="privacy-warning" class="warning-banner hidden">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M8 2L14.5 13.5H1.5L8 2z"/>
+                <line x1="8" y1="6.5" x2="8" y2="9.5"/>
+                <circle cx="8" cy="11.5" r="0.5" fill="currentColor"/>
+              </svg>
+              <span>PR diff content will be sent to an external service.</span>
+            </div>
+
+            <!-- Provider -->
+            <div class="field">
+              <label for="provider">Provider</label>
+              <div class="select-wrap">
+                <select id="provider" name="provider" class="select">
+                  <option value="ollama">Ollama</option>
+                  <option value="vllm">vLLM</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="claude_code">Claude Code</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Model -->
+            <div class="field">
+              <label for="model">Model</label>
+              <input id="model" name="model" type="text" class="input" placeholder="e.g. llama3:8b" required />
+              <span class="hint">The model name as recognised by the provider.</span>
+            </div>
+
+            <!-- Base URL (Ollama / vLLM only) -->
+            <div class="field" id="field-base-url">
+              <label for="base-url">Base URL</label>
+              <input id="base-url" name="base_url" type="url" class="input" placeholder="http://localhost:11434" />
+              <span class="hint">API base URL for self-hosted deployments.</span>
+            </div>
+
+            <!-- API Key (cloud providers only) -->
+            <div class="field" id="field-api-key">
+              <label for="api-key">API Key</label>
+              <div class="password-wrap">
+                <input id="api-key" name="api_key" type="password" class="input" placeholder="sk-…" autocomplete="new-password" />
+                <button type="button" class="password-toggle" id="toggle-key" aria-label="Toggle visibility">
+                  <svg id="eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <ellipse cx="8" cy="8" rx="6.5" ry="4"/>
+                    <circle cx="8" cy="8" r="1.8"/>
+                  </svg>
+                  <svg id="eye-hide" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden">
+                    <path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/>
+                    <path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/>
+                  </svg>
+                </button>
+              </div>
+              <span class="hint" id="api-key-hint">Leave blank to keep the existing key.</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="save-btn">
+                <span id="save-label">Save changes</span>
+                <span id="save-spinner" class="spinner hidden"></span>
+              </button>
+              <button type="button" class="btn btn-ghost" id="reset-btn">Reset</button>
+              <span class="save-status" id="save-status"></span>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast root -->
+  <div id="toast-root"></div>
+
+  <script>
+    (() => {
+      // Provider metadata
+      const PROVIDERS = {
+        ollama:      { label: 'Ollama',      defaultModel: 'llama3:8b',               cloud: false },
+        vllm:        { label: 'vLLM',        defaultModel: 'meta-llama/Llama-3-8b',   cloud: false },
+        openai:      { label: 'OpenAI',      defaultModel: 'gpt-4o-mini',             cloud: true  },
+        anthropic:   { label: 'Anthropic',   defaultModel: 'claude-3-haiku-20240307', cloud: true  },
+        claude_code: { label: 'Claude Code', defaultModel: 'claude-sonnet-4-6',       cloud: true  },
+      };
+
+      // Refs
+      const form         = document.getElementById('llm-form');
+      const providerSel  = document.getElementById('provider');
+      const modelInput   = document.getElementById('model');
+      const baseUrlInput = document.getElementById('base-url');
+      const apiKeyInput  = document.getElementById('api-key');
+      const fieldBaseUrl = document.getElementById('field-base-url');
+      const fieldApiKey  = document.getElementById('field-api-key');
+      const warning      = document.getElementById('privacy-warning');
+      const saveBtn      = document.getElementById('save-btn');
+      const saveLabel    = document.getElementById('save-label');
+      const saveSpinner  = document.getElementById('save-spinner');
+      const saveStatus   = document.getElementById('save-status');
+      const resetBtn     = document.getElementById('reset-btn');
+      const toggleKey    = document.getElementById('toggle-key');
+      const eyeShow      = document.getElementById('eye-show');
+      const eyeHide      = document.getElementById('eye-hide');
+
+      let originalData = null;
+      let apiKeyDirty  = false;
+
+      // Toggle password visibility
+      toggleKey.addEventListener('click', () => {
+        const isPass = apiKeyInput.type === 'password';
+        apiKeyInput.type = isPass ? 'text' : 'password';
+        eyeShow.classList.toggle('hidden', isPass);
+        eyeHide.classList.toggle('hidden', !isPass);
+      });
+
+      // Mark api key dirty when user types
+      apiKeyInput.addEventListener('input', () => { apiKeyDirty = true; });
+
+      // Provider change handler
+      function onProviderChange() {
+        const p = providerSel.value;
+        const meta = PROVIDERS[p];
+        const isCloud = meta?.cloud ?? false;
+
+        fieldBaseUrl.classList.toggle('hidden', isCloud);
+        fieldApiKey.classList.toggle('hidden', !isCloud);
+        warning.classList.toggle('hidden', !isCloud);
+      }
+
+      providerSel.addEventListener('change', () => {
+        const p = providerSel.value;
+        const meta = PROVIDERS[p];
+        // Reset model to provider default when switching providers
+        if (originalData?.provider !== p) {
+          modelInput.value = meta?.defaultModel ?? '';
+        }
+        onProviderChange();
+        clearStatus();
+      });
+
+      // Toast
+      function toast(msg, type = 'success') {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.innerHTML = `<div class="toast-dot"></div><span>${msg}</span>`;
+        document.getElementById('toast-root').appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+      }
+
+      function clearStatus() {
+        saveStatus.textContent = '';
+        saveStatus.className = 'save-status';
+      }
+
+      function setStatus(msg, type) {
+        saveStatus.textContent = msg;
+        saveStatus.className = `save-status ${type}`;
+      }
+
+      function setSaving(saving) {
+        saveBtn.disabled = saving;
+        saveLabel.textContent = saving ? 'Saving…' : 'Save changes';
+        saveSpinner.classList.toggle('hidden', !saving);
+      }
+
+      // Load settings
+      async function loadSettings() {
+        try {
+          const res = await fetch('/admin/settings/llm');
+          if (res.status === 404) {
+            // Not configured yet — use defaults
+            providerSel.value = 'ollama';
+            modelInput.value = PROVIDERS.ollama.defaultModel;
+            onProviderChange();
+            return;
+          }
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          originalData = data;
+
+          providerSel.value  = data.provider ?? 'ollama';
+          modelInput.value   = data.model ?? '';
+          baseUrlInput.value = data.base_url ?? '';
+          // Show masked key as placeholder; leave value empty so we only send if changed
+          if (data.api_key) {
+            apiKeyInput.placeholder = data.api_key; // e.g. "sk-…••••••ab12"
+            apiKeyInput.value = '';
+          }
+          onProviderChange();
+        } catch (err) {
+          toast('Failed to load settings. Check admin service connectivity.', 'error');
+          console.error(err);
+        }
+      }
+
+      // Save handler
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearStatus();
+
+        const provider = providerSel.value;
+        const model    = modelInput.value.trim();
+
+        if (!model) {
+          modelInput.focus();
+          setStatus('Model is required.', 'err');
+          return;
+        }
+
+        const body = { provider, model };
+
+        const isCloud = PROVIDERS[provider]?.cloud;
+        if (!isCloud) {
+          const url = baseUrlInput.value.trim();
+          if (url) body.base_url = url;
+        } else {
+          // Only include api_key if user typed something new
+          if (apiKeyDirty && apiKeyInput.value.trim()) {
+            body.api_key = apiKeyInput.value.trim();
+          }
+        }
+
+        setSaving(true);
+        try {
+          const res = await fetch('/admin/settings/llm', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) {
+            const detail = await res.json().then(d => d.detail).catch(() => `HTTP ${res.status}`);
+            throw new Error(detail ?? `HTTP ${res.status}`);
+          }
+
+          const saved = await res.json();
+          originalData = saved;
+
+          // Update masked key placeholder
+          if (saved.api_key) {
+            apiKeyInput.placeholder = saved.api_key;
+            apiKeyInput.value = '';
+            apiKeyDirty = false;
+          }
+
+          toast('Settings saved successfully.', 'success');
+          setStatus('Saved', 'ok');
+        } catch (err) {
+          toast(`Save failed: ${err.message}`, 'error');
+          setStatus('Save failed', 'err');
+          console.error(err);
+        } finally {
+          setSaving(false);
+        }
+      });
+
+      // Reset to last loaded state
+      resetBtn.addEventListener('click', () => {
+        if (!originalData) return;
+        providerSel.value  = originalData.provider ?? 'ollama';
+        modelInput.value   = originalData.model ?? '';
+        baseUrlInput.value = originalData.base_url ?? '';
+        apiKeyInput.value  = '';
+        apiKeyDirty = false;
+        onProviderChange();
+        clearStatus();
+      });
+
+      // Boot
+      loadSettings();
+    })();
+  </script>
+</body>
+</html>
