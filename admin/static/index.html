@@ -1052,6 +1052,7 @@
     }
 
     .auth-card { width: 100%; max-width: 380px; }
+    .auth-card:has(#auth-setup:not(.hidden)) { max-width: 520px; }
 
     .auth-wordmark {
       display: flex;
@@ -2245,9 +2246,7 @@
             setTimeout(() => pw.focus(), 50);
           }
           if (mode === 'setup') {
-            const pw = document.getElementById('setup-pw');
-            pw.value = '';
-            setTimeout(() => pw.focus(), 50);
+            // wizard focus is handled by bindSetup / goToStep
           }
         }
 
@@ -2329,43 +2328,295 @@
         }
 
         function bindSetup() {
-          const pw    = document.getElementById('setup-pw');
-          const btn   = document.getElementById('setup-btn');
-          const spin  = document.getElementById('setup-spinner');
-          const errEl = document.getElementById('setup-error');
+          // ── Wizard state ──────────────────────────────────────────────────
+          const TOTAL = 5;
+          const CLOUD = new Set(['openai', 'anthropic', 'claude_code']);
+          const PROVIDER_NAMES = { ollama: 'Ollama', vllm: 'vLLM', openai: 'OpenAI', anthropic: 'Anthropic', claude_code: 'Claude Code' };
 
-          bindToggle('setup-pw', 'setup-pw-toggle', 'setup-eye-show', 'setup-eye-hide');
+          const wiz = {
+            pw: '', provider: null, llmSkipped: false,
+            whUrl: '', hmac: '', repoSkipped: false,
+            repoOrg: '', repoName: '', repoPlatform: 'github',
+          };
 
-          pw.addEventListener('input', () => {
-            btn.disabled = !pw.value;
-            pw.classList.remove('error');
-            errEl.classList.add('hidden');
-          });
+          function setProgress(step) {
+            const pct = Math.round((step / TOTAL) * 100);
+            document.getElementById('wiz-step-label').textContent = `Step ${step} of ${TOTAL}`;
+            document.getElementById('wiz-pct').textContent = pct + '%';
+            document.getElementById('wiz-progress').style.width = pct + '%';
+            for (let i = 1; i <= TOTAL; i++) {
+              const el = document.getElementById('wiz-s' + i);
+              if (el) el.classList.toggle('hidden', i !== step);
+            }
+          }
 
-          document.getElementById('setup-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!pw.value) return;
-            btn.disabled = true;
+          function showErr(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.classList.remove('hidden');
+          }
+          function hideErr(id) { document.getElementById(id).classList.add('hidden'); }
+
+          // ── Step 1: Password ──────────────────────────────────────────────
+          const pw1  = document.getElementById('wiz-pw');
+          const pw2  = document.getElementById('wiz-pw2');
+          const s1btn = document.getElementById('wiz-s1-next');
+
+          bindToggle('wiz-pw', 'wiz-pw-toggle', 'wiz-eye-show', 'wiz-eye-hide');
+
+          function pwStrength(p) {
+            let s = 0;
+            if (p.length >= 12) s++;
+            if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
+            if (/\d/.test(p)) s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            return s;
+          }
+
+          function updateS1() {
+            const p1 = pw1.value, p2 = pw2.value;
+            const bars = document.getElementById('wiz-strength-bars');
+            if (p1) {
+              bars.classList.remove('hidden');
+              const s = pwStrength(p1);
+              const cls = s <= 1 ? 'weak' : s === 2 ? 'fair' : 'strong';
+              for (let i = 0; i < 4; i++) {
+                document.getElementById('wiz-sb' + i).className = 'strength-bar' + (i < s ? ' ' + cls : '');
+              }
+            } else {
+              bars.classList.add('hidden');
+            }
+            document.getElementById('wiz-pw-mismatch').classList.toggle('hidden', !p2 || p1 === p2);
+            s1btn.disabled = p1.length < 12 || p1 !== p2;
+          }
+
+          pw1.addEventListener('input', updateS1);
+          pw2.addEventListener('input', updateS1);
+
+          s1btn.addEventListener('click', async () => {
+            if (s1btn.disabled) return;
+            hideErr('wiz-s1-error');
+            const spin = document.getElementById('wiz-s1-spin');
+            s1btn.disabled = true;
             spin.classList.remove('hidden');
-            errEl.classList.add('hidden');
             try {
               const res = await fetch('/admin/auth/setup', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pw.value }),
+                body: JSON.stringify({ password: pw1.value }),
               });
               if (res.status === 409) { showAuthPage('login'); return; }
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              showApp();
-            } catch (err) {
-              errEl.textContent = 'Setup failed. Please try again.';
-              errEl.classList.remove('hidden');
-              pw.classList.add('error');
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              wiz.pw = pw1.value;
+              goToStep(2);
+            } catch {
+              showErr('wiz-s1-error', 'Setup failed. Please try again.');
             } finally {
               spin.classList.add('hidden');
-              btn.disabled = !pw.value;
+              s1btn.disabled = pw1.value.length < 12 || pw1.value !== pw2.value;
             }
           });
+
+          // ── Step 2: LLM provider ──────────────────────────────────────────
+          const provSel = document.getElementById('wiz-provider');
+          const s2btn   = document.getElementById('wiz-s2-next');
+
+          function updateProviderUI() {
+            const cloud = CLOUD.has(provSel.value);
+            document.getElementById('wiz-cloud-warn').classList.toggle('hidden', !cloud);
+            if (cloud) document.getElementById('wiz-cloud-warn-text').textContent = 'Source code will leave your network to ' + PROVIDER_NAMES[provSel.value] + '.';
+            document.getElementById('wiz-base-url-field').classList.toggle('hidden', cloud);
+            document.getElementById('wiz-api-key-field').classList.toggle('hidden', !cloud);
+            const defaults = { ollama: 'qwen2.5-coder:14b', vllm: 'qwen2.5-coder:14b', openai: 'gpt-4o', anthropic: 'claude-opus-4-7', claude_code: 'claude-opus-4-7' };
+            document.getElementById('wiz-model').value = defaults[provSel.value] || '';
+          }
+
+          provSel.addEventListener('change', updateProviderUI);
+          updateProviderUI();
+
+          document.getElementById('wiz-s2-back').addEventListener('click', () => goToStep(1));
+          document.getElementById('wiz-s2-skip').addEventListener('click', () => { wiz.llmSkipped = true; goToStep(3); });
+
+          s2btn.addEventListener('click', async () => {
+            hideErr('wiz-s2-error');
+            const spin    = document.getElementById('wiz-s2-spin');
+            const model   = document.getElementById('wiz-model').value.trim();
+            const kind    = provSel.value;
+            const cloud   = CLOUD.has(kind);
+            const apiKey  = document.getElementById('wiz-api-key').value.trim();
+            const baseUrl = document.getElementById('wiz-base-url').value.trim();
+            if (!model || (cloud ? !apiKey : !baseUrl)) {
+              showErr('wiz-s2-error', 'Please fill in all required fields.');
+              return;
+            }
+            s2btn.disabled = true;
+            spin.classList.remove('hidden');
+            try {
+              const res = await fetch('/admin/settings/llm', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: kind, model, base_url: cloud ? null : baseUrl, api_key: cloud ? apiKey : null }),
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              wiz.provider = { kind, model };
+              wiz.llmSkipped = false;
+              goToStep(3);
+            } catch {
+              showErr('wiz-s2-error', 'Failed to save provider settings.');
+            } finally {
+              spin.classList.add('hidden');
+              s2btn.disabled = false;
+            }
+          });
+
+          // ── Step 3: Webhook ───────────────────────────────────────────────
+          const s3btn   = document.getElementById('wiz-s3-next');
+          const hmacEl  = document.getElementById('wiz-hmac');
+          const hmacChk = document.getElementById('wiz-hmac-saved');
+
+          function updateS3Next() {
+            s3btn.disabled = !document.getElementById('wiz-wh-url').value.trim() || !hmacChk.checked || !hmacEl.value;
+          }
+
+          document.getElementById('wiz-wh-url').addEventListener('input', updateS3Next);
+          hmacChk.addEventListener('change', updateS3Next);
+
+          document.getElementById('wiz-hmac-copy').addEventListener('click', () => {
+            if (hmacEl.value) navigator.clipboard?.writeText(hmacEl.value).catch(() => {});
+          });
+
+          function bindCollapsible(toggleId, bodyId, chevId) {
+            document.getElementById(toggleId).addEventListener('click', () => {
+              const body = document.getElementById(bodyId);
+              const open = !body.classList.contains('hidden');
+              body.classList.toggle('hidden', open);
+              document.getElementById(chevId).classList.toggle('open', !open);
+            });
+          }
+          bindCollapsible('wiz-gh-toggle', 'wiz-gh-body', 'wiz-gh-chev');
+          bindCollapsible('wiz-gl-toggle', 'wiz-gl-body', 'wiz-gl-chev');
+
+          document.getElementById('wiz-s3-back').addEventListener('click', () => goToStep(2));
+
+          s3btn.addEventListener('click', async () => {
+            hideErr('wiz-s3-error');
+            const spin     = document.getElementById('wiz-s3-spin');
+            const whUrl    = document.getElementById('wiz-wh-url').value.trim();
+            const ghAppId  = document.getElementById('wiz-gh-app-id').value.trim();
+            const ghInstId = document.getElementById('wiz-gh-inst-id').value.trim();
+            const ghKey    = document.getElementById('wiz-gh-key').value.trim();
+            const glToken  = document.getElementById('wiz-gl-token').value.trim();
+            s3btn.disabled = true;
+            spin.classList.remove('hidden');
+            try {
+              const r1 = await fetch('/admin/settings/webhook', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: whUrl }),
+              });
+              if (!r1.ok) throw new Error('Webhook URL save failed (HTTP ' + r1.status + ')');
+              wiz.whUrl = whUrl;
+              wiz.hmac  = hmacEl.value;
+              if (ghAppId && ghInstId) {
+                const rGH = await fetch('/admin/settings/github', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ app_id: ghAppId, installation_id: ghInstId, private_key: ghKey || null }),
+                });
+                if (!rGH.ok) throw new Error('GitHub App save failed (HTTP ' + rGH.status + ')');
+              }
+              if (glToken) {
+                const rGL = await fetch('/admin/settings/gitlab', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: glToken }),
+                });
+                if (!rGL.ok) throw new Error('GitLab token save failed (HTTP ' + rGL.status + ')');
+              }
+              goToStep(4);
+            } catch (err) {
+              showErr('wiz-s3-error', err.message || 'Failed to save webhook settings.');
+              updateS3Next();
+            } finally {
+              spin.classList.add('hidden');
+            }
+          });
+
+          // ── Step 4: First repo ────────────────────────────────────────────
+          const s4btn = document.getElementById('wiz-s4-next');
+          document.getElementById('wiz-s4-back').addEventListener('click', () => goToStep(3));
+          document.getElementById('wiz-s4-skip').addEventListener('click', () => { wiz.repoSkipped = true; goToStep(5); });
+
+          s4btn.addEventListener('click', async () => {
+            hideErr('wiz-s4-error');
+            const org      = document.getElementById('wiz-repo-org').value.trim();
+            const repoName = document.getElementById('wiz-repo-name').value.trim();
+            const platform = document.getElementById('wiz-repo-platform').value;
+            if (!org || !repoName) {
+              showErr('wiz-s4-error', 'Organization and repository are required.');
+              return;
+            }
+            const spin = document.getElementById('wiz-s4-spin');
+            s4btn.disabled = true;
+            spin.classList.remove('hidden');
+            try {
+              const res = await fetch('/admin/settings/repos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform, org, repo: repoName }),
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              wiz.repoSkipped = false;
+              wiz.repoOrg = org;
+              wiz.repoName = repoName;
+              wiz.repoPlatform = platform;
+              goToStep(5);
+            } catch {
+              showErr('wiz-s4-error', 'Failed to add repository. You can add it later from Settings.');
+            } finally {
+              spin.classList.add('hidden');
+              s4btn.disabled = false;
+            }
+          });
+
+          // ── Step 5: Summary ───────────────────────────────────────────────
+          document.getElementById('wiz-go-dashboard').addEventListener('click', showApp);
+
+          function renderSummary() {
+            function sumRow(ok, label, value) {
+              const icon = ok
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>'
+                : '<span style="width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;display:inline-block"></span>';
+              return '<div class="sum-row"><span class="sum-row-icon ' + (ok ? 'ok' : 'skip') + '">' + icon + '</span><span class="sum-row-label">' + label + '</span><span class="sum-row-value">' + value + '</span></div>';
+            }
+            const provLabel = wiz.provider ? PROVIDER_NAMES[wiz.provider.kind] + ' · ' + wiz.provider.model : 'Skipped';
+            const repoLabel = (!wiz.repoSkipped && wiz.repoOrg) ? wiz.repoPlatform + ':' + wiz.repoOrg + '/' + wiz.repoName : 'Skipped';
+            document.getElementById('wiz-summary').innerHTML =
+              sumRow(true, 'Admin password', 'Set') +
+              sumRow(!wiz.llmSkipped, 'LLM provider', provLabel) +
+              sumRow(true, 'Webhook URL', wiz.whUrl || '—') +
+              sumRow(!wiz.repoSkipped && !!wiz.repoOrg, 'First repository', repoLabel);
+          }
+
+          // ── Navigation ────────────────────────────────────────────────────
+          async function goToStep(step) {
+            if (step === 3 && !hmacEl.value) {
+              try {
+                const r = await fetch('/admin/settings/webhook/rotate', { method: 'POST' });
+                if (r.ok) {
+                  const d = await r.json();
+                  hmacEl.value = d.hmac || '';
+                  document.getElementById('wiz-hmac-copy').disabled = !hmacEl.value;
+                }
+              } catch { /* non-fatal */ }
+              updateS3Next();
+            }
+            if (step === 5) renderSummary();
+            setProgress(step);
+          }
+
+          setProgress(1);
+          setTimeout(() => pw1.focus(), 50);
         }
 
         function bindLogout() {
