@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+  namespace: vellic
+  labels:
+    app.kubernetes.io/name: vellic-worker
+    app.kubernetes.io/component: worker
+data:
+  HEALTH_PORT: "8002"
+  LOG_LEVEL: "info"
+  ARQ_MAX_JOBS: "10"

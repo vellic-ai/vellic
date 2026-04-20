@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: vellic
+  labels:
+    app.kubernetes.io/name: vellic-api
+    app.kubernetes.io/component: api
+data:
+  PORT: "8000"
+  LOG_LEVEL: "info"
