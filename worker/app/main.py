@@ -9,7 +9,7 @@ from arq.connections import RedisSettings
 
 from .jobs import process_webhook
 from .llm import build_provider
-from .llm.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
+from .llm.config import LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, _EXTERNAL_PROVIDERS
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -50,11 +50,12 @@ async def startup(ctx: dict) -> None:
     ctx["redis"] = arq_redis
     logger.info("arq pool ready")
 
+    api_key = os.getenv("LLM_API_KEY", "") if LLM_PROVIDER in _EXTERNAL_PROVIDERS else ""
     provider = build_provider(
         LLM_PROVIDER,
         base_url=LLM_BASE_URL,
         model=LLM_MODEL,
-        api_key=LLM_API_KEY,
+        api_key=api_key,
     )
     ctx["llm"] = provider
     logger.info("LLM provider ready: provider=%s model=%s", LLM_PROVIDER, LLM_MODEL)
