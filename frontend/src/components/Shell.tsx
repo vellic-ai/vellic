@@ -65,8 +65,7 @@ function SidebarNavItem({ to, icon, label }: NavItem) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function Sidebar({ onClose: _onClose }: { onClose?: () => void }) {
+function Sidebar({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate();
   const logout = useLogout();
 
@@ -78,10 +77,19 @@ function Sidebar({ onClose: _onClose }: { onClose?: () => void }) {
 
   return (
     <aside className="w-[220px] shrink-0 bg-surface border-r border-border h-screen flex flex-col sticky top-0">
-      <div className="px-4 pt-[18px] pb-3.5">
+      <div className="px-4 pt-[18px] pb-3.5 flex items-center justify-between">
         <NavLink to="/" aria-label="Dashboard">
           <Wordmark />
         </NavLink>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="inline-flex items-center justify-center w-6 h-6 rounded text-text-muted hover:text-text hover:bg-surface-2"
+            aria-label="Close menu"
+          >
+            <Icons.x />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 pt-1 overflow-y-auto" aria-label="Main navigation">
