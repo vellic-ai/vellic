@@ -1,214 +1,264 @@
 <div align="center">
 
-# vellic
+<br/>
 
-**AI-powered code review, straight into your GitHub PRs.**
+```
+ ██╗   ██╗███████╗██╗     ██╗     ██╗ ██████╗
+ ██║   ██║██╔════╝██║     ██║     ██║██╔════╝
+ ██║   ██║█████╗  ██║     ██║     ██║██║
+ ╚██╗ ██╔╝██╔══╝  ██║     ██║     ██║██║
+  ╚████╔╝ ███████╗███████╗███████╗██║╚██████╗
+   ╚═══╝  ╚══════╝╚══════╝╚══════╝╚═╝ ╚═════╝
+```
+
+### Bring AI into every step of your development workflow.
+### Any VCS. Any LLM. No lock-in.
+
+<br/>
 
 [![CI](https://github.com/vellic-ai/vellic/actions/workflows/ci.yml/badge.svg)](https://github.com/vellic-ai/vellic/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white)](infra/k8s/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/contributing.md)
 
-</div>
+<br/>
 
 ---
 
-Vellic listens for GitHub pull-request events, runs your diff through an LLM analysis pipeline, and posts structured code review comments back as a GitHub Review — all without leaving your workflow.
+</div>
 
-## Features
+Vellic is an **open-source AI integration platform for developer workflows**. Point it at your Git platform and an LLM of your choice, and it starts augmenting your team — automated code review, PR analysis, and more — delivered directly inside the tools your engineers already use.
 
-- **GitHub Webhook ingestion** — validates `X-Hub-Signature-256`, deduplicates events, enqueues jobs via Arq
-- **Pluggable LLM backends** — Ollama (default, self-hosted), vLLM, OpenAI, Anthropic, or Claude Code CLI
-- **Multi-stage analysis pipeline** — diff fetching → context gathering → LLM analysis → feedback posting
-- **GitHub Reviews API** — posts inline comments at the exact changed line, grouped into a single review
-- **Admin panel** — replay events, inspect jobs, tune config without redeploying
-- **Kubernetes-ready** — Helm-free manifests with HPA (1→10 worker replicas at 70% CPU)
-- **Full observability** — structured logging, health endpoints on every service
+It is designed to be:
+
+- **VCS agnostic** — GitHub, GitLab, Bitbucket, and any platform that emits webhooks
+- **LLM agnostic** — Ollama, vLLM, OpenAI, Anthropic, Claude Code, or your own endpoint
+- **Self-hostable** — runs on Docker Compose locally or Kubernetes in production
+- **Extensible** — clean adapter interfaces; adding a new VCS or LLM is a single file
+
+---
+
+## What it does today
+
+| Capability | Description |
+|---|---|
+| **AI Code Review** | Analyses every PR diff and posts inline review comments via the VCS Reviews API |
+| **Multi-platform webhooks** | Receives, validates (HMAC), and normalises events from any VCS into a unified internal model |
+| **Async job pipeline** | 4-stage pipeline: diff fetch → context gathering → LLM analysis → feedback posting |
+| **Admin panel** | Replay events, inspect jobs, tune configuration — no redeploy needed |
+
+> **Roadmap**: issue triage, commit summarisation, automated changelog, security scanning, and more. See [`docs/roadmap.md`](docs/roadmap.md).
+
+---
+
+## Supported platforms
+
+<table>
+<tr>
+<td align="center"><strong>VCS</strong></td>
+<td>
+
+| Platform | Status |
+|---|---|
+| GitHub | ✅ Supported |
+| GitLab | 🚧 In progress |
+| Bitbucket | 📋 Planned |
+| Gitea / Forgejo | 📋 Planned |
+| Any webhook | ✅ Via custom adapter |
+
+</td>
+<td align="center"><strong>LLM</strong></td>
+<td>
+
+| Provider | `LLM_PROVIDER` |
+|---|---|
+| Ollama (default) | `ollama` |
+| vLLM | `vllm` |
+| OpenAI | `openai` |
+| Anthropic | `anthropic` |
+| Claude Code CLI | `claude_code` |
+| Custom endpoint | `vllm` (OpenAI-compatible) |
+
+</td>
+</tr>
+</table>
+
+See [`docs/vcs-integrations.md`](docs/vcs-integrations.md) and [`docs/llm-providers.md`](docs/llm-providers.md) for detailed setup.
+
+---
 
 ## Architecture
 
 ```
-GitHub PR event
-      │
-      ▼
-┌─────────────┐     Arq queue     ┌──────────────────────────────────────┐
-│   api :8000 │──────────────────▶│           worker :8002               │
-│  (FastAPI)  │                   │  diff_fetcher → context_gatherer     │
-└─────────────┘                   │  → llm_analyzer → feedback_poster    │
-                                  └───────────────────┬──────────────────┘
-┌─────────────┐                                       │
-│ admin :8001 │◀── PostgreSQL :5432                   │
-│  (FastAPI)  │◀── Redis :6379                        ▼
-└─────────────┘                              GitHub Reviews API
+ Webhook event (any VCS)
+        │
+        ▼
+ ┌──────────────────────────────────────────────────────────┐
+ │                        api  :8000                        │
+ │  Validate signature → Normalise → Enqueue (Arq / Redis)  │
+ └─────────────────────────┬────────────────────────────────┘
+                           │  Redis queue
+                           ▼
+ ┌──────────────────────────────────────────────────────────┐
+ │                      worker  :8002                       │
+ │                                                          │
+ │  ┌────────────┐  ┌─────────────────┐  ┌───────────────┐ │
+ │  │ diff fetch │→ │ context gather  │→ │  LLM analyze  │ │
+ │  └────────────┘  └─────────────────┘  └───────┬───────┘ │
+ │                                               │         │
+ │  ┌────────────────────────────────────────────▼───────┐ │
+ │  │               feedback poster                      │ │
+ │  │   VCS Reviews API  (GitHub / GitLab / …)           │ │
+ │  └────────────────────────────────────────────────────┘ │
+ └──────────────────────────────────────────────────────────┘
+        │                           │
+        ▼                           ▼
+   PostgreSQL :5432             Redis :6379
+
+ ┌──────────────────────────────────────────────────────────┐
+ │                      admin  :8001                        │
+ │         Event replay · Job inspector · Config            │
+ └──────────────────────────────────────────────────────────┘
 ```
+
+Deep dive: [`docs/architecture.md`](docs/architecture.md)
+
+---
 
 ## Quick start
 
 ### Prerequisites
 
-- Docker ≥ 24 and Docker Compose v2
-- A GitHub repo with a configured webhook (see [Webhook setup](#webhook-setup))
+- Docker ≥ 24 + Docker Compose v2
+- A webhook endpoint reachable from your VCS (or use [ngrok](https://ngrok.com) for local dev)
 
 ### 1. Clone and configure
 
 ```bash
 git clone https://github.com/vellic-ai/vellic.git
 cd vellic
-cp .env.example .env   # edit POSTGRES_PASSWORD and GITHUB_WEBHOOK_SECRET
+cp .env.example .env
+```
+
+Edit `.env` — two required fields:
+
+```dotenv
+POSTGRES_PASSWORD=changeme
+GITHUB_WEBHOOK_SECRET=your-hmac-secret
 ```
 
 ### 2. Boot the stack
 
 ```bash
 make up
-# or: docker compose up --build
+# shorthand for: docker compose up --build -d
 ```
 
-### 3. Verify
+### 3. Verify health
 
 ```bash
 bash scripts/health-check.sh
-# or manually:
-curl http://localhost:8000/health  # api
-curl http://localhost:8001/health  # admin
-curl http://localhost:8002/health  # worker
 ```
 
-All three should return `{"status": "ok"}`.
-
-### Webhook setup
-
-1. In your GitHub repo → **Settings → Webhooks → Add webhook**
-2. Payload URL: `https://<your-domain>/webhook/github`
-3. Content type: `application/json`
-4. Secret: same value as `GITHUB_WEBHOOK_SECRET` in `.env`
-5. Events: **Pull requests**
-
-## LLM providers
-
-| Provider | `LLM_PROVIDER` value | Notes |
-|---|---|---|
-| Ollama (default) | `ollama` | Self-hosted; pulled automatically in dev |
-| vLLM | `vllm` | OpenAI-compatible endpoint |
-| OpenAI | `openai` | Sends PR diffs to OpenAI API |
-| Anthropic | `anthropic` | Sends PR diffs to Anthropic API |
-| Claude Code CLI | `claude_code` | Uses local `claude` binary |
-
-> **Privacy:** Providers marked with ⚠️ (`openai`, `anthropic`, `claude_code`) send your PR diff content to an external service. A warning is logged at startup when these are selected.
-
-Switch providers at runtime via environment variable — no rebuild needed:
+All three services respond `{"status": "ok"}` when ready.
 
 ```bash
-# Switch to OpenAI
-LLM_PROVIDER=openai LLM_MODEL=gpt-4o docker compose up worker
+curl http://localhost:8000/health   # api
+curl http://localhost:8001/health   # admin
+curl http://localhost:8002/health   # worker
 ```
 
-## Environment variables
+### 4. Connect your VCS
 
-| Variable | Default | Description |
-|---|---|---|
-| `POSTGRES_PASSWORD` | — | **Required.** Postgres password |
-| `GITHUB_WEBHOOK_SECRET` | — | **Required.** HMAC secret for webhook validation |
-| `DATABASE_URL` | `postgresql://vellic:…@postgres:5432/vellic` | Full Postgres DSN |
-| `REDIS_URL` | `redis://redis:6379` | Redis URL (Arq queue + cache) |
-| `LLM_PROVIDER` | `ollama` | LLM backend (see table above) |
-| `LLM_BASE_URL` | `http://ollama:11434` | Base URL for self-hosted LLM |
-| `LLM_MODEL` | `llama3.1:8b-instruct-q4_K_M` | Model name/ID |
-| `LLM_API_KEY` | — | API key for cloud providers |
-| `CLAUDE_CODE_BIN` | `claude` | Path to the `claude` binary |
-| `HEALTH_PORT` | `8002` | Worker health server port |
+Point your platform's webhook at `https://<your-host>/webhook/github` (or the matching adapter path) and configure the HMAC secret. Detailed per-platform setup: [`docs/vcs-integrations.md`](docs/vcs-integrations.md).
+
+---
+
+## Configuration
+
+Full reference: [`docs/configuration.md`](docs/configuration.md)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `POSTGRES_PASSWORD` | ✅ | — | Postgres password |
+| `GITHUB_WEBHOOK_SECRET` | ✅ | — | HMAC secret for webhook validation |
+| `LLM_PROVIDER` | | `ollama` | LLM backend |
+| `LLM_BASE_URL` | | `http://ollama:11434` | Base URL for self-hosted LLM |
+| `LLM_MODEL` | | `llama3.1:8b-instruct-q4_K_M` | Model name/ID |
+| `LLM_API_KEY` | | — | API key for cloud LLM providers |
+| `DATABASE_URL` | | derived | Full Postgres DSN |
+| `REDIS_URL` | | `redis://redis:6379` | Redis DSN |
+
+> **Privacy:** `openai`, `anthropic`, and `claude_code` providers send PR diff content to external services. A warning is logged at startup. Self-hosted providers (`ollama`, `vllm`) keep everything on-prem.
+
+---
 
 ## Repository layout
 
 ```
 vellic/
-├── api/              FastAPI webhook ingestion service
+├── api/              Webhook ingestion service (FastAPI)
+├── worker/           Async analysis pipeline (Arq)
 │   └── app/
-│       ├── main.py   App entrypoint, route registration
-│       └── webhook.py GitHub event handler + Arq enqueue
-├── worker/           Arq async task worker
-│   └── app/
-│       ├── pipeline/ Analysis stages (diff → context → llm → feedback)
-│       ├── llm/      Provider registry + adapters
-│       └── adapters/ Platform adapters (GitHub)
-├── admin/            FastAPI admin panel (replay, config)
+│       ├── pipeline/ 4-stage pipeline (diff → context → llm → feedback)
+│       ├── llm/      LLM provider registry + adapters
+│       └── adapters/ VCS platform adapters
+├── admin/            Admin panel (FastAPI)
 ├── infra/
-│   └── k8s/          Kubernetes manifests (namespace, deployments, HPA)
-├── scripts/          Dev tooling (setup, health-check, test-webhook)
-├── docker-compose.yml
-└── .github/
-    └── workflows/ci.yml
+│   └── k8s/          Kubernetes manifests + HPA
+├── scripts/          Dev tooling
+├── docs/             ← Detailed documentation lives here
+│   ├── architecture.md
+│   ├── vcs-integrations.md
+│   ├── llm-providers.md
+│   ├── configuration.md
+│   ├── deployment.md
+│   └── roadmap.md
+└── docker-compose.yml
 ```
+
+---
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every PR and push to `main`:
+Pipeline runs on every PR and push to `main`:
 
-| Stage | What it does |
+```
+Lint (ruff) → Test (pytest) → Build → Push to ghcr.io
+```
+
+Images tagged as `ghcr.io/vellic-ai/vellic-{service}:{sha}` and `:latest` (main only).
+
+Deployment guide: [`docs/deployment.md`](docs/deployment.md)
+
+---
+
+## Documentation
+
+| Doc | Description |
 |---|---|
-| **Lint** | `ruff check` across all three services |
-| **Test** | `pytest` per service |
-| **Build & Push** | Docker images built for `api`, `worker`, `admin`; pushed to `ghcr.io` on `main` merges only |
+| [`docs/architecture.md`](docs/architecture.md) | System design, service boundaries, data flow |
+| [`docs/vcs-integrations.md`](docs/vcs-integrations.md) | Connecting GitHub, GitLab, Bitbucket, custom platforms |
+| [`docs/llm-providers.md`](docs/llm-providers.md) | Configuring and swapping LLM backends |
+| [`docs/configuration.md`](docs/configuration.md) | Full environment variable reference |
+| [`docs/deployment.md`](docs/deployment.md) | Docker Compose, Kubernetes, rollback |
+| [`docs/roadmap.md`](docs/roadmap.md) | What's coming next |
 
-Images are tagged with the short commit SHA and `latest` (main only):
-
-```
-ghcr.io/vellic-ai/vellic-api:<sha>
-ghcr.io/vellic-ai/vellic-worker:<sha>
-ghcr.io/vellic-ai/vellic-admin:<sha>
-```
-
-## Kubernetes
-
-Skeleton manifests live under `infra/k8s/`. Replace `CHANGE_ME` placeholders in `*/secret.yaml` before applying.
-
-```bash
-kubectl apply -f infra/k8s/namespace.yaml
-kubectl apply -f infra/k8s/api/
-kubectl apply -f infra/k8s/worker/
-kubectl apply -f infra/k8s/admin/
-```
-
-Worker HPA scales from 1 to 10 replicas at 70% CPU utilization.
-
-### Rollback
-
-```bash
-kubectl rollout undo deployment/api    -n vellic
-kubectl rollout undo deployment/worker -n vellic
-kubectl rollout undo deployment/admin  -n vellic
-
-# Verify
-kubectl rollout status deployment/api -n vellic
-```
-
-## Development
-
-```bash
-# Run linter
-cd api && ruff check .
-cd worker && ruff check .
-cd admin && ruff check .
-
-# Run tests
-cd api && pytest
-cd worker && pytest
-cd admin && pytest
-
-# Fire a test webhook
-make test-webhook
-```
+---
 
 ## Contributing
 
-Pull requests are welcome. For significant changes, open an issue first to discuss what you'd like to change.
+We welcome contributions — new VCS adapters, LLM providers, pipeline stages, bug fixes, and docs improvements.
 
-1. Fork the repo and create a feature branch: `git checkout -b feat/my-feature`
-2. Make your changes and add tests
+1. Read [`docs/contributing.md`](docs/contributing.md) before opening a PR
+2. Fork and create a branch: `git checkout -b feat/your-feature`
 3. Run `ruff check` and `pytest` locally
 4. Open a PR against `main`
+
+---
 
 ## License
 
