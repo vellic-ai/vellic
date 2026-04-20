@@ -18,13 +18,13 @@ _PR_ACTIONS = {"opened", "synchronize", "reopened"}
 _HANDLED_EVENTS = {"pull_request", "pull_request_review"}
 
 
-def _verify_signature(body: bytes, sig_header: str) -> None:
+def _verify_signature(body: bytes, sig_header: str) -> bool:
     secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
     if not secret:
-        return
+        logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting all webhooks")
+        return False
     expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, sig_header):
-        raise HTTPException(status_code=400, detail="invalid signature")
+    return hmac.compare_digest(expected, sig_header)
 
 
 @router.post("/webhook/github")
@@ -34,7 +34,8 @@ async def github_webhook(request: Request) -> Response:
     sig_header = request.headers.get("X-Hub-Signature-256", "")
 
     body = await request.body()
-    _verify_signature(body, sig_header)
+    if not _verify_signature(body, sig_header):
+        return Response(status_code=400)
 
     if not delivery_id:
         raise HTTPException(status_code=400, detail="missing X-GitHub-Delivery header")
