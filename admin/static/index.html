@@ -1097,20 +1097,38 @@
       font-family: var(--font-mono);
     }
 
-    .auth-setup-intro {
-      margin-bottom: 18px;
-    }
-
-    .auth-setup-intro h2 {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .auth-setup-intro p {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
+    /* ── Onboarding wizard ── */
+    #auth-setup { max-width: 520px; width: 100%; }
+    .wizard-progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .wizard-progress-label span { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    .wizard-progress-track { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-bottom: 20px; }
+    .wizard-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .25s ease; }
+    .wizard-step-label { font-size: 11.5px; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; font-weight: 600; }
+    .wizard-step-title { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+    .wizard-step-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; margin-bottom: 0; }
+    .wizard-step-head { margin-bottom: 20px; }
+    .wizard-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .wizard-footer-right { display: flex; gap: 8px; }
+    .strength-bars { display: flex; gap: 4px; margin-top: 8px; }
+    .strength-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--surface-2); }
+    .strength-bar.weak { background: var(--error); }
+    .strength-bar.fair { background: var(--warning-text); }
+    .strength-bar.strong { background: var(--success); }
+    .collapsible-wrap { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; }
+    .collapsible-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: none; padding: 10px 14px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit; border-radius: 5px; }
+    .collapsible-trigger:hover { background: var(--surface-2); }
+    .collapsible-body { padding: 4px 14px 14px; }
+    .collapsible-chevron { display: inline-flex; transition: transform .15s; }
+    .collapsible-chevron.open { transform: rotate(180deg); }
+    .sum-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
+    .sum-row-icon { display: inline-flex; flex-shrink: 0; }
+    .sum-row-icon.ok { color: var(--success); }
+    .sum-row-icon.skip { color: var(--text-muted); }
+    .sum-row-label { font-size: 13px; flex: 1; }
+    .sum-row-value { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mono { font-family: var(--font-mono); }
+    .field-row { display: flex; gap: 6px; align-items: center; }
+    .field-row .input { flex: 1; }
   </style>
 </head>
 <body>
@@ -1158,35 +1176,206 @@
         <div class="auth-footer">Self-hosted instance · v0.4.2</div>
       </div>
 
-      <!-- Setup form (first run) -->
+      <!-- Setup wizard (first run) -->
       <div id="auth-setup" class="hidden">
-        <form id="setup-form" class="card" style="padding:28px" autocomplete="off" novalidate>
-          <div class="auth-setup-intro">
-            <h2>Set admin password</h2>
-            <p>First launch — choose a password to secure this instance.</p>
-          </div>
-          <div class="field" style="margin-bottom:18px">
-            <label class="label" for="setup-pw">Password</label>
-            <div class="password-wrap" style="margin-top:6px">
-              <input id="setup-pw" class="input" type="password" placeholder="Choose a password" />
-              <button type="button" class="password-toggle" id="setup-pw-toggle" aria-label="Toggle visibility">
-                <svg id="setup-eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <ellipse cx="8" cy="8" rx="6.5" ry="4"/>
-                  <circle cx="8" cy="8" r="1.8"/>
-                </svg>
-                <svg id="setup-eye-hide" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden">
-                  <path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/>
-                  <path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/>
-                </svg>
-              </button>
+        <!-- Progress -->
+        <div class="wizard-progress-label">
+          <span id="wiz-step-label">Step 1 of 5</span>
+          <span id="wiz-pct">20%</span>
+        </div>
+        <div class="wizard-progress-track">
+          <div class="wizard-progress-fill" id="wiz-progress" style="width:20%"></div>
+        </div>
+
+        <div class="card" style="padding:28px">
+          <!-- Step 1: Password -->
+          <div id="wiz-s1">
+            <div class="wizard-step-head">
+              <div class="wizard-step-label">Step 1</div>
+              <h2 class="wizard-step-title">Set admin password</h2>
+              <p class="wizard-step-sub">This unlocks the admin console. Store it securely — there is no recovery.</p>
             </div>
-            <div id="setup-error" class="field-error hidden"></div>
+            <div class="field">
+              <label class="label" for="wiz-pw">New password</label>
+              <div class="password-wrap" style="margin-top:6px">
+                <input id="wiz-pw" class="input" type="password" placeholder="At least 12 characters" autocomplete="new-password" />
+                <button type="button" class="password-toggle" id="wiz-pw-toggle" aria-label="Toggle visibility">
+                  <svg id="wiz-eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="8" rx="6.5" ry="4"/><circle cx="8" cy="8" r="1.8"/></svg>
+                  <svg id="wiz-eye-hide" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden"><path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/><path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/></svg>
+                </button>
+              </div>
+              <div class="strength-bars hidden" id="wiz-strength-bars">
+                <div class="strength-bar" id="wiz-sb0"></div>
+                <div class="strength-bar" id="wiz-sb1"></div>
+                <div class="strength-bar" id="wiz-sb2"></div>
+                <div class="strength-bar" id="wiz-sb3"></div>
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label class="label" for="wiz-pw2">Confirm password</label>
+              <input id="wiz-pw2" class="input" type="password" style="margin-top:6px" autocomplete="new-password" />
+              <div id="wiz-pw-mismatch" class="field-error hidden">Passwords don't match</div>
+            </div>
+            <div id="wiz-s1-error" class="field-error hidden" style="margin-top:8px"></div>
+            <div class="wizard-footer">
+              <div></div>
+              <div class="wizard-footer-right">
+                <button class="btn btn-primary" id="wiz-s1-next" disabled>
+                  <span class="spinner hidden" id="wiz-s1-spin"></span>Continue
+                </button>
+              </div>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" id="setup-btn" style="width:100%" disabled>
-            <span class="spinner hidden" id="setup-spinner"></span>
-            Set password &amp; continue
-          </button>
-        </form>
+
+          <!-- Step 2: LLM provider -->
+          <div id="wiz-s2" class="hidden">
+            <div class="wizard-step-head">
+              <div class="wizard-step-label">Step 2</div>
+              <h2 class="wizard-step-title">LLM provider</h2>
+              <p class="wizard-step-sub">Choose which model reviews your PRs.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="wiz-provider">Provider</label>
+              <select id="wiz-provider" class="input" style="margin-top:6px">
+                <option value="ollama">Ollama — local</option>
+                <option value="vllm">vLLM — self-hosted</option>
+                <option value="openai">OpenAI — cloud</option>
+                <option value="anthropic">Anthropic — cloud</option>
+                <option value="claude_code">Claude Code — cloud</option>
+              </select>
+            </div>
+            <div id="wiz-cloud-warn" class="warn-banner hidden">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.1"/></svg>
+              <span id="wiz-cloud-warn-text">Source code will leave your network.</span>
+            </div>
+            <div class="field" id="wiz-base-url-field">
+              <label class="label" for="wiz-base-url">Base URL</label>
+              <input id="wiz-base-url" class="input mono" value="http://ollama:11434" style="margin-top:6px" />
+            </div>
+            <div class="field hidden" id="wiz-api-key-field">
+              <label class="label" for="wiz-api-key">API Key</label>
+              <input id="wiz-api-key" class="input mono" type="password" placeholder="sk-…" style="margin-top:6px" />
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label class="label" for="wiz-model">Model</label>
+              <input id="wiz-model" class="input mono" value="qwen2.5-coder:14b" style="margin-top:6px" />
+            </div>
+            <div id="wiz-s2-error" class="field-error hidden" style="margin-top:8px"></div>
+            <div class="wizard-footer">
+              <button class="btn btn-ghost btn-sm" id="wiz-s2-skip">Skip for now</button>
+              <div class="wizard-footer-right">
+                <button class="btn" id="wiz-s2-back">Back</button>
+                <button class="btn btn-primary" id="wiz-s2-next">
+                  <span class="spinner hidden" id="wiz-s2-spin"></span>Continue
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Webhook -->
+          <div id="wiz-s3" class="hidden">
+            <div class="wizard-step-head">
+              <div class="wizard-step-label">Step 3</div>
+              <h2 class="wizard-step-title">Webhook</h2>
+              <p class="wizard-step-sub">Configure how GitHub and GitLab reach your instance.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="wiz-wh-url">Public URL <span style="color:var(--text-muted)">· required</span></label>
+              <input id="wiz-wh-url" class="input mono" value="https://vellic.local/webhooks" style="margin-top:6px" />
+            </div>
+            <div class="field">
+              <label class="label">HMAC signing secret · shown once</label>
+              <div class="field-row" style="margin-top:6px">
+                <input id="wiz-hmac" class="input mono" readonly style="font-size:11.5px" placeholder="Generating…" />
+                <button class="btn btn-sm" id="wiz-hmac-copy" title="Copy secret" disabled>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+                </button>
+              </div>
+              <label style="display:flex;gap:8px;align-items:center;margin-top:10px;cursor:pointer;font-size:13px">
+                <input type="checkbox" id="wiz-hmac-saved" />
+                <span>I've saved this secret somewhere safe.</span>
+              </label>
+            </div>
+
+            <div class="collapsible-wrap">
+              <button type="button" class="collapsible-trigger" id="wiz-gh-toggle">
+                <span>GitHub App (optional)</span>
+                <svg class="collapsible-chevron" id="wiz-gh-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="collapsible-body hidden" id="wiz-gh-body">
+                <div class="field"><label class="label">App ID</label><input id="wiz-gh-app-id" class="input mono" style="margin-top:6px" /></div>
+                <div class="field"><label class="label">Installation ID</label><input id="wiz-gh-inst-id" class="input mono" style="margin-top:6px" /></div>
+                <div class="field" style="margin-bottom:0"><label class="label">Private key (PEM)</label><textarea id="wiz-gh-key" class="textarea" rows="4" style="font-size:11.5px;margin-top:6px"></textarea></div>
+              </div>
+            </div>
+
+            <div class="collapsible-wrap" style="margin-bottom:0">
+              <button type="button" class="collapsible-trigger" id="wiz-gl-toggle">
+                <span>GitLab token (optional)</span>
+                <svg class="collapsible-chevron" id="wiz-gl-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="collapsible-body hidden" id="wiz-gl-body">
+                <div class="field" style="margin-bottom:0"><label class="label">Personal access token</label><input id="wiz-gl-token" class="input mono" type="password" placeholder="glpat-…" style="margin-top:6px" /></div>
+              </div>
+            </div>
+
+            <div id="wiz-s3-error" class="field-error hidden" style="margin-top:8px"></div>
+            <div class="wizard-footer">
+              <div></div>
+              <div class="wizard-footer-right">
+                <button class="btn" id="wiz-s3-back">Back</button>
+                <button class="btn btn-primary" id="wiz-s3-next" disabled>
+                  <span class="spinner hidden" id="wiz-s3-spin"></span>Continue
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: First repo -->
+          <div id="wiz-s4" class="hidden">
+            <div class="wizard-step-head">
+              <div class="wizard-step-label">Step 4</div>
+              <h2 class="wizard-step-title">Add first repository</h2>
+              <p class="wizard-step-sub">Optional — you can always add more later.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="wiz-repo-platform">Platform</label>
+              <select id="wiz-repo-platform" class="input" style="margin-top:6px">
+                <option value="github">GitHub</option>
+                <option value="gitlab">GitLab</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="wiz-repo-org">Organization</label>
+              <input id="wiz-repo-org" class="input mono" placeholder="acme" style="margin-top:6px" />
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label class="label" for="wiz-repo-name">Repository</label>
+              <input id="wiz-repo-name" class="input mono" placeholder="api-gateway or *" style="margin-top:6px" />
+            </div>
+            <div id="wiz-s4-error" class="field-error hidden" style="margin-top:8px"></div>
+            <div class="wizard-footer">
+              <button class="btn btn-ghost btn-sm" id="wiz-s4-skip">Skip</button>
+              <div class="wizard-footer-right">
+                <button class="btn" id="wiz-s4-back">Back</button>
+                <button class="btn btn-primary" id="wiz-s4-next">
+                  <span class="spinner hidden" id="wiz-s4-spin"></span>Continue
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5: Summary -->
+          <div id="wiz-s5" class="hidden">
+            <div class="wizard-step-head">
+              <div class="wizard-step-label">Step 5</div>
+              <h2 class="wizard-step-title">You're set up</h2>
+              <p class="wizard-step-sub">Vellic is ready to review.</p>
+            </div>
+            <div id="wiz-summary" style="margin-bottom:20px"></div>
+            <button class="btn btn-primary btn-lg" id="wiz-go-dashboard" style="width:100%">Go to Dashboard</button>
+          </div>
+        </div>
         <div class="auth-footer">Self-hosted instance · v0.4.2</div>
       </div>
     </div>
@@ -1651,7 +1840,11 @@
 
         function renderDash(container, d) {
           const failRate  = d.failure_rate_pct ?? 0;
-          const failStyle = failRate > 5 ? 'color:var(--error)' : '';
+          const failStyle = failRate > 15
+            ? 'color:var(--error)'
+            : failRate >= 5
+              ? 'color:var(--warning)'
+              : 'color:var(--success)';
           const deliveries = d.recent_deliveries ?? [];
 
           container.innerHTML = `
@@ -1695,8 +1888,8 @@
                   <line x1="12" y1="16" x2="28" y2="16"/>
                   <line x1="12" y1="22" x2="22" y2="22"/>
                 </svg>
-                <h3>No repositories yet</h3>
-                <p>Vellic is idle until you add a repository for it to watch.</p>
+                <h3>No PRs reviewed yet.</h3>
+                <p>Add a repository to get started.</p>
                 <a href="/settings/repos" class="btn btn-primary">Add your first repository</a>
               </div>`;
           }
