@@ -1,7 +1,9 @@
 import { test as setup, expect, request } from "@playwright/test";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authFile = path.join(__dirname, "../playwright/.auth/state.json");
 
 setup("authenticate and seed", async ({ page }) => {
