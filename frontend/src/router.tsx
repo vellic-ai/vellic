@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet } from "react-router";
+import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { ToastRoot } from "@/lib/toast";
 import AuthPage from "@/pages/auth";
 import DashboardPage from "@/pages/dashboard";
@@ -23,7 +23,8 @@ const routes = [
     element: <AppRoot />,
     children: [
       { path: "/login", element: <AuthPage /> },
-      { path: "/", element: <DashboardPage /> },
+      { path: "/", element: <Navigate to="/dashboard" replace /> },
+      { path: "/dashboard", element: <DashboardPage /> },
       { path: "/deliveries", element: <DeliveriesPage /> },
       { path: "/jobs", element: <JobsPage /> },
       { path: "/settings", element: <SettingsPage /> },

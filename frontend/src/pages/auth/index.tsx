@@ -15,7 +15,7 @@ export default function AuthPage() {
   const [error, setError] = useState("");
 
   if (authStatus?.authenticated) {
-    navigate("/", { replace: true });
+    navigate("/dashboard", { replace: true });
     return null;
   }
 
@@ -26,7 +26,7 @@ export default function AuthPage() {
     login.mutate(
       { password },
       {
-        onSuccess: () => navigate("/"),
+        onSuccess: () => navigate("/dashboard"),
         onError: (err) => setError(err.message || "Incorrect password."),
       },
     );
