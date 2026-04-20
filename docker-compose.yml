@@ -4,15 +4,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: vellic
-      POSTGRES_PASSWORD: vellic
-      POSTGRES_DB: vellic
+      POSTGRES_USER: ${POSTGRES_USER:-vellic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-vellic}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vellic"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vellic}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,6 +27,21 @@ services:
       timeout: 3s
       retries: 10
 
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    entrypoint: ["/bin/sh", "-c"]
+    command: "ollama serve & until ollama list 2>/dev/null; do sleep 2; done; ollama pull $${OLLAMA_MODEL:-nomic-embed-text}; wait"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list 2>/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
   api:
     build:
       context: ./api
@@ -37,9 +52,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://vellic:vellic@postgres:5432/vellic
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vellic}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vellic}
       REDIS_URL: redis://redis:6379
       PORT: "8000"
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +66,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
   worker:
     build:
@@ -61,19 +78,26 @@ services:
     ports:
       - "8002:8002"
     environment:
-      DATABASE_URL: postgresql://vellic:vellic@postgres:5432/vellic
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vellic}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vellic}
       REDIS_URL: redis://redis:6379
       HEALTH_PORT: "8002"
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434}
+      LLM_MODEL: ${LLM_MODEL:-llama3.1:8b-instruct-q4_K_M}
+      LLM_API_KEY: ${LLM_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      api:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
   admin:
     build:
@@ -85,7 +109,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      DATABASE_URL: postgresql://vellic:vellic@postgres:5432/vellic
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vellic}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vellic}
       REDIS_URL: redis://redis:6379
       PORT: "8001"
     depends_on:
@@ -98,6 +122,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
 volumes:
   postgres_data:
+  ollama_data:

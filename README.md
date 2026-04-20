@@ -1,101 +1,148 @@
-# vellic
+<p align="center">
+  <img src="docs/assets/vellic-banner.svg" alt="vellic" width="600" />
+</p>
 
-AI-powered code review platform — MVP v0.1.
+<p align="center">
+  <strong>AI integration for your entire development workflow.</strong><br/>
+  Any VCS. Any LLM. No lock-in.
+</p>
 
-## Services
+<p align="center">
+  <a href="https://github.com/vellic-ai/vellic/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/vellic-ai/vellic/ci.yml?branch=main&style=for-the-badge" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
+  <a href="https://github.com/vellic-ai/vellic/releases"><img src="https://img.shields.io/github/v/release/vellic-ai/vellic?include_prereleases&style=for-the-badge" alt="Release"></a>
+  <a href="https://github.com/vellic-ai/vellic/stargazers"><img src="https://img.shields.io/github/stars/vellic-ai/vellic?style=for-the-badge" alt="Stars"></a>
+</p>
 
-| Service | Port | Description |
-|---------|------|-------------|
-| api | 8000 | FastAPI webhook ingestion (GitHub → Arq) |
-| admin | 8001 | FastAPI admin panel (replay, config) |
-| worker | 8002 | Arq task worker (analysis pipeline) |
-| postgres | 5432 | PostgreSQL 16 |
-| redis | 6379 | Redis 7 (Arq queue + cache) |
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/vcs-integrations.md">VCS Integrations</a> ·
+  <a href="docs/llm-providers.md">LLM Providers</a> ·
+  <a href="docs/deployment.md">Deployment</a> ·
+  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="docs/contributing.md">Contributing</a>
+</p>
 
-## Local dev quickstart
+---
+
+**vellic** connects your Git platform to an AI analysis pipeline. Every pull request gets reviewed, every diff gets analysed, and structured feedback lands directly inside your existing VCS workflow — with no code changes and no new tools to learn.
+
+It is self-hosted, swap the LLM with a single env var, and adding a new VCS platform is a single file.
+
+> GitHub, GitLab, Bitbucket, and any platform that emits webhooks. Ollama, vLLM, OpenAI, Anthropic, Claude Code — or bring your own endpoint.
+
+## Highlights
+
+- **[VCS-agnostic webhook adapter](docs/vcs-integrations.md)** — normalises GitHub, GitLab, Bitbucket, and custom webhooks into one platform-agnostic `PREvent` model. Adding a new platform is one file.
+- **[LLM-agnostic provider registry](docs/llm-providers.md)** — Ollama (default, on-prem), vLLM, OpenAI, Anthropic, Claude Code. Swap with one env var, no rebuild.
+- **[4-stage async pipeline](docs/architecture.md)** — diff fetch → context gather → LLM analysis → VCS feedback posting, all via Redis/Arq with full job tracking.
+- **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
+- **[Admin panel](http://localhost:8001)** — replay events, inspect jobs, tune config without redeploying.
+- **[Kubernetes-ready](docs/deployment.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
+- **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers log a startup warning when selected.
+
+## Quick start
+
+Runtime: **Docker ≥ 24 + Docker Compose v2**.
 
 ```bash
-# One-time setup: build images and boot the stack
-bash scripts/dev-setup.sh
-
-# Or manually:
-docker compose up --build
-
-# Verify all services healthy
-bash scripts/health-check.sh
+git clone https://github.com/vellic-ai/vellic.git
+cd vellic
+cp .env.example .env          # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
+make up                        # builds images and boots the stack
+bash scripts/health-check.sh  # verify all three services are healthy
 ```
 
-### Health endpoints
+All services respond `{"status": "ok"}` when ready:
 
-```bash
-curl http://localhost:8000/health  # api
-curl http://localhost:8001/health  # admin
-curl http://localhost:8002/health  # worker
+```
+http://localhost:8000/health   api
+http://localhost:8001/health   admin
+http://localhost:8002/health   worker
 ```
 
-## Environment variables
+Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: [VCS Integrations](docs/vcs-integrations.md).
 
-All services read these from `docker-compose.yml` in local dev. For production, inject via K8s Secret / external-secrets.
+## Supported platforms
 
-| Variable | Default (local) | Description |
-|----------|-----------------|-------------|
-| `DATABASE_URL` | `postgresql://vellic:vellic@postgres:5432/vellic` | Postgres DSN |
-| `REDIS_URL` | `redis://redis:6379` | Redis URL for Arq |
-| `GITHUB_WEBHOOK_SECRET` | — | HMAC secret for `X-Hub-Signature-256` validation |
-| `LLM_PROVIDER` | `ollama` | LLM backend: `ollama`, `vllm`, `openai`, `anthropic` |
-| `LLM_BASE_URL` | `http://localhost:11434` | Base URL for self-hosted LLM |
-| `HEALTH_PORT` | `8002` | Worker health server port |
+<table>
+<tr>
+<td valign="top">
 
-> **Warning:** Setting `LLM_PROVIDER=openai` or `LLM_PROVIDER=anthropic` sends PR diff content to an external provider. A warning is logged at startup.
+**VCS**
+
+| Platform | Status |
+|---|---|
+| GitHub | ✅ Supported |
+| GitLab | 🚧 In progress |
+| Bitbucket | 📋 Planned |
+| Gitea / Forgejo | 📋 Planned |
+| Custom webhook | ✅ One-file adapter |
+
+</td>
+<td valign="top">
+
+**LLM**
+
+| Provider | `LLM_PROVIDER` | On-prem |
+|---|---|---|
+| Ollama | `ollama` | ✅ |
+| vLLM | `vllm` | ✅ |
+| OpenAI | `openai` | — |
+| Anthropic | `anthropic` | — |
+| Claude Code CLI | `claude_code` | — |
+| Custom OpenAI-compatible | `vllm` | ✅ |
+
+</td>
+</tr>
+</table>
+
+## Configuration
+
+Two variables are required; everything else has a sensible default.
+
+```dotenv
+POSTGRES_PASSWORD=changeme
+GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
+```
+
+Full reference: [docs/configuration.md](docs/configuration.md)
 
 ## Repository layout
 
 ```
 vellic/
-├── api/          FastAPI webhook ingestion service
-├── worker/       Arq async task worker
-├── admin/        FastAPI admin panel
-├── infra/
-│   └── k8s/      Kubernetes manifests (namespace, deployments, HPA)
-├── scripts/      Dev tooling (setup, health-check)
-└── .github/
-    └── workflows/
-        └── ci.yml  Lint → Test → Build → Push pipeline
+├── api/          Webhook ingestion (FastAPI, port 8000)
+├── worker/       Async pipeline (Arq, port 8002)
+│   └── app/
+│       ├── pipeline/   4 stages: diff → context → llm → feedback
+│       ├── llm/        Provider registry + adapters
+│       └── adapters/   VCS platform adapters
+├── admin/        Admin panel (FastAPI, port 8001)
+├── infra/k8s/    Kubernetes manifests + HPA
+├── scripts/      Dev tooling (setup, health-check, test-webhook)
+└── docs/         Detailed documentation
 ```
 
-## CI/CD
+## Documentation
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
+| | |
+|---|---|
+| [Architecture](docs/architecture.md) | System design, service boundaries, data flow, how to extend |
+| [VCS Integrations](docs/vcs-integrations.md) | GitHub, GitLab, Bitbucket, custom adapter guide |
+| [LLM Providers](docs/llm-providers.md) | All backends, env vars, privacy notes, adding a new provider |
+| [Configuration](docs/configuration.md) | Full environment variable reference |
+| [Deployment](docs/deployment.md) | Docker Compose, Kubernetes, rollback, secrets |
+| [Roadmap](docs/roadmap.md) | What is built and what is coming |
+| [Contributing](docs/contributing.md) | Dev setup, code style, PR checklist |
 
-1. **Lint** — `ruff check` per service (runs on every PR and push to main)
-2. **Test** — `pytest` per service
-3. **Build & Push** — Docker images built for all three services; pushed to `ghcr.io` on merge to `main` only
+## Contributing
 
-Images are tagged with the short commit SHA and `latest` (main only).
+Pull requests are welcome. The highest-impact contributions right now are new VCS adapters (GitLab, Bitbucket) and LLM providers.
 
-## Kubernetes
+See [docs/contributing.md](docs/contributing.md) to get started.
 
-Skeleton manifests live under `infra/k8s/`. Apply:
+## License
 
-```bash
-kubectl apply -f infra/k8s/namespace.yaml
-kubectl apply -f infra/k8s/api/
-kubectl apply -f infra/k8s/worker/
-kubectl apply -f infra/k8s/admin/
-```
-
-Secrets in `infra/k8s/*/secret.yaml` are stubs — replace `CHANGE_ME` values with real secrets or use external-secrets before deploying to any real cluster.
-
-Worker HPA scales 1→10 replicas at 70% CPU utilization.
-
-## Rollback
-
-```bash
-# Roll back a service to the previous revision
-kubectl rollout undo deployment/api -n vellic
-kubectl rollout undo deployment/worker -n vellic
-kubectl rollout undo deployment/admin -n vellic
-
-# Verify
-kubectl rollout status deployment/api -n vellic
-```
+[MIT](LICENSE) © 2026 vellic-ai
