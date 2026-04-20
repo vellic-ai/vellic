@@ -4,6 +4,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import asyncpg
+from arq import create_pool as arq_create_pool
+from arq.connections import RedisSettings
 
 from .jobs import process_webhook
 from .llm import build_provider
@@ -11,16 +13,6 @@ from .llm.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS webhook_deliveries (
-    delivery_id  TEXT        PRIMARY KEY,
-    event_type   TEXT        NOT NULL,
-    payload      JSONB       NOT NULL,
-    received_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMPTZ
-);
-"""
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -48,11 +40,15 @@ def start_health_server() -> None:
 
 
 async def startup(ctx: dict) -> None:
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+
     pool = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=2, max_size=10)
-    async with pool.acquire() as conn:
-        await conn.execute(_SCHEMA)
     ctx["db_pool"] = pool
     logger.info("worker db pool ready")
+
+    arq_redis = await arq_create_pool(RedisSettings.from_dsn(redis_url))
+    ctx["redis"] = arq_redis
+    logger.info("arq pool ready")
 
     provider = build_provider(
         LLM_PROVIDER,
@@ -65,24 +61,27 @@ async def startup(ctx: dict) -> None:
 
 
 async def shutdown(ctx: dict) -> None:
+    arq_redis = ctx.get("redis")
+    if arq_redis:
+        await arq_redis.close()
     pool: asyncpg.Pool = ctx.get("db_pool")
     if pool:
         await pool.close()
 
 
 class WorkerSettings:
-    redis_settings = None  # populated from env at startup via arq's from_dsn
+    redis_settings = None  # populated at __main__ time from REDIS_URL
     functions = [process_webhook]
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 10
+    max_tries = 3
     job_timeout = 300
     keep_result = 60
 
 
 if __name__ == "__main__":
     import arq
-    from arq.connections import RedisSettings
 
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     logger.info("vellic worker starting, redis=%s", redis_url)
