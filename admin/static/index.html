@@ -418,7 +418,29 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Error banner ── */
+
+    .err-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      color: #f87171;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
     /* ── Dashboard ── */
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
 
     .stats-grid {
       display: grid;
@@ -1243,6 +1265,7 @@
       <div class="breadcrumb" id="breadcrumb">
         <span class="current">Dashboard</span>
       </div>
+      <div id="topbar-badges" style="display:flex;align-items:center;gap:8px;margin-left:12px"></div>
     </div>
 
     <!-- Dashboard page -->
@@ -1534,21 +1557,15 @@
 
       // ── Dashboard ────────────────────────────────────────────────────────
 
-      const EXTERNAL_PROVIDERS = new Set(['openai', 'anthropic', 'claude_code']);
+      const CLOUD_PROVIDERS = new Set(['openai', 'anthropic', 'claude_code']);
 
       const Dashboard = (() => {
-        let loaded = false;
+        let firstLoad = true;
 
-        function formatMs(ms) {
-          if (ms === null || ms === undefined) return '0';
-          if (ms >= 1000) return (ms / 1000).toFixed(1) + '<span class="stat-unit">s</span>';
-          return Math.round(ms) + '<span class="stat-unit">ms</span>';
-        }
-
-        function failureClass(pct) {
-          if (pct < 5)  return 'green';
-          if (pct <= 15) return 'amber';
-          return 'red';
+        function esc(s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function timeAgo(iso) {
@@ -1560,111 +1577,113 @@
           return Math.floor(diff / 86400) + 'd ago';
         }
 
-        function statusDotClass(status) {
-          if (status === 'done')    return 'done';
-          if (status === 'failed')  return 'failed';
-          if (status === 'running') return 'running';
-          return 'pending';
+        function fmtAbsolute(iso) {
+          return iso ? new Date(iso).toLocaleString() : '';
+        }
+
+        function statusBadge(s) {
+          if (s === 'done')   return '<span class="badge badge-success"><span class="dot dot-success"></span> processed</span>';
+          if (s === 'failed') return '<span class="badge badge-error"><span class="dot dot-error"></span> failed</span>';
+          return '<span class="badge"><span class="dot dot-muted"></span> queued</span>';
+        }
+
+        function updateTopbarBadges(d) {
+          const el = document.getElementById('topbar-badges');
+          if (!el) return;
+          if (!d) { el.innerHTML = ''; return; }
+          const isCloud = CLOUD_PROVIDERS.has(d.llm_provider);
+          el.innerHTML = isCloud
+            ? `<span class="badge badge-warning">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0">
+                  <path d="M8 2L14.5 13.5H1.5L8 2z"/>
+                  <line x1="8" y1="6.5" x2="8" y2="9.5"/>
+                  <circle cx="8" cy="11.5" r="0.5" fill="currentColor"/>
+                </svg>
+                code leaves your network
+              </span>`
+            : '';
         }
 
         async function load() {
           const container = document.getElementById('dash-content');
           if (!container) return;
 
-          if (!loaded) {
+          if (firstLoad) {
             container.innerHTML = `
               <div class="stats-grid">
                 ${Array(4).fill('<div class="stat-card"><div class="skeleton skeleton-field" style="width:60%;margin-bottom:12px"></div><div class="skeleton" style="height:30px;width:50%"></div></div>').join('')}
               </div>`;
+            firstLoad = false;
           }
 
-          let data;
           try {
             const res = await fetch('/admin/stats');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            data = await res.json();
-          } catch {
-            data = {
-              prs_reviewed_24h: 0,
-              prs_reviewed_7d: 0,
-              latency_p50_ms: 0,
-              latency_p95_ms: 0,
-              failure_rate_pct: 0,
-              llm_provider: null,
-              llm_model: null,
-              recent_deliveries: [],
-            };
+            const data = await res.json();
+            updateTopbarBadges(data);
+            renderDash(container, data);
+          } catch (err) {
+            updateTopbarBadges(null);
+            renderError(container, err.message);
           }
+        }
 
-          loaded = true;
-          renderDash(container, data);
+        function renderError(container, reason) {
+          container.innerHTML = `
+            <div class="err-banner">
+              <span>Could not load stats — <em>${esc(reason)}</em></span>
+              <button class="btn btn-sm" id="stats-retry">Retry</button>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Recent activity</div>
+                <a href="/deliveries" class="card-header-link">View all →</a>
+              </div>
+              <div class="empty-state" style="padding:32px 24px">
+                <p>Statistics unavailable.</p>
+              </div>
+            </div>`;
+          document.getElementById('stats-retry')?.addEventListener('click', () => {
+            firstLoad = true;
+            load();
+          });
         }
 
         function renderDash(container, d) {
-          const failClass  = failureClass(d.failure_rate_pct ?? 0);
-          const isExternal = EXTERNAL_PROVIDERS.has(d.llm_provider);
+          const failRate  = d.failure_rate_pct ?? 0;
+          const failStyle = failRate > 5 ? 'color:var(--error)' : '';
           const deliveries = d.recent_deliveries ?? [];
-
-          const failDotClass = failClass === 'green' ? 'done' : failClass === 'amber' ? 'pending' : 'failed';
 
           container.innerHTML = `
             <div class="stats-grid">
               <div class="stat-card">
-                <div class="stat-label">PRs reviewed (24h)</div>
+                <div class="stat-label">PRs reviewed</div>
                 <div class="stat-value">${d.prs_reviewed_24h ?? 0}</div>
+                <div class="stat-sub">${d.prs_reviewed_7d ?? 0} past 7d</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">PRs reviewed (7d)</div>
-                <div class="stat-value">${d.prs_reviewed_7d ?? 0}</div>
+                <div class="stat-label">p50 latency</div>
+                <div class="stat-value">${((d.latency_p50_ms ?? 0) / 1000).toFixed(2)}s</div>
+                <div class="stat-sub">time to post review</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">Latency p50</div>
-                <div class="stat-value">${formatMs(d.latency_p50_ms)}</div>
+                <div class="stat-label">p95 latency</div>
+                <div class="stat-value">${((d.latency_p95_ms ?? 0) / 1000).toFixed(2)}s</div>
+                <div class="stat-sub">tail latency</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">Latency p95</div>
-                <div class="stat-value">${formatMs(d.latency_p95_ms)}</div>
+                <div class="stat-label">Failure rate</div>
+                <div class="stat-value" style="${failStyle}">${failRate.toFixed(1)}%</div>
+                <div class="stat-sub">past 24h</div>
               </div>
             </div>
-
-            <div class="meta-row">
-              <div class="meta-card">
-                <div class="meta-card-label">Failure rate (7d)</div>
-                <span class="failure-badge ${failClass}">
-                  <span class="status-dot ${failDotClass}"></span>
-                  ${(d.failure_rate_pct ?? 0).toFixed(1)}%
-                </span>
-              </div>
-              <div class="meta-card">
-                <div class="meta-card-label">Active LLM</div>
-                ${d.llm_provider ? `
-                  <div class="llm-chip-row">
-                    <span class="llm-chip">
-                      <span class="chip-provider">${d.llm_provider}</span>
-                      <span class="chip-sep">/</span>
-                      <span>${d.llm_model ?? '—'}</span>
-                    </span>
-                    ${isExternal ? `
-                      <span class="ext-warning">
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                          <path d="M8 2L14.5 13.5H1.5L8 2z"/>
-                          <line x1="8" y1="6.5" x2="8" y2="9.5"/>
-                          <circle cx="8" cy="11.5" r="0.5" fill="currentColor"/>
-                        </svg>
-                        External LLM — data leaves infra
-                      </span>` : ''}
-                  </div>` : `<span class="text-muted" style="font-size:13px">Not configured — <a href="/settings/llm" style="color:var(--accent);text-decoration:none">configure</a></span>`}
-              </div>
-            </div>
-
             <div class="card">
               <div class="card-header">
-                <div class="card-title">Recent deliveries</div>
+                <div class="card-title">Recent activity</div>
                 <a href="/deliveries" class="card-header-link">View all →</a>
               </div>
               ${renderFeed(deliveries)}
-            </div>
-          `;
+            </div>`;
         }
 
         function renderFeed(items) {
@@ -1676,35 +1695,21 @@
                   <line x1="12" y1="16" x2="28" y2="16"/>
                   <line x1="12" y1="22" x2="22" y2="22"/>
                 </svg>
-                <h3>No PRs reviewed yet</h3>
-                <p>Add a repository to get started.</p>
-                <a href="/settings/repos" class="btn btn-primary">Add a repository</a>
+                <h3>No repositories yet</h3>
+                <p>Vellic is idle until you add a repository for it to watch.</p>
+                <a href="/settings/repos" class="btn btn-primary">Add your first repository</a>
               </div>`;
           }
 
-          const rows = items.map(row => `
-            <tr>
-              <td>
-                <div class="feed-event">
-                  <span class="status-dot ${statusDotClass(row.status)}"></span>
-                  ${row.event_type ?? '—'}
-                </div>
-              </td>
-              <td><span class="feed-repo">${row.repo ?? '—'}</span></td>
-              <td>${timeAgo(row.received_at)}</td>
-            </tr>`).join('');
+          const rows = items.map((row, i) => `
+            <div style="display:grid;grid-template-columns:100px 1fr 140px 110px;align-items:center;gap:12px;padding:12px 18px;border-bottom:${i === items.length - 1 ? 'none' : '1px solid var(--border)'};font-size:13px">
+              <span style="color:var(--text-muted);font-size:12px" title="${esc(fmtAbsolute(row.received_at))}">${timeAgo(row.received_at)}</span>
+              <span class="del-mono">${esc(row.event_type ?? '—')}</span>
+              <span class="del-mono" style="color:var(--text-muted)">${esc(row.repo ?? '—')}</span>
+              <span>${statusBadge(row.status)}</span>
+            </div>`).join('');
 
-          return `
-            <table class="feed-table">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Repo</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>`;
+          return `<div>${rows}</div>`;
         }
 
         return { load };
