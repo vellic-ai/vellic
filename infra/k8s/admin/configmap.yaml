@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-config
+  namespace: vellic
+  labels:
+    app.kubernetes.io/name: vellic-admin
+    app.kubernetes.io/component: admin
+data:
+  PORT: "8001"
+  LOG_LEVEL: "info"
