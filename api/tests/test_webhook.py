@@ -75,8 +75,8 @@ def env_secret(monkeypatch):
 @pytest.fixture()
 async def client(mock_db_pool, mock_arq_pool):
     with (
-        patch("app.db.get_pool", return_value=mock_db_pool),
-        patch("app.arq_pool.get_pool", return_value=mock_arq_pool),
+        patch("app.webhook.get_db_pool", return_value=mock_db_pool),
+        patch("app.webhook.get_arq_pool", return_value=mock_arq_pool),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
