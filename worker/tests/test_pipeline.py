@@ -8,10 +8,9 @@ from app.adapters.github import normalize_pr
 from app.events import PREvent
 from app.pipeline.context_gatherer import gather_context
 from app.pipeline.diff_fetcher import _chunk_patch, _is_generated, fetch_diff_chunks
-from app.pipeline.llm_analyzer import _build_prompt, _extract_json, analyze
+from app.pipeline.llm_analyzer import _extract_json, analyze
 from app.pipeline.models import AnalysisResult, DiffChunk, PRContext, ReviewComment
 from app.pipeline.result_persister import persist
-
 
 # ---------------------------------------------------------------------------
 # models
@@ -217,7 +216,13 @@ async def test_analyze_parses_llm_response():
     llm_response = json.dumps(
         {
             "comments": [
-                {"file": "app.py", "line": 1, "body": "Use const", "confidence": 0.9, "rationale": "immutability"}
+                {
+                    "file": "app.py",
+                    "line": 1,
+                    "body": "Use const",
+                    "confidence": 0.9,
+                    "rationale": "immutability",
+                }
             ],
             "summary": "Minor style issue.",
             "generic_ratio": 0.0,
@@ -295,4 +300,6 @@ async def test_persist_inserts_and_enqueues():
     returned = await persist(mock_pool, context, result, job_id, mock_arq)
 
     assert returned == str(pr_review_id)
-    mock_arq.enqueue_job.assert_called_once_with("post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}")
+    mock_arq.enqueue_job.assert_called_once_with(
+        "post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}"
+    )

@@ -19,6 +19,6 @@ def build_provider(name: str, **kwargs: Any) -> Any:
         cls = _REGISTRY[name]
     except KeyError:
         available = sorted(_REGISTRY)
-        raise ValueError(f"Unknown LLM provider: {name!r}. Available: {available}")
+        raise ValueError(f"Unknown LLM provider: {name!r}. Available: {available}") from None
     logger.info("initializing LLM provider: %s", name)
     return cls(**kwargs)

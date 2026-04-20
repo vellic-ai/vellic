@@ -22,7 +22,9 @@ async def run_pipeline(
 ) -> str:
     # Stage 1: gather context
     context = gather_context(event)
-    logger.info("stage1 complete repo=%s pr=%d sha=%s", context.repo, context.pr_number, context.commit_sha)
+    logger.info(
+        "stage1 complete repo=%s pr=%d sha=%s", context.repo, context.pr_number, context.commit_sha
+    )
 
     # Stage 2: fetch and chunk diff
     chunks = await fetch_diff_chunks(event.diff_url)

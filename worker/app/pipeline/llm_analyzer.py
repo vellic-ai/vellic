@@ -8,7 +8,8 @@ from .models import AnalysisResult, DiffChunk, PRContext, ReviewComment
 logger = logging.getLogger("worker.pipeline.llm_analyzer")
 
 _INSTRUCTIONS = """\
-You are a precise code reviewer. Analyze the PR diff and return ONLY valid JSON — no prose, no markdown fences.
+You are a precise code reviewer. Analyze the PR diff and return ONLY valid JSON \
+— no prose, no markdown fences.
 
 Required JSON schema:
 {

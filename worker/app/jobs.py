@@ -27,7 +27,8 @@ async def _get_or_create_job(pool: asyncpg.Pool, delivery_id: str) -> uuid.UUID:
         )
         if row is None:
             row = await conn.fetchrow(
-                "INSERT INTO pipeline_jobs (delivery_id, status) VALUES ($1, 'running') RETURNING id",
+                "INSERT INTO pipeline_jobs (delivery_id, status)"
+                " VALUES ($1, 'running') RETURNING id",
                 delivery_id,
             )
         else:
@@ -117,7 +118,8 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
     job_try: int = ctx.get("job_try", 1)
 
     row = await pool.fetchrow(
-        "SELECT repo, pr_number, commit_sha, feedback, github_review_id FROM pr_reviews WHERE id = $1",
+        "SELECT repo, pr_number, commit_sha, feedback, github_review_id"
+        " FROM pr_reviews WHERE id = $1",
         uuid.UUID(pr_review_id),
     )
     if row is None:
@@ -125,7 +127,11 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
         return
 
     if row["github_review_id"] is not None:
-        logger.info("pr_review %s already posted (github_review_id=%s) — skipping dedup", pr_review_id, row["github_review_id"])
+        logger.info(
+            "pr_review %s already posted (github_review_id=%s) — skipping dedup",
+            pr_review_id,
+            row["github_review_id"],
+        )
         return
 
     feedback: dict = row["feedback"]
@@ -162,7 +168,9 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
         logger.error("terminal GitHub error for pr_review=%s: %s", pr_review_id, exc)
         return
     except Exception as exc:
-        logger.warning("post_feedback error attempt=%d for pr_review=%s: %s", job_try, pr_review_id, exc)
+        logger.warning(
+            "post_feedback error attempt=%d for pr_review=%s: %s", job_try, pr_review_id, exc
+        )
         if job_try >= 3:
             logger.error("post_feedback retries exhausted for pr_review=%s", pr_review_id)
             raise

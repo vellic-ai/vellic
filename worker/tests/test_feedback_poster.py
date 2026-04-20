@@ -14,7 +14,6 @@ from app.pipeline.feedback_poster import (
 )
 from app.pipeline.models import AnalysisResult, ReviewComment
 
-
 # ---------------------------------------------------------------------------
 # _build_review_body
 # ---------------------------------------------------------------------------
@@ -360,8 +359,9 @@ async def test_post_github_review_422_low_rate_limit_still_falls_back():
 async def test_result_persister_enqueues_with_stable_job_id():
     """post_feedback enqueue must use a stable _job_id to prevent duplicate jobs on retry."""
     import asyncpg
-    from app.pipeline.result_persister import persist
+
     from app.pipeline.models import PRContext
+    from app.pipeline.result_persister import persist
 
     pr_review_id = uuid.uuid4()
     mock_pool = AsyncMock(spec=asyncpg.Pool)
@@ -374,7 +374,9 @@ async def test_result_persister_enqueues_with_stable_job_id():
     mock_arq = AsyncMock()
     mock_arq.enqueue_job = AsyncMock()
 
-    context = PRContext(repo="acme/backend", pr_number=1, commit_sha="sha", title="t", body="", base_branch="main")
+    context = PRContext(
+        repo="acme/backend", pr_number=1, commit_sha="sha", title="t", body="", base_branch="main"
+    )
     result = AnalysisResult(comments=[], summary="ok", generic_ratio=0.0)
 
     await persist(mock_pool, context, result, uuid.uuid4(), mock_arq)

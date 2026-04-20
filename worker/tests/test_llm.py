@@ -1,17 +1,15 @@
-import asyncio
 import logging
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from app.llm import LLMProvider, build_provider
-from app.llm.registry import _REGISTRY
+from app.llm.providers.anthropic import AnthropicProvider
 from app.llm.providers.claude_code import ClaudeCodeProvider
 from app.llm.providers.ollama import OllamaProvider
-from app.llm.providers.vllm import VLLMProvider
 from app.llm.providers.openai import OpenAIProvider
-from app.llm.providers.anthropic import AnthropicProvider
-
+from app.llm.providers.vllm import VLLMProvider
+from app.llm.registry import _REGISTRY
 
 # --- registry ---
 
@@ -72,7 +70,9 @@ async def test_ollama_complete_passes_max_tokens():
     mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {"response": "ok"}
 
-    with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_response)) as mock_post:
+    with patch.object(
+        provider._client, "post", new=AsyncMock(return_value=mock_response)
+    ) as mock_post:
         await provider.complete("prompt", max_tokens=256)
 
     call_kwargs = mock_post.call_args
@@ -96,7 +96,9 @@ async def test_ollama_health_true_on_200():
 async def test_ollama_health_false_on_connection_error():
     provider = OllamaProvider(base_url="http://ollama:11434", model="llama3.1:8b")
 
-    with patch.object(provider._client, "get", new=AsyncMock(side_effect=Exception("connection refused"))):
+    with patch.object(
+        provider._client, "get", new=AsyncMock(side_effect=Exception("connection refused"))
+    ):
         assert await provider.health() is False
 
 

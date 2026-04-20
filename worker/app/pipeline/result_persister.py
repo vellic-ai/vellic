@@ -47,7 +47,9 @@ async def persist(
             job_id,
         )
 
-    await arq_redis.enqueue_job("post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}")
+    await arq_redis.enqueue_job(
+        "post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}"
+    )
     logger.info(
         "persisted pr_review=%s enqueued post_feedback for %s#%d",
         pr_review_id,

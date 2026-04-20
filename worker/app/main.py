@@ -10,12 +10,12 @@ from arq.connections import RedisSettings
 from .jobs import post_feedback, process_webhook
 from .llm import build_provider
 from .llm.config import (
+    _EXTERNAL_PROVIDERS,
     CLAUDE_CODE_BIN,
     CLAUDE_CODE_MODEL,
     LLM_BASE_URL,
     LLM_MODEL,
     LLM_PROVIDER,
-    _EXTERNAL_PROVIDERS,
 )
 
 logger = logging.getLogger("worker")
