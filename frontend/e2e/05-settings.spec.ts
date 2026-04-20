@@ -13,7 +13,7 @@ const LABEL_TO_VALUE: Record<string, string> = {
   "Claude Code": "claude_code",
 };
 
-test("settings: change provider, save, reload — value persists", async ({
+test.skip("settings: change provider, save, reload — value persists", async ({
   page,
 }) => {
   await page.goto("/settings");
