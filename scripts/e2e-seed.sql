@@ -39,3 +39,17 @@ VALUES
     NOW() - INTERVAL '50 minutes'
   )
 ON CONFLICT DO NOTHING;
+
+-- Seed initial LLM settings so /settings renders a populated form (not an empty skeleton).
+-- Uses provider=ollama — no API key required; safe for any CI environment.
+INSERT INTO llm_settings (id, provider, base_url, model, api_key, extra, updated_at)
+VALUES (
+  1,
+  'ollama',
+  'http://localhost:11434',
+  'llama3.2',
+  NULL,
+  '{}',
+  NOW() - INTERVAL '1 hour'
+)
+ON CONFLICT (id) DO NOTHING;

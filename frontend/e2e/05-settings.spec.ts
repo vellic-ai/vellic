@@ -4,77 +4,60 @@
  */
 import { test, expect } from "@playwright/test";
 
-const PROVIDERS = ["openai", "anthropic", "ollama"] as const;
+// Label→value map mirrors PROVIDER_LABELS in settings/index.tsx.
+const LABEL_TO_VALUE: Record<string, string> = {
+  Ollama: "ollama",
+  "vLLM": "vllm",
+  OpenAI: "openai",
+  Anthropic: "anthropic",
+  "Claude Code": "claude_code",
+};
 
 test("settings: change provider, save, reload — value persists", async ({
   page,
 }) => {
   await page.goto("/settings");
 
-  // Settings form is visible.
+  // Settings form is visible (seeded LLM row guarantees form renders, not skeleton).
   const form = page
     .locator("[data-testid=settings-form]")
     .or(page.getByRole("form", { name: /llm|settings|provider/i }))
     .or(page.locator("form").first());
   await expect(form).toBeVisible({ timeout: 10_000 });
 
-  // Read the current provider so we can switch to a different one.
-  const providerSelect = page
-    .locator("[data-testid=provider-select]")
-    .or(page.getByRole("combobox", { name: /provider/i }))
-    .or(page.getByLabel(/provider/i));
+  // Read current provider value from the Radix SelectTrigger's text content.
+  // The trigger renders the selected label ("Ollama", "OpenAI", etc.) as textContent.
+  const trigger = page.locator("[data-testid=provider-select]");
+  const currentLabel = ((await trigger.textContent()) ?? "").trim();
+  const currentValue = LABEL_TO_VALUE[currentLabel] ?? "ollama";
 
-  const currentValue = await providerSelect
-    .inputValue()
-    .catch(() => providerSelect.textContent());
-  const nextProvider =
-    PROVIDERS.find((p) => p !== currentValue?.trim()) ?? "openai";
+  // Pick a target that differs from the current one.
+  const targetValue = currentValue === "openai" ? "ollama" : "openai";
+  const targetLabel = targetValue === "openai" ? "OpenAI" : "Ollama";
 
-  // Select the new provider.
-  await providerSelect.click();
-  const option = page
-    .getByRole("option", { name: new RegExp(nextProvider, "i") })
-    .or(page.locator(`[data-value=${nextProvider}]`))
-    .first();
+  // Open the Radix Select dropdown and click the target option.
+  await trigger.click();
+  const option = page.getByRole("option", { name: new RegExp(targetLabel, "i") }).first();
   await expect(option).toBeVisible({ timeout: 5_000 });
   await option.click();
 
-  // Fill required model field if it becomes empty after provider change.
-  const modelInput = page
-    .locator("[data-testid=model-input]")
-    .or(page.getByLabel(/model/i))
-    .first();
+  // Fill model field — it clears when provider changes.
+  const modelInput = page.locator("[data-testid=model-input]");
   if (await modelInput.isVisible()) {
     const modelVal = await modelInput.inputValue();
     if (!modelVal) {
-      await modelInput.fill("gpt-4o");
+      await modelInput.fill(targetValue === "openai" ? "gpt-4o" : "llama3.2");
     }
   }
 
-  // Save settings.
-  const saveBtn = page
-    .locator("[data-testid=settings-save]")
-    .or(page.getByRole("button", { name: /save/i }));
-  await saveBtn.click();
+  // Save.
+  await page.locator("[data-testid=settings-save]").click();
+  await expect(page.locator("[data-testid=settings-success]")).toBeVisible({ timeout: 5_000 });
 
-  // A success indicator appears.
-  const successEl = page
-    .locator("[data-testid=settings-success]")
-    .or(page.getByRole("status").filter({ hasText: /saved|success/i }))
-    .or(page.getByText(/saved|settings updated/i).first());
-  await expect(successEl).toBeVisible({ timeout: 5_000 });
-
-  // Hard-reload and confirm the provider value was persisted.
+  // Hard-reload and confirm the provider persisted.
   await page.reload();
   await expect(form).toBeVisible({ timeout: 10_000 });
 
-  const savedProvider = page
-    .locator("[data-testid=provider-select]")
-    .or(page.getByRole("combobox", { name: /provider/i }))
-    .or(page.getByLabel(/provider/i));
-
-  const persistedValue = await savedProvider
-    .inputValue()
-    .catch(() => savedProvider.textContent());
-  expect(persistedValue?.toLowerCase()).toContain(nextProvider.toLowerCase());
+  const savedLabel = ((await page.locator("[data-testid=provider-select]").textContent()) ?? "").trim();
+  expect(savedLabel.toLowerCase()).toContain(targetLabel.toLowerCase());
 });
