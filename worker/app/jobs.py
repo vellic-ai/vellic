@@ -74,35 +74,31 @@ async def _dead_letter(
     logger.error("dead-letter: job_id=%s delivery=%s error=%s", job_id, delivery_id, exc)
 
 
+async def _get_repo_installation(
+    pool: asyncpg.Pool, platform: str, org: str, repo: str
+) -> dict | None:
+    """Return the most-specific matching installation row, or None if no rows exist."""
+    rows = await pool.fetch(
+        """
+        SELECT config_json FROM installations
+        WHERE platform = $1 AND org = $2
+          AND (repo = $3 OR repo IS NULL)
+        ORDER BY (repo = $3) DESC NULLS LAST
+        LIMIT 1
+        """,
+        platform,
+        org,
+        repo,
+    )
+    if not rows:
+        return None
+    return dict(rows[0])
+
+
 async def process_webhook(ctx: dict, delivery_id: str) -> None:
     pool: asyncpg.Pool = ctx["db_pool"]
     arq_redis = ctx["redis"]
     job_try: int = ctx.get("job_try", 1)
-
-    # Load LLM config: DB row takes precedence; fall back to env vars.
-    try:
-        cfg = await load_llm_config_from_db(pool)
-    except Exception as exc:
-        logger.warning("failed to load LLM config from DB, falling back to env vars: %s", exc)
-        cfg = None
-    if cfg is None:
-        cfg = load_env_llm_config()
-        logger.info("llm config: using env-var fallback (no DB row)")
-    else:
-        logger.info(
-            "llm config: loaded from DB provider=%s model=%s", cfg["provider"], cfg["model"]
-        )
-
-    if cfg["provider"] in _EXTERNAL_PROVIDERS:
-        logger.warning(_EXTERNAL_PROVIDER_WARNING)
-
-    llm = build_provider(
-        cfg["provider"],
-        base_url=cfg.get("base_url", ""),
-        model=cfg["model"],
-        api_key=cfg.get("api_key", ""),
-        bin_path=cfg.get("bin_path", "claude"),
-    )
 
     row = await pool.fetchrow(
         "SELECT event_type, payload FROM webhook_deliveries WHERE delivery_id = $1",
@@ -123,6 +119,57 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
         )
         logger.info("non-PR event %s — marked processed", event_type)
         return
+
+    # Check repo allow-list; apply per-repo LLM overrides if present.
+    repo_full = (payload.get("repository") or {}).get("full_name", "")
+    installation_cfg: dict = {}
+    if repo_full:
+        org_part, _, repo_part = repo_full.partition("/")
+        inst = await _get_repo_installation(pool, "github", org_part, repo_part)
+        if inst is not None:
+            installation_cfg = inst.get("config_json") or {}
+            if not installation_cfg.get("enabled", True):
+                logger.info("repo %s disabled — skipping delivery %s", repo_full, delivery_id)
+                await pool.execute(
+                    "UPDATE webhook_deliveries SET processed_at = NOW() WHERE delivery_id = $1",
+                    delivery_id,
+                )
+                return
+
+    # Load LLM config: DB row takes precedence; fall back to env vars.
+    try:
+        cfg = await load_llm_config_from_db(pool)
+    except Exception as exc:
+        logger.warning("failed to load LLM config from DB, falling back to env vars: %s", exc)
+        cfg = None
+    if cfg is None:
+        cfg = load_env_llm_config()
+        logger.info("llm config: using env-var fallback (no DB row)")
+    else:
+        logger.info(
+            "llm config: loaded from DB provider=%s model=%s", cfg["provider"], cfg["model"]
+        )
+
+    # Per-repo provider/model override.
+    if installation_cfg.get("provider") and installation_cfg.get("model"):
+        cfg = {**cfg, "provider": installation_cfg["provider"], "model": installation_cfg["model"]}
+        logger.info(
+            "per-repo llm override provider=%s model=%s for %s",
+            cfg["provider"],
+            cfg["model"],
+            repo_full,
+        )
+
+    if cfg["provider"] in _EXTERNAL_PROVIDERS:
+        logger.warning(_EXTERNAL_PROVIDER_WARNING)
+
+    llm = build_provider(
+        cfg["provider"],
+        base_url=cfg.get("base_url", ""),
+        model=cfg["model"],
+        api_key=cfg.get("api_key", ""),
+        bin_path=cfg.get("bin_path", "claude"),
+    )
 
     event = normalize_pr(delivery_id, payload)
     job_id = await _get_or_create_job(pool, delivery_id)
