@@ -295,4 +295,4 @@ async def test_persist_inserts_and_enqueues():
     returned = await persist(mock_pool, context, result, job_id, mock_arq)
 
     assert returned == str(pr_review_id)
-    mock_arq.enqueue_job.assert_called_once_with("post_feedback", str(pr_review_id))
+    mock_arq.enqueue_job.assert_called_once_with("post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}")

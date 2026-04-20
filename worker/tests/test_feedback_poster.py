@@ -292,13 +292,95 @@ async def test_post_feedback_posts_and_updates_db():
         },
         "github_review_id": None,
     })
-    mock_pool.execute = AsyncMock()
+    mock_pool.fetchval = AsyncMock(return_value=uuid.UUID(pr_review_id))
 
     ctx = {"db_pool": mock_pool, "job_try": 1}
     with patch("app.jobs.post_github_review", new=AsyncMock(return_value="gh-999")):
         await post_feedback(ctx, pr_review_id)
 
-    mock_pool.execute.assert_called_once()
-    call_args = mock_pool.execute.call_args[0]
+    mock_pool.fetchval.assert_called_once()
+    call_args = mock_pool.fetchval.call_args[0]
     assert "github_review_id" in call_args[0]
     assert call_args[1] == "gh-999"
+
+
+@pytest.mark.asyncio
+async def test_post_feedback_concurrent_worker_dedup():
+    """Atomic UPDATE returns None when another worker already wrote github_review_id."""
+    from app.jobs import post_feedback
+
+    pr_review_id = str(uuid.uuid4())
+    mock_pool = AsyncMock()
+    mock_pool.fetchrow = AsyncMock(return_value={
+        "repo": "acme/backend",
+        "pr_number": 1,
+        "commit_sha": "sha",
+        "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "github_review_id": None,
+    })
+    mock_pool.fetchval = AsyncMock(return_value=None)  # concurrent worker won the race
+
+    ctx = {"db_pool": mock_pool, "job_try": 1}
+    with patch("app.jobs.post_github_review", new=AsyncMock(return_value="gh-111")) as mock_post:
+        await post_feedback(ctx, pr_review_id)
+        mock_post.assert_called_once()  # still posts, atomic UPDATE is the gate
+
+    mock_pool.fetchval.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_post_github_review_422_low_rate_limit_still_falls_back():
+    """422 fallback happens even when rate-limit remaining is low (Bug 1 regression test)."""
+    result = AnalysisResult(
+        comments=[ReviewComment("app.py", 5, "fix", 0.9, "reason")],
+        summary="Issues.",
+        generic_ratio=0.0,
+    )
+    resp_422 = MagicMock()
+    resp_422.status_code = 422
+    # Low rate-limit on the 422 response — must NOT raise before fallback
+    resp_422.headers = httpx.Headers({"X-RateLimit-Remaining": "50"})
+
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.headers = httpx.Headers({"X-RateLimit-Remaining": "50"})
+    resp_200.json.return_value = {"id": 888}
+
+    with patch("app.pipeline.feedback_poster.httpx.AsyncClient") as MockClient:
+        instance = MockClient.return_value.__aenter__.return_value
+        instance.post = AsyncMock(side_effect=[resp_422, resp_200])
+        # Should raise RateLimitError only after the fallback succeeds (from the 200 response)
+        with pytest.raises(RateLimitError):
+            await post_github_review("acme/backend", 1, "sha", result, token="tok")
+
+    assert instance.post.call_count == 2  # fallback was attempted
+
+
+@pytest.mark.asyncio
+async def test_result_persister_enqueues_with_stable_job_id():
+    """post_feedback enqueue must use a stable _job_id to prevent duplicate jobs on retry."""
+    import asyncpg
+    from app.pipeline.result_persister import persist
+    from app.pipeline.models import PRContext
+
+    pr_review_id = uuid.uuid4()
+    mock_pool = AsyncMock(spec=asyncpg.Pool)
+    mock_conn = AsyncMock()
+    mock_conn.fetchrow = AsyncMock(return_value={"id": pr_review_id})
+    mock_conn.execute = AsyncMock()
+    mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    mock_arq = AsyncMock()
+    mock_arq.enqueue_job = AsyncMock()
+
+    context = PRContext(repo="acme/backend", pr_number=1, commit_sha="sha", title="t", body="", base_branch="main")
+    result = AnalysisResult(comments=[], summary="ok", generic_ratio=0.0)
+
+    await persist(mock_pool, context, result, uuid.uuid4(), mock_arq)
+
+    mock_arq.enqueue_job.assert_called_once()
+    call_args, call_kwargs = mock_arq.enqueue_job.call_args
+    assert call_args[0] == "post_feedback"
+    assert call_args[1] == str(pr_review_id)
+    assert call_kwargs.get("_job_id") == f"post_feedback:{pr_review_id}"

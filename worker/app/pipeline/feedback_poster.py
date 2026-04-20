@@ -89,8 +89,6 @@ async def post_github_review(
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(url, json=payload, headers=headers)
 
-    _check_rate_limit(resp.headers)
-
     if resp.status_code == 422 and inline:
         # Some line numbers may not exist in the diff; fall back to body-only review
         logger.warning(
@@ -99,7 +97,6 @@ async def post_github_review(
         payload_no_inline = {k: v for k, v in payload.items() if k != "comments"}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(url, json=payload_no_inline, headers=headers)
-        _check_rate_limit(resp.headers)
 
     if resp.status_code == 429:
         raise RateLimitError("429 from GitHub")
@@ -110,5 +107,6 @@ async def post_github_review(
     if resp.status_code >= 400:
         raise GitHubClientError(f"GitHub {resp.status_code}: {resp.text[:300]}")
 
+    _check_rate_limit(resp.headers)
     data = resp.json()
     return str(data["id"])

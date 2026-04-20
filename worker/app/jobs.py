@@ -169,11 +169,15 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
         delay = _FEEDBACK_RETRY_DELAYS[min(job_try - 1, len(_FEEDBACK_RETRY_DELAYS) - 1)]
         raise Retry(defer_by=delay) from exc
 
-    await pool.execute(
-        "UPDATE pr_reviews SET github_review_id = $1, posted_at = NOW() WHERE id = $2",
+    updated = await pool.fetchval(
+        "UPDATE pr_reviews SET github_review_id = $1, posted_at = NOW() "
+        "WHERE id = $2 AND github_review_id IS NULL RETURNING id",
         github_review_id,
         uuid.UUID(pr_review_id),
     )
+    if updated is None:
+        logger.info("pr_review %s already posted by concurrent worker — skipping", pr_review_id)
+        return
     logger.info(
         "posted GitHub review=%s for pr_review=%s repo=%s pr=%d",
         github_review_id,
