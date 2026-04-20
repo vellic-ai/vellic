@@ -49,11 +49,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install admin service
-        run: pip install uv && uv pip install --system -e "admin"
+        run: pip install uv && uv pip install --system -e "admin" -e "api"
 
       - name: Run DB migrations
         run: alembic upgrade head
-        working-directory: admin
+        working-directory: api
         env:
           DATABASE_URL: postgresql://vellic:vellic_test@localhost:5432/vellic
 
