@@ -19,6 +19,7 @@ interface ToastApi {
 
 const ToastCtx = React.createContext<ToastApi | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast(): ToastApi {
   const ctx = React.useContext(ToastCtx);
   if (!ctx) throw new Error("useToast must be used inside ToastRoot");

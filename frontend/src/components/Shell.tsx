@@ -65,6 +65,7 @@ function SidebarNavItem({ to, icon, label }: NavItem) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function Sidebar({ onClose: _onClose }: { onClose?: () => void }) {
   const navigate = useNavigate();
   const logout = useLogout();
