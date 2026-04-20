@@ -643,6 +643,86 @@
     .hidden { display: none !important; }
     .text-muted { color: var(--text-muted); }
 
+    /* ── Deliveries page ── */
+
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .status-badge-pending { background: rgba(123,130,160,0.12); color: var(--text-muted); }
+    .status-badge-running { background: rgba(108,99,255,0.12);  color: #a8a3ff; }
+    .status-badge-done    { background: rgba(34,197,94,0.10);   color: #4ade80; }
+    .status-badge-failed  { background: rgba(239,68,68,0.12);   color: #f87171; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .status-badge-running .status-dot { animation: blink 1.4s ease-in-out infinite; }
+
+    .del-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .del-filters .select-wrap { width: auto; }
+    .del-filters .select { min-width: 150px; width: auto; }
+    .del-filter-input { flex: 1; min-width: 180px; max-width: 280px; }
+
+    .del-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .del-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    .del-table th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .del-table th:first-child { padding-left: 20px; }
+
+    .del-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: var(--text);
+    }
+
+    .del-table td:first-child { padding-left: 20px; }
+    .del-table tr:last-child td { border-bottom: none; }
+    .del-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .del-table td.muted { color: var(--text-muted); }
+    .del-mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+    .del-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0 4px;
+    }
+
+    .del-pg-info { font-size: 12px; color: var(--text-muted); }
+    .del-pg-btns { display: flex; gap: 8px; }
+
     /* Responsive */
     @media (max-width: 900px) {
       .sidebar {
@@ -689,7 +769,15 @@
         </svg>
         <span>Dashboard</span>
       </a>
-      <div class="nav-section-label">Settings</div>
+      <div class="nav-section-label">Webhooks</div>
+      <a class="nav-item" href="/deliveries" data-navlink>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
+          <path d="M1.5 6l6.5 3.5L14.5 6"/>
+        </svg>
+        <span>Deliveries</span>
+      </a>
+      <div class="nav-section-label" style="margin-top:8px">Settings</div>
       <a class="nav-item" href="/settings/llm" data-navlink>
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="8" cy="8" r="2.5"/>
@@ -797,6 +885,51 @@
       </div>
     </div>
 
+    <!-- Deliveries page -->
+    <div id="page-deliveries" class="content content-wide page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Webhook Deliveries</h1>
+        <p class="page-desc">Incoming webhook events and their processing status.</p>
+      </div>
+
+      <div class="del-filters">
+        <div class="select-wrap">
+          <select id="del-filter-status" class="select">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="running">Running</option>
+            <option value="done">Done</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+        <input id="del-filter-event" type="text" class="input del-filter-input" placeholder="Filter by event type…" />
+      </div>
+
+      <div class="del-table-wrap">
+        <table class="del-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Event Type</th>
+              <th>Received</th>
+              <th>Processed</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="del-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="del-pagination hidden" id="del-pagination">
+        <span class="del-pg-info" id="del-pg-info"></span>
+        <div class="del-pg-btns">
+          <button class="btn btn-ghost btn-sm" id="del-btn-prev">← Prev</button>
+          <button class="btn btn-ghost btn-sm" id="del-btn-next">Next →</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Placeholder page for unimplemented routes -->
     <div id="page-placeholder" class="content content-narrow page hidden">
       <div class="page-header">
@@ -816,7 +949,7 @@
       const ROUTES = {
         '/':              { page: 'dashboard',    breadcrumb: ['Dashboard'] },
         '/settings/llm':  { page: 'settings-llm', breadcrumb: ['Settings', 'LLM Provider'] },
-        '/deliveries':    { page: 'placeholder',  breadcrumb: ['Deliveries'],             title: 'Deliveries' },
+        '/deliveries':    { page: 'deliveries',   breadcrumb: ['Webhooks', 'Deliveries'] },
         '/settings/repos':{ page: 'placeholder',  breadcrumb: ['Settings', 'Repositories'], title: 'Repositories' },
       };
 
@@ -856,8 +989,9 @@
           item.classList.toggle('active', active);
         });
 
-        if (route.page === 'dashboard') Dashboard.load();
+        if (route.page === 'dashboard')    Dashboard.load();
         if (route.page === 'settings-llm') LLMSettings.load();
+        if (route.page === 'deliveries')   Deliveries.load();
       }
 
       document.addEventListener('click', e => {
@@ -1227,6 +1361,155 @@
             toast('Failed to load settings. Check admin service connectivity.', 'error');
             console.error(err);
           }
+        }
+
+        return { load };
+      })();
+
+      // ── Deliveries ──────────────────────────────────────────────────────
+
+      const Deliveries = (() => {
+        const LIMIT = 50;
+        let offset  = 0;
+        let total   = 0;
+        let bound   = false;
+        let filterTimer;
+
+        function esc(s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function statusBadge(s) {
+          const label = { pending:'Pending', running:'Running', done:'Done', failed:'Failed' }[s] ?? s;
+          return `<span class="status-badge status-badge-${esc(s)}">` +
+                 `<span class="status-dot ${esc(s)}"></span>${esc(label)}</span>`;
+        }
+
+        function relTime(iso) {
+          if (!iso) return '<span class="text-muted">—</span>';
+          const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+          if (s < 60)  return s + 's ago';
+          const m = Math.floor(s / 60);
+          if (m < 60)  return m + 'm ago';
+          const h = Math.floor(m / 60);
+          if (h < 24)  return h + 'h ago';
+          return Math.floor(h / 24) + 'd ago';
+        }
+
+        function fmtAbs(iso) {
+          if (!iso) return '<span class="text-muted">—</span>';
+          return esc(new Date(iso).toLocaleString());
+        }
+
+        async function fetchAndRender() {
+          const tbody  = document.getElementById('del-tbody');
+          if (!tbody) return;
+
+          const status    = document.getElementById('del-filter-status')?.value ?? '';
+          const eventType = document.getElementById('del-filter-event')?.value.trim() ?? '';
+
+          const params = new URLSearchParams({ limit: LIMIT, offset, status, event_type: eventType });
+          tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text-muted)">Loading…</td></tr>';
+
+          try {
+            const res = await fetch(`/admin/deliveries?${params}`);
+            if (res.status === 401) { location.href = '/login'; return; }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            total = data.total;
+            renderRows(tbody, data.items);
+            renderPagination();
+          } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Failed to load: ${esc(err.message)}</p></div></td></tr>`;
+          }
+        }
+
+        function renderRows(tbody, items) {
+          if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                <rect x="4" y="7" width="32" height="26" rx="3"/>
+                <path d="M4 14l16 9 16-9"/>
+              </svg>
+              <h3>No webhook deliveries yet.</h3>
+            </div></td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = items.map(row => {
+            const isRunning = row.status === 'running';
+            return `<tr>
+              <td><span class="del-mono">${esc(row.delivery_id.slice(0, 8))}</span></td>
+              <td>${esc(row.event_type)}</td>
+              <td title="${esc(row.received_at ?? '')}">${relTime(row.received_at)}</td>
+              <td>${fmtAbs(row.processed_at)}</td>
+              <td>${statusBadge(row.status)}</td>
+              <td style="text-align:right">
+                <button class="btn btn-ghost btn-sm del-replay-btn"
+                  data-id="${esc(row.delivery_id)}"
+                  ${isRunning ? 'disabled' : ''}
+                  title="${isRunning ? 'Job is currently running' : 'Re-enqueue this delivery'}"
+                >Replay</button>
+              </td>
+            </tr>`;
+          }).join('');
+
+          tbody.querySelectorAll('.del-replay-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const id = btn.dataset.id;
+              btn.disabled = true;
+              try {
+                const res = await fetch(`/admin/replay/${encodeURIComponent(id)}`, { method: 'POST' });
+                if (res.status === 401) { location.href = '/login'; return; }
+                if (!res.ok) {
+                  const detail = await res.json().then(d => d.detail).catch(() => `HTTP ${res.status}`);
+                  throw new Error(detail);
+                }
+                toast('Delivery queued for replay.', 'success');
+                fetchAndRender();
+              } catch (err) {
+                toast(`Replay failed: ${err.message}`, 'error');
+                btn.disabled = false;
+              }
+            });
+          });
+        }
+
+        function renderPagination() {
+          const pg    = document.getElementById('del-pagination');
+          const info  = document.getElementById('del-pg-info');
+          const prev  = document.getElementById('del-btn-prev');
+          const next  = document.getElementById('del-btn-next');
+          if (!pg) return;
+
+          if (total <= LIMIT) { pg.classList.add('hidden'); return; }
+          pg.classList.remove('hidden');
+          info.textContent = `${offset + 1}–${Math.min(offset + LIMIT, total)} of ${total}`;
+          prev.disabled = offset === 0;
+          next.disabled = offset + LIMIT >= total;
+        }
+
+        function onFilterChange() {
+          offset = 0;
+          clearTimeout(filterTimer);
+          filterTimer = setTimeout(fetchAndRender, 300);
+        }
+
+        function load() {
+          if (!bound) {
+            bound = true;
+            document.getElementById('del-filter-status')?.addEventListener('change', onFilterChange);
+            document.getElementById('del-filter-event')?.addEventListener('input', onFilterChange);
+            document.getElementById('del-btn-prev')?.addEventListener('click', () => {
+              offset = Math.max(0, offset - LIMIT); fetchAndRender();
+            });
+            document.getElementById('del-btn-next')?.addEventListener('click', () => {
+              offset += LIMIT; fetchAndRender();
+            });
+          }
+          fetchAndRender();
         }
 
         return { load };
