@@ -154,8 +154,8 @@ export default function DeliveriesPage() {
         />
       ) : (
         <>
-          <div data-testid="deliveries-table" className="bg-surface border border-border rounded overflow-hidden">
-            <table className="w-full text-sm border-collapse" role="table">
+          <div className="bg-surface border border-border rounded overflow-hidden">
+            <table data-testid="deliveries-table" className="w-full text-sm border-collapse" role="table">
               <thead>
                 <tr className="bg-surface border-b border-border text-text-muted text-xs uppercase tracking-[.04em]">
                   <th className="text-left px-4 py-2.5 font-medium w-[180px]">Delivery ID</th>
