@@ -877,6 +877,117 @@
       margin: 0;
     }
 
+    /* ── Badge / Dot ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 20px; padding: 0 8px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .badge-success { color: var(--success); border-color: rgba(34,197,94,.3); background: rgba(34,197,94,.08); }
+    .badge-error   { color: var(--error);   border-color: rgba(239,68,68,.3);  background: rgba(239,68,68,.08); }
+    .badge-warning { color: var(--warning-text); border-color: var(--warning-border); background: var(--warning-bg); }
+    .badge-info    { color: #8ea3ff; border-color: rgba(108,99,255,.35); background: rgba(108,99,255,.1); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .dot-success { background: var(--success); }
+    .dot-error   { background: var(--error); }
+    .dot-muted   { background: var(--text-muted); }
+    .dot-warning { background: var(--warning-text); }
+    @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .badge-info .dot { animation: blink-dot 1.4s ease-in-out infinite; }
+
+    /* ── Overlay / Modal ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(5,6,12,.62);
+      z-index: 50; animation: ovFadeIn .15s ease;
+    }
+    @keyframes ovFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(520px, calc(100vw - 32px));
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); z-index: 51;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      animation: modalIn .18s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translate(-50%, -46%); }
+      to   { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    .modal-head { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .modal-body { padding: 20px; max-height: calc(100vh - 200px); overflow-y: auto; }
+    .modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* ── Toggle switch ── */
+    .toggle {
+      position: relative; width: 34px; height: 20px;
+      border-radius: 999px; background: var(--surface-2);
+      border: 1px solid var(--border);
+      transition: background .15s ease, border-color .15s ease;
+      flex-shrink: 0; cursor: pointer;
+    }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #7b82a0; transition: transform .15s ease, background .15s ease;
+    }
+    .toggle.on { background: var(--accent); border-color: var(--accent); }
+    .toggle.on::after { transform: translateX(14px); background: #fff; }
+
+    /* ── Warn banner ── */
+    .warn-banner {
+      background: var(--warning-bg); border: 1px solid var(--warning-border);
+      color: var(--warning-text); border-radius: var(--radius);
+      padding: 10px 14px; font-size: 13px;
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+
+    /* ── Textarea ── */
+    .textarea {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-family: var(--font-mono);
+      padding: 10px 12px; font-size: 12.5px; resize: vertical; outline: none;
+    }
+    .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,99,255,.15); }
+
+    /* ── Field hint ── */
+    .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* ── Danger btn ── */
+    .btn-danger { background: transparent; border-color: rgba(255,77,109,.35); color: var(--danger); }
+    .btn-danger:not(:disabled):hover { background: rgba(255,77,109,.08); border-color: var(--danger); }
+
+    /* ── Repos page ── */
+    .repo-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px;
+      display: grid; grid-template-columns: 30px 1fr auto auto auto;
+      align-items: center; gap: 14px;
+    }
+    .repo-platform-icon {
+      width: 30px; height: 30px; border-radius: 6px;
+      background: var(--surface-2); display: inline-flex;
+      align-items: center; justify-content: center;
+    }
+    .repo-slug { font-family: var(--font-mono); font-size: 13.5px; }
+    .repo-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Webhook page ── */
+    .wh-card { margin-bottom: 16px; }
+    .wh-card .card-body { padding: 22px; }
+    .wh-section-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .wh-section-desc { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+    .wh-footer {
+      display: flex; justify-content: flex-end;
+      margin-top: 18px; padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .test-result { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+    .test-result.ok  { color: var(--success); }
+    .test-result.err { color: var(--error); }
+
     /* Responsive */
     @media (max-width: 900px) {
       .sidebar {
@@ -1095,7 +1206,23 @@
           <circle cx="8" cy="8" r="2.5"/>
           <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"/>
         </svg>
-        <span>LLM Provider</span>
+        <span>Providers</span>
+      </a>
+      <a class="nav-item" href="/settings/repos" data-navlink>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 2a1 1 0 011-1h7l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V2z"/>
+          <path d="M5 9h6M5 12h4"/>
+        </svg>
+        <span>Repositories</span>
+      </a>
+      <a class="nav-item" href="/settings/webhook" data-navlink>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="4" cy="12" r="2"/>
+          <circle cx="12" cy="12" r="2"/>
+          <circle cx="8" cy="4" r="2"/>
+          <path d="M8 6v3M7 9l-2 1M9 9l2 1"/>
+        </svg>
+        <span>Webhook</span>
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -1300,13 +1427,28 @@
 
     <!-- Job drawer (injected dynamically) -->
 
-    <!-- Placeholder page for unimplemented routes -->
-    <div id="page-placeholder" class="content content-narrow page hidden">
-      <div class="page-header">
-        <h1 class="page-title" id="placeholder-title">Coming soon</h1>
-        <p class="page-desc">This feature is coming in the next sprint.</p>
+    <!-- Repositories page -->
+    <div id="page-settings-repos" class="content content-wide page hidden">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+        <div>
+          <h1 class="page-title">Repositories</h1>
+          <p class="page-desc">Each repo picks its own model. Bring your own keys via Providers.</p>
+        </div>
+        <button class="btn btn-primary" id="repos-add-btn" style="flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+          Add repository
+        </button>
       </div>
-      <div class="placeholder-state">Nothing here yet.</div>
+      <div id="repos-list"></div>
+    </div>
+
+    <!-- Webhook settings page -->
+    <div id="page-settings-webhook" class="content content-narrow page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Webhook</h1>
+        <p class="page-desc">Inbound endpoint + VCS authentication.</p>
+      </div>
+      <div id="webhook-content"></div>
     </div>
   </div>
 
@@ -1317,11 +1459,12 @@
       // ── Router ──────────────────────────────────────────────────────────
 
       const ROUTES = {
-        '/':              { page: 'dashboard',    breadcrumb: ['Dashboard'] },
-        '/settings/llm':  { page: 'settings-llm', breadcrumb: ['Settings', 'LLM Provider'] },
-        '/deliveries':    { page: 'deliveries',   breadcrumb: ['Observe', 'Deliveries'] },
-        '/jobs':          { page: 'jobs',          breadcrumb: ['Observe', 'Jobs'] },
-        '/settings/repos':{ page: 'placeholder',  breadcrumb: ['Settings', 'Repositories'], title: 'Repositories' },
+        '/':                 { page: 'dashboard',        breadcrumb: ['Dashboard'] },
+        '/settings/llm':     { page: 'settings-llm',    breadcrumb: ['Settings', 'Providers'] },
+        '/deliveries':       { page: 'deliveries',       breadcrumb: ['Observe', 'Deliveries'] },
+        '/jobs':             { page: 'jobs',             breadcrumb: ['Observe', 'Jobs'] },
+        '/settings/repos':   { page: 'settings-repos',  breadcrumb: ['Settings', 'Repositories'] },
+        '/settings/webhook': { page: 'settings-webhook', breadcrumb: ['Settings', 'Webhook'] },
       };
 
       function navigate(path) {
@@ -1360,10 +1503,12 @@
           item.classList.toggle('active', active);
         });
 
-        if (route.page === 'dashboard')    Dashboard.load();
-        if (route.page === 'settings-llm') LLMSettings.load();
-        if (route.page === 'deliveries')   Deliveries.load();
-        if (route.page === 'jobs')         Jobs.load();
+        if (route.page === 'dashboard')        Dashboard.load();
+        if (route.page === 'settings-llm')    LLMSettings.load();
+        if (route.page === 'deliveries')       Deliveries.load();
+        if (route.page === 'jobs')             Jobs.load();
+        if (route.page === 'settings-repos')   ReposSettings.load();
+        if (route.page === 'settings-webhook') WebhookSettings.load();
       }
 
       document.addEventListener('click', e => {
@@ -2289,6 +2434,625 @@
           }
           closeDrawer();
           fetchAndRender();
+        }
+
+        return { load };
+      })();
+
+      // ── Repos Settings ──────────────────────────────────────────────────
+
+      const ReposSettings = (() => {
+        const CLOUD = new Set(['openai', 'anthropic', 'claude_code']);
+        const PROVIDER_LABELS = { ollama:'Ollama', vllm:'vLLM', openai:'OpenAI', anthropic:'Anthropic', claude_code:'Claude Code' };
+        const MODEL_SUGGESTIONS = {
+          ollama:      ['qwen2.5-coder:14b', 'qwen2.5-coder:32b', 'deepseek-coder-v2:16b', 'codellama:34b'],
+          vllm:        ['Qwen2.5-Coder-32B', 'DeepSeek-Coder-V2-Lite', 'Llama-3.1-70B-Instruct'],
+          openai:      ['gpt-4o-mini', 'gpt-4o', 'o4-mini'],
+          anthropic:   ['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-4'],
+          claude_code: ['claude-sonnet-4', 'claude-opus-4'],
+        };
+
+        let repos = [];
+        let loaded = false;
+        let modal = null;
+
+        function esc(s) {
+          return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function githubIcon() {
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.54 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z"/></svg>`;
+        }
+        function gitlabIcon() {
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 21l-3.5-11H15.5L12 21zM4 10L2 16l10 5L4 10zM20 10l2 6-10 5 8-11zM8.5 10H4l2-6 2.5 6zM15.5 10H20l-2-6-2.5 6z"/></svg>`;
+        }
+
+        function renderList() {
+          const container = document.getElementById('repos-list');
+          if (!container) return;
+          if (!repos.length) {
+            container.innerHTML = `
+              <div class="empty-state" style="padding:60px 24px">
+                <svg class="empty-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <path d="M7 5a2 2 0 012-2h14l8 8v22a2 2 0 01-2 2H9a2 2 0 01-2-2V5z"/>
+                  <path d="M14 22h12M14 28h8"/>
+                </svg>
+                <h3>No repositories — analysis is paused</h3>
+                <p>Add a repository to start listening for pull requests.</p>
+              </div>`;
+            return;
+          }
+          container.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">${repos.map(r => `
+            <div class="repo-card">
+              <span class="repo-platform-icon" style="color:${r.platform === 'github' ? '#e8eaf0' : '#f0a05a'}">
+                ${r.platform === 'github' ? githubIcon() : gitlabIcon()}
+              </span>
+              <div style="min-width:0">
+                <div class="repo-slug">${esc(r.slug)}</div>
+                <div class="repo-meta">
+                  <span>${esc(PROVIDER_LABELS[r.provider] ?? r.provider)} · ${esc(r.model)}</span>
+                  ${CLOUD.has(r.provider) ? `<span class="badge badge-warning" style="height:16px;font-size:10px;padding:0 6px">cloud</span>` : ''}
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm repo-edit-btn" data-id="${esc(r.id)}" style="color:var(--text-muted)">Edit</button>
+              <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+                <span style="font-size:12px;color:${r.enabled ? 'var(--success)' : 'var(--text-muted)'};min-width:52px;text-align:right">${r.enabled ? 'Enabled' : 'Disabled'}</span>
+                <button class="toggle ${r.enabled ? 'on' : ''} repo-toggle-btn" data-id="${esc(r.id)}" aria-label="Toggle ${esc(r.slug)}"></button>
+              </label>
+              <button class="btn btn-ghost btn-sm repo-del-btn" data-id="${esc(r.id)}" title="Remove" style="color:var(--text-muted);padding:0 8px">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M6 4V2h4v2M5 4l.5 10h5L11 4"/></svg>
+              </button>
+            </div>`).join('')}
+          </div>`;
+
+          container.querySelectorAll('.repo-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const id = btn.dataset.id;
+              const repo = repos.find(r => String(r.id) === id);
+              if (!repo) return;
+              const newVal = !repo.enabled;
+              try {
+                const res = await fetch(`/admin/settings/repos/${encodeURIComponent(id)}/toggle`, { method: 'POST' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              } catch { /* optimistic update anyway */ }
+              repo.enabled = newVal;
+              renderList();
+            });
+          });
+
+          container.querySelectorAll('.repo-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const repo = repos.find(r => String(r.id) === btn.dataset.id);
+              if (repo) openModal({ mode: 'edit', repo });
+            });
+          });
+
+          container.querySelectorAll('.repo-del-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const repo = repos.find(r => String(r.id) === btn.dataset.id);
+              if (repo) openConfirmDelete(repo);
+            });
+          });
+        }
+
+        function openConfirmDelete(repo) {
+          closeModal();
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          const m = document.createElement('div');
+          m.className = 'modal';
+          m.innerHTML = `
+            <div class="modal-head"><h3 style="margin:0;font-size:16px;font-weight:600">Remove repository?</h3></div>
+            <div class="modal-body" style="font-size:13.5px;color:var(--text-muted)">
+              Vellic will stop analyzing <code style="color:var(--text)">${esc(repo.slug)}</code>. Incoming webhooks will be ignored.
+            </div>
+            <div class="modal-foot">
+              <button class="btn" id="confirm-cancel">Cancel</button>
+              <button class="btn btn-danger" id="confirm-ok">Remove</button>
+            </div>`;
+          document.body.appendChild(overlay);
+          document.body.appendChild(m);
+          modal = { overlay, modal: m };
+          overlay.addEventListener('click', closeModal);
+          m.querySelector('#confirm-cancel').addEventListener('click', closeModal);
+          m.querySelector('#confirm-ok').addEventListener('click', async () => {
+            closeModal();
+            try {
+              await fetch(`/admin/settings/repos/${encodeURIComponent(repo.id)}`, { method: 'DELETE' });
+            } catch { /* ignore */ }
+            repos = repos.filter(r => r.id !== repo.id);
+            renderList();
+            toast(`Removed ${repo.slug}`, 'success');
+          });
+        }
+
+        function openModal({ mode, repo }) {
+          closeModal();
+          const existing = mode === 'edit' ? repo : null;
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          const m = document.createElement('div');
+          m.className = 'modal';
+          const platform = existing?.platform ?? 'github';
+          const slugParts = (existing?.slug ?? '/').split('/');
+          const org = slugParts[0] ?? '';
+          const repoName = slugParts[1] ?? '';
+          const provider = existing?.provider ?? 'ollama';
+          const modelVal  = existing?.model ?? MODEL_SUGGESTIONS.ollama[0];
+
+          m.innerHTML = `
+            <div class="modal-head"><h3 style="margin:0;font-size:16px;font-weight:600">${mode === 'new' ? 'Add repository' : 'Edit repository'}</h3></div>
+            <div class="modal-body">
+              <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;margin-bottom:16px">
+                <div class="field" style="margin:0">
+                  <label class="label">Platform</label>
+                  <select id="rm-platform" class="select input" style="height:34px;padding:0 10px">
+                    <option value="github" ${platform==='github'?'selected':''}>GitHub</option>
+                    <option value="gitlab" ${platform==='gitlab'?'selected':''}>GitLab</option>
+                  </select>
+                </div>
+                <div class="field" style="margin:0">
+                  <label class="label">Organization</label>
+                  <input id="rm-org" class="input" value="${esc(org)}" placeholder="acme" />
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Repository</label>
+                <input id="rm-repo" class="input" value="${esc(repoName)}" placeholder="api-gateway or * for all" />
+                <div class="field-hint">Use <code>*</code> to match every repo in this org.</div>
+              </div>
+              <div style="border-top:1px solid var(--border);margin:16px -20px 16px"></div>
+              <div style="font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:12px">Model</div>
+              <div class="field">
+                <label class="label">Provider</label>
+                <select id="rm-provider" class="select input" style="height:34px;padding:0 10px">
+                  <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama — local</option>
+                  <option value="vllm" ${provider==='vllm'?'selected':''}>vLLM — self-hosted</option>
+                  <option value="openai" ${provider==='openai'?'selected':''}>OpenAI — cloud</option>
+                  <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic — cloud</option>
+                  <option value="claude_code" ${provider==='claude_code'?'selected':''}>Claude Code — cloud</option>
+                </select>
+                <div class="field-hint">Credentials &amp; base URL configured in <a href="/settings/llm" style="color:var(--accent)">Providers</a>.</div>
+              </div>
+              <div id="rm-cloud-warn" class="warn-banner ${CLOUD.has(provider) ? '' : 'hidden'}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2L14.5 13.5H1.5L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r=".5" fill="currentColor"/></svg>
+                <span>Source for this repo will leave your network.</span>
+              </div>
+              <div class="field" style="margin:0">
+                <label class="label">Model</label>
+                <input id="rm-model" class="input" style="font-family:var(--font-mono)" value="${esc(modelVal)}" placeholder="${esc(MODEL_SUGGESTIONS[provider]?.[0] ?? '')}" list="rm-models-list" />
+                <datalist id="rm-models-list">${(MODEL_SUGGESTIONS[provider]??[]).map(mv=>`<option value="${esc(mv)}">`).join('')}</datalist>
+                <div id="rm-model-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+                  ${(MODEL_SUGGESTIONS[provider]??[]).map(mv=>`<button type="button" class="btn btn-sm rm-chip" data-model="${esc(mv)}" style="height:22px;font-size:11px;padding:0 8px;${modelVal===mv?'background:var(--accent);border-color:var(--accent);color:#fff':'background:var(--surface-2);border-color:var(--border);color:var(--text-muted)'}">${esc(mv)}</button>`).join('')}
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" id="rm-cancel">Cancel</button>
+              <button class="btn btn-primary" id="rm-save">${mode === 'new' ? 'Add' : 'Save'}</button>
+            </div>`;
+
+          document.body.appendChild(overlay);
+          document.body.appendChild(m);
+          modal = { overlay, modal: m };
+
+          const providerSel = m.querySelector('#rm-provider');
+          const modelInput  = m.querySelector('#rm-model');
+          const chipsEl     = m.querySelector('#rm-model-chips');
+          const datalist    = m.querySelector('#rm-models-list');
+          const cloudWarn   = m.querySelector('#rm-cloud-warn');
+
+          function refreshChips(p, current) {
+            const suggestions = MODEL_SUGGESTIONS[p] ?? [];
+            datalist.innerHTML = suggestions.map(mv => `<option value="${esc(mv)}">`).join('');
+            chipsEl.innerHTML  = suggestions.map(mv =>
+              `<button type="button" class="btn btn-sm rm-chip" data-model="${esc(mv)}" style="height:22px;font-size:11px;padding:0 8px;${current===mv?'background:var(--accent);border-color:var(--accent);color:#fff':'background:var(--surface-2);border-color:var(--border);color:var(--text-muted)'}">${esc(mv)}</button>`
+            ).join('');
+            chipsEl.querySelectorAll('.rm-chip').forEach(c => {
+              c.addEventListener('click', () => { modelInput.value = c.dataset.model; refreshChips(p, c.dataset.model); });
+            });
+          }
+
+          chipsEl.querySelectorAll('.rm-chip').forEach(c => {
+            c.addEventListener('click', () => { modelInput.value = c.dataset.model; refreshChips(providerSel.value, c.dataset.model); });
+          });
+
+          providerSel.addEventListener('change', () => {
+            const p = providerSel.value;
+            cloudWarn.classList.toggle('hidden', !CLOUD.has(p));
+            const suggestions = MODEL_SUGGESTIONS[p] ?? [];
+            if (!suggestions.includes(modelInput.value)) modelInput.value = suggestions[0] ?? '';
+            refreshChips(p, modelInput.value);
+          });
+
+          overlay.addEventListener('click', closeModal);
+          m.querySelector('#rm-cancel').addEventListener('click', closeModal);
+          m.querySelector('#rm-save').addEventListener('click', async () => {
+            const org2   = m.querySelector('#rm-org').value.trim();
+            const repo2  = m.querySelector('#rm-repo').value.trim();
+            const plat   = m.querySelector('#rm-platform').value;
+            const prov   = m.querySelector('#rm-provider').value;
+            const mod    = m.querySelector('#rm-model').value.trim();
+            if (!org2 || !repo2 || !mod) { toast('Please fill in all fields.', 'error'); return; }
+            const slug = repo2 === '*' ? `${org2}/*` : `${org2}/${repo2}`;
+            const payload = { platform: plat, slug, provider: prov, model: mod, enabled: true };
+            try {
+              if (mode === 'new') {
+                const res = await fetch('/admin/settings/repos', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+                });
+                const saved = res.ok ? await res.json() : { ...payload, id: String(Date.now()) };
+                repos.push(saved);
+                toast(`Added ${slug}`, 'success');
+              } else {
+                const res = await fetch(`/admin/settings/repos/${encodeURIComponent(repo.id)}`, {
+                  method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+                });
+                const saved = res.ok ? await res.json() : { ...repo, ...payload };
+                const idx = repos.findIndex(r => r.id === repo.id);
+                if (idx !== -1) repos[idx] = saved;
+                toast(`Updated ${slug}`, 'success');
+              }
+            } catch {
+              toast('Failed to save. Changes may not persist.', 'error');
+              if (mode === 'new') repos.push({ ...payload, id: String(Date.now()) });
+              else {
+                const idx = repos.findIndex(r => r.id === repo.id);
+                if (idx !== -1) repos[idx] = { ...repo, ...payload };
+              }
+            }
+            closeModal();
+            renderList();
+          });
+
+          m.querySelector('#rm-org')?.focus();
+        }
+
+        function closeModal() {
+          if (!modal) return;
+          modal.overlay.remove();
+          modal.modal.remove();
+          modal = null;
+        }
+
+        async function load() {
+          const container = document.getElementById('repos-list');
+          if (!container) return;
+          if (!loaded) {
+            container.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:20px 0">Loading…</div>`;
+          }
+          try {
+            const res = await fetch('/admin/settings/repos');
+            if (res.status === 401) { Auth.showLogin(); return; }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            repos = await res.json();
+          } catch {
+            if (!loaded) repos = [];
+          }
+          loaded = true;
+          renderList();
+          const addBtn = document.getElementById('repos-add-btn');
+          if (addBtn && !addBtn._bound) {
+            addBtn._bound = true;
+            addBtn.addEventListener('click', () => openModal({ mode: 'new' }));
+          }
+        }
+
+        return { load };
+      })();
+
+      // ── Webhook Settings ──────────────────────────────────────────────────
+
+      const WebhookSettings = (() => {
+        let data = {};
+        let loaded = false;
+        let confirmRotateEl = null;
+
+        function esc(s) {
+          return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function spinnerHtml() {
+          return `<span class="spinner" style="width:12px;height:12px;border-width:2px;border-top-color:#fff"></span>`;
+        }
+
+        function render() {
+          const container = document.getElementById('webhook-content');
+          if (!container) return;
+
+          const d = data;
+          const url     = d.url     ?? '';
+          const hmac    = d.hmac    ?? '';
+          const ghAppId = d.github_app_id           ?? '';
+          const ghInst  = d.github_installation_id  ?? '';
+          const ghKeySet = !!d.github_key_set;
+          const glSet    = !!d.gitlab_token_set;
+
+          container.innerHTML = `
+            <!-- Webhook endpoint card -->
+            <div class="card wh-card">
+              <div class="card-body">
+                <div class="wh-section-title">Webhook endpoint</div>
+                <div class="wh-section-desc">Public URL receives signed POSTs from GitHub &amp; GitLab.</div>
+                <div class="field">
+                  <label class="label" for="wh-url">Public URL</label>
+                  <input id="wh-url" class="input" style="font-family:var(--font-mono)" value="${esc(url)}" />
+                  <div class="field-hint">Must be reachable from the internet and terminate TLS.</div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="label">HMAC signing secret</label>
+                  <div class="password-wrap" style="margin-bottom:0">
+                    <input id="wh-hmac" class="input" type="password" style="font-family:var(--font-mono);padding-right:40px" value="${esc(hmac)}" readonly />
+                    <button type="button" class="password-toggle" id="wh-hmac-toggle" aria-label="Toggle visibility">
+                      <svg id="wh-hmac-eye-show" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="8" rx="6.5" ry="4"/><circle cx="8" cy="8" r="1.8"/></svg>
+                      <svg id="wh-hmac-eye-hide" class="hidden" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l12 12M6.5 6.65A1.8 1.8 0 0 0 9.35 9.5"/><path d="M4.2 4.45C2.6 5.4 1.5 6.8 1.5 8c0 2.2 2.9 4.5 6.5 4.5a8.7 8.7 0 0 0 3.8-.9M6.5 3.6C7 3.54 7.5 3.5 8 3.5c3.6 0 6.5 2.3 6.5 4.5 0 .7-.26 1.38-.73 2"/></svg>
+                    </button>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:10px">
+                    <button class="btn btn-sm" id="wh-hmac-copy" title="Copy secret">Copy</button>
+                    <button class="btn btn-sm btn-danger" id="wh-hmac-rotate">Rotate</button>
+                  </div>
+                </div>
+                <div class="wh-footer">
+                  <button class="btn btn-primary btn-sm" id="wh-save-endpoint">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- GitHub App card -->
+            <div class="card wh-card">
+              <div class="card-body">
+                <div class="wh-section-title">GitHub App</div>
+                <div class="wh-section-desc">Authenticates vellic to post review comments.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                  <div class="field">
+                    <label class="label" for="gh-app-id">App ID</label>
+                    <input id="gh-app-id" class="input" style="font-family:var(--font-mono)" value="${esc(ghAppId)}" />
+                  </div>
+                  <div class="field">
+                    <label class="label" for="gh-inst-id">Installation ID</label>
+                    <input id="gh-inst-id" class="input" style="font-family:var(--font-mono)" value="${esc(ghInst)}" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label">Private key</label>
+                  <div id="gh-key-masked" style="display:${ghKeySet ? 'flex' : 'none'};gap:8px;align-items:center">
+                    <div class="input" style="font-family:var(--font-mono);display:flex;align-items:center;color:var(--text-muted);pointer-events:none">—— BEGIN RSA PRIVATE KEY ——  ••••••••••</div>
+                    <button class="btn btn-sm" id="gh-key-replace">Replace</button>
+                  </div>
+                  <div id="gh-key-edit" style="display:${ghKeySet ? 'none' : 'block'}">
+                    <textarea id="gh-key-input" class="textarea" rows="6" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;…&#10;-----END RSA PRIVATE KEY-----"></textarea>
+                    ${ghKeySet ? '<button class="btn btn-sm btn-ghost" id="gh-key-cancel" style="margin-top:6px">Cancel</button>' : ''}
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
+                  <button class="btn btn-sm" id="gh-test-btn">Test connection</button>
+                  <span id="gh-test-result"></span>
+                </div>
+                <div class="wh-footer">
+                  <button class="btn btn-primary btn-sm" id="wh-save-github">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- GitLab card -->
+            <div class="card wh-card">
+              <div class="card-body">
+                <div class="wh-section-title">GitLab</div>
+                <div class="wh-section-desc">Personal access token with api + write_repository scopes.</div>
+                <div class="field" style="margin-bottom:10px">
+                  <label class="label">Access token</label>
+                  <div id="gl-token-masked" style="display:${glSet ? 'flex' : 'none'};gap:8px;align-items:center">
+                    <div class="input" style="font-family:var(--font-mono);display:flex;align-items:center;color:var(--text-muted);pointer-events:none">glpat-••••••••••••••••••</div>
+                    <button class="btn btn-sm" id="gl-token-replace">Replace</button>
+                  </div>
+                  <div id="gl-token-edit" style="display:${glSet ? 'none' : 'block'}">
+                    <input id="gl-token-input" class="input" type="password" style="font-family:var(--font-mono)" placeholder="glpat-…" />
+                    ${glSet ? '<button class="btn btn-sm btn-ghost" id="gl-token-cancel" style="margin-top:6px">Cancel</button>' : ''}
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <button class="btn btn-sm" id="gl-test-btn">Test connection</button>
+                  <span id="gl-test-result"></span>
+                </div>
+                <div class="wh-footer">
+                  <button class="btn btn-primary btn-sm" id="wh-save-gitlab">Save</button>
+                </div>
+              </div>
+            </div>`;
+
+          bindEvents(container);
+        }
+
+        function bindEvents(container) {
+          // HMAC toggle visibility
+          container.querySelector('#wh-hmac-toggle').addEventListener('click', () => {
+            const inp = container.querySelector('#wh-hmac');
+            const show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            container.querySelector('#wh-hmac-eye-show').classList.toggle('hidden', show);
+            container.querySelector('#wh-hmac-eye-hide').classList.toggle('hidden', !show);
+          });
+
+          // HMAC copy
+          container.querySelector('#wh-hmac-copy').addEventListener('click', () => {
+            const val = container.querySelector('#wh-hmac').value;
+            navigator.clipboard?.writeText(val);
+            toast('HMAC secret copied.', 'success');
+          });
+
+          // HMAC rotate
+          container.querySelector('#wh-hmac-rotate').addEventListener('click', () => openRotateConfirm());
+
+          // Save webhook endpoint
+          container.querySelector('#wh-save-endpoint').addEventListener('click', async () => {
+            const btn = container.querySelector('#wh-save-endpoint');
+            const url = container.querySelector('#wh-url').value.trim();
+            btn.disabled = true; btn.innerHTML = spinnerHtml() + ' Saving…';
+            try {
+              await fetch('/admin/settings/webhook', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url }),
+              });
+              data.url = url;
+              toast('Webhook endpoint saved.', 'success');
+            } catch { toast('Save failed.', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Save'; }
+          });
+
+          // GitHub App key replace / cancel
+          const ghKeyMasked = container.querySelector('#gh-key-masked');
+          const ghKeyEdit   = container.querySelector('#gh-key-edit');
+          container.querySelector('#gh-key-replace')?.addEventListener('click', () => {
+            ghKeyMasked.style.display = 'none';
+            ghKeyEdit.style.display   = 'block';
+          });
+          container.querySelector('#gh-key-cancel')?.addEventListener('click', () => {
+            ghKeyMasked.style.display = 'flex';
+            ghKeyEdit.style.display   = 'none';
+            container.querySelector('#gh-key-input').value = '';
+          });
+
+          // GitHub test
+          container.querySelector('#gh-test-btn').addEventListener('click', async () => {
+            const btn = container.querySelector('#gh-test-btn');
+            const res = container.querySelector('#gh-test-result');
+            btn.disabled = true; btn.innerHTML = spinnerHtml() + ' Testing…';
+            res.textContent = '';
+            try {
+              const r = await fetch('/admin/settings/github/test', { method: 'POST' });
+              if (!r.ok) throw new Error('Failed');
+              res.innerHTML = `<span class="test-result ok">✓ OK</span>`;
+              toast('GitHub App authenticated.', 'success');
+            } catch {
+              res.innerHTML = `<span class="test-result err">✗ Failed</span>`;
+            } finally { btn.disabled = false; btn.textContent = 'Test connection'; }
+          });
+
+          // Save GitHub App
+          container.querySelector('#wh-save-github').addEventListener('click', async () => {
+            const btn = container.querySelector('#wh-save-github');
+            const appId = container.querySelector('#gh-app-id').value.trim();
+            const instId = container.querySelector('#gh-inst-id').value.trim();
+            const key    = container.querySelector('#gh-key-input')?.value.trim() ?? '';
+            btn.disabled = true; btn.innerHTML = spinnerHtml() + ' Saving…';
+            try {
+              await fetch('/admin/settings/github', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app_id: appId, installation_id: instId, private_key: key || undefined }),
+              });
+              if (key) { data.github_key_set = true; }
+              toast('GitHub App saved.', 'success');
+            } catch { toast('Save failed.', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Save'; }
+          });
+
+          // GitLab token replace / cancel
+          const glMasked = container.querySelector('#gl-token-masked');
+          const glEdit   = container.querySelector('#gl-token-edit');
+          container.querySelector('#gl-token-replace')?.addEventListener('click', () => {
+            glMasked.style.display = 'none';
+            glEdit.style.display   = 'block';
+          });
+          container.querySelector('#gl-token-cancel')?.addEventListener('click', () => {
+            glMasked.style.display = 'flex';
+            glEdit.style.display   = 'none';
+            container.querySelector('#gl-token-input').value = '';
+          });
+
+          // GitLab test
+          container.querySelector('#gl-test-btn').addEventListener('click', async () => {
+            const btn = container.querySelector('#gl-test-btn');
+            const res = container.querySelector('#gl-test-result');
+            btn.disabled = true; btn.innerHTML = spinnerHtml() + ' Testing…';
+            res.textContent = '';
+            try {
+              const r = await fetch('/admin/settings/gitlab/test', { method: 'POST' });
+              if (!r.ok) throw new Error('Failed');
+              res.innerHTML = `<span class="test-result ok">✓ OK</span>`;
+              toast('GitLab token valid.', 'success');
+            } catch {
+              res.innerHTML = `<span class="test-result err">✗ Failed</span>`;
+            } finally { btn.disabled = false; btn.textContent = 'Test connection'; }
+          });
+
+          // Save GitLab
+          container.querySelector('#wh-save-gitlab').addEventListener('click', async () => {
+            const btn   = container.querySelector('#wh-save-gitlab');
+            const token = container.querySelector('#gl-token-input')?.value.trim() ?? '';
+            btn.disabled = true; btn.innerHTML = spinnerHtml() + ' Saving…';
+            try {
+              await fetch('/admin/settings/gitlab', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token || undefined }),
+              });
+              if (token) { data.gitlab_token_set = true; }
+              toast('GitLab token saved.', 'success');
+            } catch { toast('Save failed.', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Save'; }
+          });
+        }
+
+        function openRotateConfirm() {
+          if (confirmRotateEl) return;
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          const m = document.createElement('div');
+          m.className = 'modal';
+          m.innerHTML = `
+            <div class="modal-head"><h3 style="margin:0;font-size:16px;font-weight:600">Rotate HMAC secret?</h3></div>
+            <div class="modal-body" style="font-size:13.5px;color:var(--text-muted)">
+              <p>The current secret will stop working immediately. You'll need to update it in every webhook configuration on GitHub and GitLab.</p>
+              <div style="margin-top:14px">
+                <label class="label">Type <code style="color:var(--text)">rotate</code> to confirm</label>
+                <input id="rotate-confirm-input" class="input" value="" autocomplete="off" />
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" id="rotate-cancel">Cancel</button>
+              <button class="btn btn-danger" id="rotate-ok" disabled>Rotate secret</button>
+            </div>`;
+          document.body.appendChild(overlay);
+          document.body.appendChild(m);
+          confirmRotateEl = { overlay, modal: m };
+
+          const inp = m.querySelector('#rotate-confirm-input');
+          const okBtn = m.querySelector('#rotate-ok');
+          inp.addEventListener('input', () => { okBtn.disabled = inp.value !== 'rotate'; });
+          inp.focus();
+
+          const dismiss = () => {
+            overlay.remove(); m.remove(); confirmRotateEl = null;
+          };
+          overlay.addEventListener('click', dismiss);
+          m.querySelector('#rotate-cancel').addEventListener('click', dismiss);
+          okBtn.addEventListener('click', async () => {
+            dismiss();
+            try {
+              const res = await fetch('/admin/settings/webhook/rotate', { method: 'POST' });
+              const body = res.ok ? await res.json() : null;
+              if (body?.hmac) { data.hmac = body.hmac; }
+              else {
+                data.hmac = 'whsec_' + Array.from({length:32}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
+              }
+              render();
+              toast('HMAC secret rotated — update it in your VCS.', 'success');
+            } catch { toast('Rotate failed.', 'error'); }
+          });
+        }
+
+        async function load() {
+          const container = document.getElementById('webhook-content');
+          if (!container) return;
+          if (!loaded) container.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:20px 0">Loading…</div>`;
+          try {
+            const res = await fetch('/admin/settings/webhook');
+            if (res.status === 401) { Auth.showLogin(); return; }
+            if (res.ok) data = await res.json();
+            else if (res.status !== 404) throw new Error(`HTTP ${res.status}`);
+          } catch { /* render empty/default state */ }
+          loaded = true;
+          render();
         }
 
         return { load };
