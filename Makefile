@@ -1,4 +1,8 @@
-.PHONY: up down logs test-webhook
+.PHONY: hooks up down logs test-webhook
+
+hooks:
+	git config core.hooksPath .githooks
+	@echo "git hooks configured (.githooks)"
 
 up:
 	docker compose up -d --build
