@@ -7,22 +7,10 @@ logger = logging.getLogger("api.db")
 
 _pool: asyncpg.Pool | None = None
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS webhook_deliveries (
-    delivery_id  TEXT        PRIMARY KEY,
-    event_type   TEXT        NOT NULL,
-    payload      JSONB       NOT NULL,
-    received_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMPTZ
-);
-"""
-
 
 async def init_pool() -> None:
     global _pool
     _pool = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=2, max_size=10)
-    async with _pool.acquire() as conn:
-        await conn.execute(_SCHEMA)
     logger.info("database pool ready")
 
 
