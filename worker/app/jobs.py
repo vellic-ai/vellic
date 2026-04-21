@@ -72,38 +72,42 @@ async def _dead_letter(
 ) -> None:
     error_str = str(exc)
     async with pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE pipeline_jobs SET status = 'failed', updated_at = NOW() WHERE id = $1",
-            job_id,
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE pipeline_jobs SET status = 'failed', updated_at = NOW() WHERE id = $1",
+                job_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO pipeline_failures (job_id, payload, error)
+                VALUES ($1, $2::jsonb, $3)
+                """,
+                job_id,
+                json.dumps({"delivery_id": delivery_id, "payload": payload}),
+                error_str,
+            )
+            await conn.execute(
+                """
+                INSERT INTO webhook_dlq
+                    (delivery_id, job_id, payload, last_error, retry_count, last_attempted_at)
+                VALUES ($1, $2, $3::jsonb, $4, $5, NOW())
+                ON CONFLICT (delivery_id) DO UPDATE SET
+                    job_id            = EXCLUDED.job_id,
+                    last_error        = EXCLUDED.last_error,
+                    retry_count       = EXCLUDED.retry_count,
+                    last_attempted_at = EXCLUDED.last_attempted_at,
+                    status            = 'pending'
+                """,
+                delivery_id,
+                job_id,
+                json.dumps(payload),
+                error_str,
+                retry_count,
+            )
+        pending_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM webhook_dlq WHERE status = 'pending'"
         )
-        await conn.execute(
-            """
-            INSERT INTO pipeline_failures (job_id, payload, error)
-            VALUES ($1, $2::jsonb, $3)
-            """,
-            job_id,
-            json.dumps({"delivery_id": delivery_id, "payload": payload}),
-            error_str,
-        )
-        await conn.execute(
-            """
-            INSERT INTO webhook_dlq
-                (delivery_id, job_id, payload, last_error, retry_count, last_attempted_at)
-            VALUES ($1, $2, $3::jsonb, $4, $5, NOW())
-            ON CONFLICT (delivery_id) DO UPDATE SET
-                job_id            = EXCLUDED.job_id,
-                last_error        = EXCLUDED.last_error,
-                retry_count       = EXCLUDED.retry_count,
-                last_attempted_at = EXCLUDED.last_attempted_at,
-                status            = 'pending'
-            """,
-            delivery_id,
-            job_id,
-            json.dumps(payload),
-            error_str,
-            retry_count,
-        )
-    webhook_dlq_depth.inc()
+    webhook_dlq_depth.set(pending_count)
     logger.error(
         "dead-letter: job_id=%s delivery=%s retries=%d error=%s",
         job_id,

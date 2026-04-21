@@ -39,6 +39,8 @@ async def test_dead_letter_inserts_dlq():
     mock_conn = AsyncMock()
     mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
     mock_conn.__aexit__ = AsyncMock(return_value=False)
+    mock_conn.transaction = MagicMock(return_value=AsyncMock())
+    mock_conn.fetchval = AsyncMock(return_value=1)
 
     mock_pool = MagicMock()
     mock_pool.acquire = MagicMock(return_value=mock_conn)
@@ -60,7 +62,9 @@ async def test_dead_letter_inserts_dlq():
     dlq_call_args = mock_conn.execute.call_args_list[2]
     assert delivery_id in dlq_call_args[0]
 
-    mock_depth.inc.assert_called_once()
+    # gauge is set to live DB count, not incremented
+    mock_depth.set.assert_called_once_with(1)
+    mock_depth.inc.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
