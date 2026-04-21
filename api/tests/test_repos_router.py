@@ -48,7 +48,7 @@ async def test_get_config_returns_default_when_not_found(patch_db):
     mock_pool.fetchrow = AsyncMock(return_value=None)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/api/repos/org%2Frepo/config")
+        resp = await client.get("/api/repos/org/repo/config")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -68,7 +68,7 @@ async def test_get_config_returns_stored_yaml(patch_db):
     mock_pool.fetchrow = AsyncMock(return_value=row)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/api/repos/org%2Frepo/config")
+        resp = await client.get("/api/repos/org/repo/config")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -93,7 +93,7 @@ async def test_put_config_stores_valid_yaml(patch_db):
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.put(
-            "/api/repos/org%2Frepo/config",
+            "/api/repos/org/repo/config",
             json={"rules_yaml": _VALID_YAML},
         )
 
@@ -114,7 +114,7 @@ async def test_put_config_empty_yaml_is_valid(patch_db):
     mock_pool.fetchrow = AsyncMock(return_value=row)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.put("/api/repos/org%2Frepo/config", json={"rules_yaml": ""})
+        resp = await client.put("/api/repos/org/repo/config", json={"rules_yaml": ""})
 
     assert resp.status_code == 200
 
@@ -123,7 +123,7 @@ async def test_put_config_empty_yaml_is_valid(patch_db):
 async def test_put_config_invalid_yaml_returns_422(patch_db):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.put(
-            "/api/repos/org%2Frepo/config",
+            "/api/repos/org/repo/config",
             json={"rules_yaml": "{ invalid: yaml: ["},
         )
 
@@ -134,7 +134,7 @@ async def test_put_config_invalid_yaml_returns_422(patch_db):
 async def test_put_config_rule_missing_id_returns_422(patch_db):
     bad_yaml = "rules:\n  - pattern: foo\n"
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.put("/api/repos/org%2Frepo/config", json={"rules_yaml": bad_yaml})
+        resp = await client.put("/api/repos/org/repo/config", json={"rules_yaml": bad_yaml})
 
     assert resp.status_code == 422
     assert "id" in resp.json()["detail"]
@@ -144,7 +144,7 @@ async def test_put_config_rule_missing_id_returns_422(patch_db):
 async def test_put_config_invalid_severity_returns_422(patch_db):
     bad_yaml = "rules:\n  - id: r1\n    pattern: foo\n    severity: critical\n"
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.put("/api/repos/org%2Frepo/config", json={"rules_yaml": bad_yaml})
+        resp = await client.put("/api/repos/org/repo/config", json={"rules_yaml": bad_yaml})
 
     assert resp.status_code == 422
 
@@ -153,6 +153,6 @@ async def test_put_config_invalid_severity_returns_422(patch_db):
 async def test_put_config_invalid_threshold_returns_422(patch_db):
     bad_yaml = "rules: []\nseverity_threshold: critical\n"
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.put("/api/repos/org%2Frepo/config", json={"rules_yaml": bad_yaml})
+        resp = await client.put("/api/repos/org/repo/config", json={"rules_yaml": bad_yaml})
 
     assert resp.status_code == 422

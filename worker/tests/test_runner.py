@@ -7,8 +7,8 @@ import pytest
 
 from app.events import PREvent
 from app.pipeline.models import AnalysisResult, DiffChunk, PRContext
-from app.pipeline.runner import run_pipeline
-from app.rules.models import RepoConfig
+from app.pipeline.runner import _flag_enabled, _merge_rule_violations, run_pipeline
+from app.rules.models import RepoConfig, Rule, RuleViolation
 
 _EVENT = PREvent(
     platform="github",
@@ -25,25 +25,71 @@ _EVENT = PREvent(
     description="does stuff",
 )
 
+_CTX = PRContext("acme/backend", 5, "head", "feat: thing", "does stuff", "main")
+_CHUNKS = [DiffChunk("app.py", ["+foo = 1"])]
+_RESULT = AnalysisResult(comments=[], summary="LGTM.", generic_ratio=0.0)
+_EMPTY_CONFIG = RepoConfig(repo_id="acme/backend")
+
+
+def _make_pool():
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value=None)
+    pool.execute = AsyncMock()
+    return pool
+
+
+# ---------------------------------------------------------------------------
+# _flag_enabled
+# ---------------------------------------------------------------------------
+
+def test_flag_enabled_known_flag_returns_default():
+    assert isinstance(_flag_enabled("pipeline.diff"), bool)
+
+
+def test_flag_enabled_unknown_flag_returns_false():
+    assert _flag_enabled("unknown.flag.xyz") is False
+
+
+# ---------------------------------------------------------------------------
+# _merge_rule_violations
+# ---------------------------------------------------------------------------
+
+def test_merge_rule_violations_empty():
+    result = _merge_rule_violations(_RESULT, [])
+    assert result is _RESULT
+
+
+def test_merge_rule_violations_appends_comments():
+    violations = [RuleViolation("no-print", "app.py", 5, "print(x)", "warning", "No print")]
+    merged = _merge_rule_violations(_RESULT, violations)
+    assert len(merged.comments) == 1
+    assert merged.comments[0].confidence == 1.0
+    assert "no-print" in merged.comments[0].rationale
+
+
+# ---------------------------------------------------------------------------
+# run_pipeline — happy path
+# ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_run_pipeline_returns_pr_review_id():
-    pool = MagicMock()
+    pool = _make_pool()
     arq_redis = AsyncMock()
     llm = MagicMock()
     job_id = uuid.uuid4()
     expected_id = str(uuid.uuid4())
 
-    chunks = [DiffChunk("app.py", ["+foo = 1"])]
-    result = AnalysisResult(comments=[], summary="LGTM.", generic_ratio=0.0)
-
     with (
-        patch("app.pipeline.runner.gather_context", return_value=PRContext("acme/backend", 5, "head", "feat: thing", "does stuff", "main")),
-        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=chunks)),
-        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=result)),
-        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=RepoConfig(repo_id="acme/backend"))),
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", return_value=True),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)),
         patch("app.pipeline.runner.persist", new=AsyncMock(return_value=expected_id)),
     ):
+        mock_enricher.enrich_all.return_value = {}
         returned = await run_pipeline(_EVENT, pool, llm, job_id, arq_redis)
 
     assert returned == expected_id
@@ -51,40 +97,80 @@ async def test_run_pipeline_returns_pr_review_id():
 
 @pytest.mark.asyncio
 async def test_run_pipeline_passes_correct_args_to_stages():
-    pool = MagicMock()
+    pool = _make_pool()
     arq_redis = AsyncMock()
     llm = MagicMock()
     job_id = uuid.uuid4()
-    ctx = PRContext("acme/backend", 5, "head", "feat: thing", "does stuff", "main")
-    chunks = [DiffChunk("app.py", ["+x"])]
-    result = AnalysisResult(comments=[], summary="ok", generic_ratio=0.0)
 
     with (
-        patch("app.pipeline.runner.gather_context", return_value=ctx) as mock_gather,
-        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=chunks)) as mock_fetch,
-        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=result)) as mock_analyze,
-        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=RepoConfig(repo_id="acme/backend"))),
+        patch("app.pipeline.runner.gather_context", return_value=_CTX) as mock_gather,
+        patch("app.pipeline.runner._flag_enabled", return_value=True),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)) as mock_fetch,
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)) as mock_analyze,
         patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rev-id")) as mock_persist,
     ):
+        mock_enricher.enrich_all.return_value = {}
         await run_pipeline(_EVENT, pool, llm, job_id, arq_redis)
 
     mock_gather.assert_called_once_with(_EVENT)
     mock_fetch.assert_called_once_with(_EVENT.diff_url)
-    mock_analyze.assert_called_once_with(ctx, chunks, llm)
-    mock_persist.assert_called_once_with(pool, ctx, result, job_id, arq_redis)
+    mock_analyze.assert_called_once_with(_CTX, _CHUNKS, llm)
+    mock_persist.assert_called_once_with(pool, _CTX, _RESULT, job_id, arq_redis)
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_with_rule_violations_merges_comments():
+    pool = _make_pool()
+    violation = RuleViolation("no-todo", "app.py", 3, "TODO: fix", "warning", "No TODOs")
+    config_with_rules = RepoConfig(
+        repo_id="acme/backend",
+        rules=[Rule("no-todo", r"TODO:", "No TODOs")],
+    )
+
+    with (
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", return_value=True),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=config_with_rules)),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)),
+        patch("app.pipeline.runner.evaluate_rules", return_value=[violation]),
+        patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rv-1")) as mock_persist,
+    ):
+        mock_enricher.enrich_all.return_value = {}
+        await run_pipeline(_EVENT, pool, llm := MagicMock(), job_id := uuid.uuid4(), AsyncMock())
+
+    # persist receives the merged result
+    merged_result = mock_persist.call_args[0][2]
+    assert len(merged_result.comments) == 1
 
 
 @pytest.mark.asyncio
 async def test_run_pipeline_propagates_fetch_error():
-    pool = MagicMock()
-    llm = MagicMock()
-    job_id = uuid.uuid4()
-    ctx = PRContext("acme/backend", 5, "head", "t", "", "main")
+    pool = _make_pool()
 
     with (
-        patch("app.pipeline.runner.gather_context", return_value=ctx),
-        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(side_effect=RuntimeError("network error"))),
-        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=RepoConfig(repo_id="acme/backend"))),
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", return_value=True),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(side_effect=RuntimeError("net error"))),
     ):
-        with pytest.raises(RuntimeError, match="network error"):
-            await run_pipeline(_EVENT, pool, llm, job_id, AsyncMock())
+        with pytest.raises(RuntimeError, match="net error"):
+            await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_returns_empty_when_diff_flag_disabled():
+    pool = _make_pool()
+
+    def flag_side(key: str) -> bool:
+        return key != "pipeline.diff"
+
+    with (
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", side_effect=flag_side),
+    ):
+        result = await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
+
+    assert result == ""

@@ -96,7 +96,7 @@ class RepoConfigResponse(BaseModel):
 # Routes
 # ---------------------------------------------------------------------------
 
-@router.get("/{repo_id}/config", response_model=RepoConfigResponse)
+@router.get("/{repo_id:path}/config", response_model=RepoConfigResponse)
 async def get_repo_config(repo_id: str) -> dict[str, Any]:
     """Return the rules config for a repository. Returns defaults if none is set."""
     pool = db.get_pool()
@@ -117,7 +117,7 @@ async def get_repo_config(repo_id: str) -> dict[str, Any]:
     }
 
 
-@router.put("/{repo_id}/config", response_model=RepoConfigResponse)
+@router.put("/{repo_id:path}/config", response_model=RepoConfigResponse)
 async def put_repo_config(repo_id: str, body: RepoConfigUpdate) -> dict[str, Any]:
     """Upsert the rules config for a repository."""
     try:

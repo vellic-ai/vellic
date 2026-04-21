@@ -115,11 +115,16 @@ async def test_run_pipeline_skips_when_llm_analysis_disabled(monkeypatch):
         title="t",
         description="",
     )
-    pool = MagicMock()
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value=None)
     llm = MagicMock()
-    arq = MagicMock()
+    arq = AsyncMock()
 
-    with patch("app.pipeline.runner.fetch_diff_chunks", AsyncMock(return_value=[DiffChunk("f.py", ["+x"])])):
+    with (
+        patch("app.pipeline.runner.fetch_diff_chunks", AsyncMock(return_value=[DiffChunk("f.py", ["+x"])])),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+    ):
+        mock_enricher.enrich_all.return_value = {}
         result = await run_pipeline(event, pool, llm, uuid.uuid4(), arq)
 
     assert result == ""
