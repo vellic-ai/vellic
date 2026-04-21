@@ -1,6 +1,6 @@
 """Tests for api/app/main.py — health endpoint and lifespan helpers."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient

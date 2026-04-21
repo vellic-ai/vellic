@@ -91,7 +91,8 @@ def upgrade() -> None:
                 RETURN NEW;
             ELSIF TG_OP = 'DELETE' THEN
                 INSERT INTO feature_flag_audit
-                    (flag_key, scope, scope_id, action, previous_value, new_value, set_by, deleted_by)
+                    (flag_key, scope, scope_id, action, previous_value,
+                     new_value, set_by, deleted_by)
                 VALUES (
                     OLD.flag_key,
                     OLD.scope,

@@ -1,8 +1,8 @@
 """Tests for api/app/db.py and api/app/arq_pool.py pool helpers."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # db.py

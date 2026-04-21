@@ -40,7 +40,10 @@ class TestCatalog:
     async def test_flag_has_required_fields(self, client):
         resp = await client.get("/api/features/catalog")
         flag = resp.json()["flags"][0]
-        for field in ("key", "name", "category", "description", "default", "scope", "cost_impact", "requires", "tags"):
+        for field in (
+            "key", "name", "category", "description", "default",
+            "scope", "cost_impact", "requires", "tags",
+        ):
             assert field in flag, f"missing field: {field}"
 
     async def test_known_flag_present(self, client):

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -254,7 +253,9 @@ async def test_dry_run_no_llm_config(client):
         "repo": "acme/api",
         "pr_number": 7,
         "commit_sha": "def456",
-        "payload": {"pull_request": {"title": "x", "body": "", "base": {"ref": "main"}, "labels": []}},
+        "payload": {
+            "pull_request": {"title": "x", "body": "", "base": {"ref": "main"}, "labels": []},
+        },
     }
     pool, conn = _make_pool()
     conn.fetchrow = AsyncMock(side_effect=[row, None])  # no llm_settings

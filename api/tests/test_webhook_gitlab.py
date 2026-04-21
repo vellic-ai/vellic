@@ -23,7 +23,10 @@ MR_OPEN_PAYLOAD = {
     },
 }
 
-MR_CLOSE_PAYLOAD = {**MR_OPEN_PAYLOAD, "object_attributes": {**MR_OPEN_PAYLOAD["object_attributes"], "action": "close"}}
+MR_CLOSE_PAYLOAD = {
+    **MR_OPEN_PAYLOAD,
+    "object_attributes": {**MR_OPEN_PAYLOAD["object_attributes"], "action": "close"},
+}
 
 
 @pytest.fixture()
