@@ -16,8 +16,6 @@ frontend/out
 **/*.pyo
 
 # Services not needed by the api build
-admin
-worker
 frontend
 infra
 
