@@ -14,8 +14,9 @@ import os
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from vellic_flags import by_key
 
 from . import db
 from .crypto import decrypt
@@ -28,6 +29,16 @@ from .prompts.schema import PromptValidationError
 logger = logging.getLogger("admin.prompts")
 
 router = APIRouter()
+
+
+def _require_prompt_dsl() -> None:
+    """FastAPI dependency: raise 404 when the prompt_dsl feature flag is off."""
+    flag = by_key("platform.prompt_dsl")
+    enabled = (flag.read_env() if flag else None)
+    if enabled is None:
+        enabled = flag.default if flag else False
+    if not enabled:
+        raise HTTPException(status_code=404, detail="Prompt DSL feature is not enabled")
 
 _GITHUB_API_BASE = "https://api.github.com"
 
@@ -265,7 +276,7 @@ async def _call_llm(cfg: dict, prompt: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/admin/prompts")
+@router.get("/admin/prompts", dependencies=[Depends(_require_prompt_dsl)])
 async def list_prompts() -> dict:
     """List all available prompts (built-in presets)."""
     try:
@@ -275,7 +286,7 @@ async def list_prompts() -> dict:
     return {"items": [_prompt_to_out(p).model_dump() for p in prompts]}
 
 
-@router.get("/admin/prompts/{name}")
+@router.get("/admin/prompts/{name}", dependencies=[Depends(_require_prompt_dsl)])
 async def get_prompt(name: str) -> PromptOut:
     """Get a single prompt by name."""
     try:
@@ -285,7 +296,7 @@ async def get_prompt(name: str) -> PromptOut:
     return _prompt_to_out(prompt)
 
 
-@router.post("/admin/prompts/resolve")
+@router.post("/admin/prompts/resolve", dependencies=[Depends(_require_prompt_dsl)])
 async def resolve_prompt(
     pr: str = Query(..., description="pr_review_id UUID"),
 ) -> ResolvedOut:
@@ -307,7 +318,7 @@ async def resolve_prompt(
     return ResolvedOut(body=result.body, sources=result.sources)
 
 
-@router.post("/admin/prompts/dry-run")
+@router.post("/admin/prompts/dry-run", dependencies=[Depends(_require_prompt_dsl)])
 async def dry_run_prompt(body: DryRunBody) -> DryRunOut:
     """Render prompt + run LLM for a stored PR without posting the review."""
     row = await _fetch_pr_row(body.pr_review_id)

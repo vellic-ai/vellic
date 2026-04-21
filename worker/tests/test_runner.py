@@ -32,7 +32,11 @@ _EMPTY_CONFIG = RepoConfig(repo_id="acme/backend")
 
 
 def _make_pool():
-    pool = AsyncMock()
+    mock_conn = AsyncMock()
+    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_conn.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=mock_conn)
     pool.fetchrow = AsyncMock(return_value=None)
     pool.execute = AsyncMock()
     return pool
@@ -116,7 +120,7 @@ async def test_run_pipeline_passes_correct_args_to_stages():
 
     mock_gather.assert_called_once_with(_EVENT)
     mock_fetch.assert_called_once_with(_EVENT.diff_url)
-    mock_analyze.assert_called_once_with(_CTX, _CHUNKS, llm)
+    mock_analyze.assert_called_once_with(_CTX, _CHUNKS, llm, custom_instructions=None)
     mock_persist.assert_called_once_with(pool, _CTX, _RESULT, job_id, arq_redis)
 
 
@@ -174,3 +178,92 @@ async def test_run_pipeline_returns_empty_when_diff_flag_disabled():
         result = await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
 
     assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Stage 2d: platform.prompt_dsl flag integration (VEL-116)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_dsl_flag_disabled_passes_no_custom_instructions():
+    """When platform.prompt_dsl is off, analyze receives custom_instructions=None."""
+    pool = _make_pool()
+
+    def flag_side(key: str) -> bool:
+        return key != "platform.prompt_dsl"
+
+    with (
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", side_effect=flag_side),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)) as mock_analyze,
+        patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rv-1")),
+    ):
+        mock_enricher.enrich_all.return_value = {}
+        await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
+
+    mock_analyze.assert_called_once()
+    _, _, _, kwargs = (*mock_analyze.call_args.args, mock_analyze.call_args.kwargs)
+    assert kwargs.get("custom_instructions") is None
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_dsl_flag_enabled_with_prompts_passes_custom_instructions():
+    """When platform.prompt_dsl is on and prompts are found, analyze gets the rendered body."""
+    pool = _make_pool()
+    _RENDERED_BODY = "Custom DSL instructions for this repo."
+
+    from app.prompts.models import ResolvedPrompt
+
+    def flag_side(key: str) -> bool:
+        return True  # all flags on
+
+    with (
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", side_effect=flag_side),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
+        patch(
+            "app.pipeline.runner.load_repo_prompts",
+            new=AsyncMock(return_value=[object()]),  # non-empty list signals prompts exist
+        ),
+        patch("app.pipeline.runner.resolve_all", return_value=[]),
+        patch("app.pipeline.runner.cascade_merge", return_value=[]),
+        patch(
+            "app.pipeline.runner.build_resolved_prompt",
+            return_value=ResolvedPrompt(body=_RENDERED_BODY, sources=["preset"]),
+        ),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)) as mock_analyze,
+        patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rv-2")),
+    ):
+        mock_enricher.enrich_all.return_value = {}
+        await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
+
+    mock_analyze.assert_called_once()
+    assert mock_analyze.call_args.kwargs.get("custom_instructions") == _RENDERED_BODY
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_dsl_flag_enabled_no_prompts_uses_default_instructions():
+    """When flag is on but no prompts are found, custom_instructions stays None."""
+    pool = _make_pool()
+
+    with (
+        patch("app.pipeline.runner.gather_context", return_value=_CTX),
+        patch("app.pipeline.runner._flag_enabled", return_value=True),
+        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
+        patch("app.pipeline.runner._ast_enricher") as mock_enricher,
+        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
+        patch("app.pipeline.runner.load_repo_prompts", new=AsyncMock(return_value=[])),
+        patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)) as mock_analyze,
+        patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rv-3")),
+    ):
+        mock_enricher.enrich_all.return_value = {}
+        await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
+
+    mock_analyze.assert_called_once()
+    assert mock_analyze.call_args.kwargs.get("custom_instructions") is None
