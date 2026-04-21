@@ -51,6 +51,7 @@ def upgrade() -> None:
             previous_value  BOOLEAN,
             new_value       BOOLEAN,
             set_by          TEXT,
+            deleted_by      TEXT,
             changed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT chk_flag_audit_scope CHECK (
                 scope IN ('global', 'tenant', 'repo', 'user')
@@ -90,7 +91,7 @@ def upgrade() -> None:
                 RETURN NEW;
             ELSIF TG_OP = 'DELETE' THEN
                 INSERT INTO feature_flag_audit
-                    (flag_key, scope, scope_id, action, previous_value, new_value, set_by)
+                    (flag_key, scope, scope_id, action, previous_value, new_value, set_by, deleted_by)
                 VALUES (
                     OLD.flag_key,
                     OLD.scope,
@@ -98,7 +99,8 @@ def upgrade() -> None:
                     'delete',
                     OLD.value,
                     NULL,
-                    OLD.set_by
+                    OLD.set_by,
+                    NULLIF(current_setting('app.deleted_by', true), '')
                 );
                 RETURN OLD;
             END IF;
@@ -106,6 +108,9 @@ def upgrade() -> None:
         $$
     """)
 
+    op.execute("""
+        DROP TRIGGER IF EXISTS trg_feature_flag_overrides_audit ON feature_flag_overrides
+    """)
     op.execute("""
         CREATE TRIGGER trg_feature_flag_overrides_audit
         AFTER INSERT OR UPDATE OR DELETE ON feature_flag_overrides

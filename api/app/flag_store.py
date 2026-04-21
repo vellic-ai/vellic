@@ -72,9 +72,20 @@ class PgOverrideStore:
         flag_key: str,
         scope: str,
         scope_id: str,
+        deleted_by: str | None = None,
     ) -> None:
-        """Delete an override (revert to lower-priority source). Audit row written by trigger."""
-        await pool.execute(
-            "DELETE FROM feature_flag_overrides WHERE flag_key=$1 AND scope=$2 AND scope_id=$3",
-            flag_key, scope, scope_id,
-        )
+        """Delete an override (revert to lower-priority source). Audit row written by trigger.
+
+        deleted_by is propagated to the audit row via a transaction-local session variable
+        so the trigger can record who performed the deletion, not who last set the flag.
+        """
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                if deleted_by:
+                    await conn.execute(
+                        "SELECT set_config('app.deleted_by', $1, true)", deleted_by
+                    )
+                await conn.execute(
+                    "DELETE FROM feature_flag_overrides WHERE flag_key=$1 AND scope=$2 AND scope_id=$3",
+                    flag_key, scope, scope_id,
+                )
