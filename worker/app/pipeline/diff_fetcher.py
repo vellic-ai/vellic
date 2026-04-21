@@ -3,6 +3,7 @@ import os
 
 import httpx
 
+from ..security.ssrf import validate_outbound_url
 from .models import DiffChunk
 
 logger = logging.getLogger("worker.pipeline.diff_fetcher")
@@ -41,6 +42,8 @@ async def fetch_diff_chunks(
     ``filename`` and optional ``patch`` fields — the shape returned by both
     the GitHub and GitLab files/changes APIs.
     """
+    validate_outbound_url(diff_url, context="diff_fetcher")
+
     resolved_token = token or os.getenv("GITHUB_TOKEN", "")
     headers: dict[str, str] = {"Accept": "application/json"}
     if resolved_token:
@@ -49,12 +52,19 @@ async def fetch_diff_chunks(
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(diff_url, headers=headers)
         resp.raise_for_status()
-        files = resp.json()
+        data = resp.json()
+
+    # GitHub returns a JSON array; GitLab changes API returns {"changes": [...]}
+    if isinstance(data, dict):
+        files = data.get("changes", [])
+    else:
+        files = data
 
     chunks: list[DiffChunk] = []
     for file_info in files:
-        filename = file_info.get("filename", "")
-        patch = file_info.get("patch", "")
+        # GitHub: filename/patch; GitLab: new_path/diff
+        filename = file_info.get("filename") or file_info.get("new_path", "")
+        patch = file_info.get("patch") or file_info.get("diff", "")
 
         if not patch:
             logger.debug("skipping %s: no patch (binary or empty)", filename)
