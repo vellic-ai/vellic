@@ -12,6 +12,7 @@ dependencies = [
     "aiofiles>=23.0.0",
     "bcrypt>=4.0.0",
     "PyJWT[crypto]>=2.8.0",
+    "vellic-flags",
 ]
 
 [project.optional-dependencies]
