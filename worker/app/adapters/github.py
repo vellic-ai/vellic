@@ -21,4 +21,5 @@ def normalize_pr(delivery_id: str, payload: dict) -> PREvent:
         base_branch=pr["base"]["ref"],
         title=pr.get("title") or "",
         description=pr.get("body") or "",
+        labels=[lbl["name"] for lbl in pr.get("labels", []) if isinstance(lbl, dict)],
     )

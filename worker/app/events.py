@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 
@@ -23,3 +23,4 @@ class PREvent:
     base_branch: str
     title: str
     description: str
+    labels: list[str] = field(default_factory=list)
