@@ -65,7 +65,6 @@ async def fetch_diff_chunks(
     diff_url: str,
     platform: str = "github",
     token: str | None = None,
-    platform: str = "github",
 ) -> list[DiffChunk]:
     """Fetch and chunk PR file diffs from a platform files/diff URL.
 
