@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.2.0", "pytest-asyncio>=0.23.0", "pytest-cov>=5.0.0", "ruff>=0.4.0"]
+dev = ["pytest>=8.2.0", "pytest-asyncio>=0.23.0", "pytest-cov>=5.0.0", "ruff>=0.4.0", "vellic-flags", "hypothesis>=6.0"]
 
 [tool.ruff]
 line-length = 100
