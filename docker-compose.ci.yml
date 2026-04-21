@@ -4,7 +4,7 @@
 services:
   ollama:
     image: alpine
-    command: ["sleep", "infinity"]
+    command: ["tail", "-f", "/dev/null"]
     healthcheck:
       test: ["CMD", "true"]
       interval: 3s
