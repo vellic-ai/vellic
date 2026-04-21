@@ -16,6 +16,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/quickstart.md">Quickstart Guide</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/vcs-integrations.md">VCS Integrations</a> ·
   <a href="docs/llm-providers.md">LLM Providers</a> ·
@@ -131,7 +132,8 @@ vellic/
 
 | | |
 |---|---|
-| [Architecture](docs/architecture.md) | System design, service boundaries, data flow, how to extend |
+| [Quickstart](docs/quickstart.md) | Full install walkthrough — first config, first PR review, troubleshooting |
+| [Architecture](docs/architecture.md) | Pipeline internals, webhook flow, LLM abstraction, async job runner |
 | [VCS Integrations](docs/vcs-integrations.md) | GitHub, GitLab, Bitbucket, custom adapter guide |
 | [LLM Providers](docs/llm-providers.md) | All backends, env vars, privacy notes, adding a new provider |
 | [Configuration](docs/configuration.md) | Full environment variable reference |
