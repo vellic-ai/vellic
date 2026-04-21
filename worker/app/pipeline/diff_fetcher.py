@@ -105,5 +105,5 @@ async def fetch_diff_chunks(
 
         chunks.extend(_chunk_patch(filename, patch))
 
-    logger.info("fetched %d chunks from %d files via %s", len(chunks), len(files_list), diff_url)
+    logger.info("fetched %d chunks from %d files via %s", len(chunks), len(files), diff_url)
     return chunks

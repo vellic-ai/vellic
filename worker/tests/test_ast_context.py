@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from worker.app.context.ast.enricher import ASTEnricher, _extract_source_from_patch, _changed_line_numbers
-from worker.app.context.ast.models import ASTContext, SymbolInfo
-from worker.app.context.ast.registry import get_parser
-from worker.app.pipeline.models import DiffChunk
+from app.context.ast.enricher import ASTEnricher, _extract_source_from_patch, _changed_line_numbers
+from app.context.ast.models import ASTContext, SymbolInfo
+from app.context.ast.registry import get_parser
+from app.pipeline.models import DiffChunk
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ def _ts_python_available() -> bool:
 
 @pytest.mark.skipif(not _ts_python_available(), reason="tree-sitter-python not installed")
 def test_python_parser_functions():
-    from worker.app.context.ast.python_parser import PythonASTProvider
+    from app.context.ast.python_parser import PythonASTProvider
 
     src = '''\
 def greet(name: str) -> str:

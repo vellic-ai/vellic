@@ -38,7 +38,12 @@ class PgOverrideStore:
         return cls(overrides)
 
     def get_override(self, key: str, scope: str, scope_id: str) -> bool | None:
-        return self._overrides.get((key, scope, scope_id))
+        result = self._overrides.get((key, scope, scope_id))
+        # DB convention: global scope rows are stored with scope_id="_global";
+        # FlagResolver queries with scope_id="" — normalise the lookup.
+        if result is None and scope == "global" and scope_id == "":
+            result = self._overrides.get((key, scope, "_global"))
+        return result
 
     # ------------------------------------------------------------------
     # Write helpers (async; callers must reload the store after writing)
