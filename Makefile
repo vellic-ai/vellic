@@ -1,4 +1,4 @@
-.PHONY: hooks up down logs test-webhook
+.PHONY: hooks up down logs test-webhook release
 
 hooks:
 	git config core.hooksPath .githooks
@@ -15,3 +15,10 @@ logs:
 
 test-webhook:
 	bash scripts/test-webhook.sh
+
+release:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=x.y.z"; exit 1; fi
+	@echo "Tagging v$(VERSION)..."
+	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
+	git push origin "v$(VERSION)"
+	@echo "Tag v$(VERSION) pushed — CI will build images and create a draft release."
