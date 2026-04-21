@@ -37,6 +37,9 @@ const I = {
   menu: <Icon d="M4 7h16M4 12h16M4 17h16" />,
   github: <Icon d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.54 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z" stroke="none" fill="currentColor" />,
   gitlab: <Icon d="M12 21l-3.5-11H15.5L12 21zM4 10L2 16l10 5L4 10zM20 10l2 6-10 5 8-11zM8.5 10H4l2-6 2.5 6zM15.5 10H20l-2-6-2.5 6z" stroke="none" fill="currentColor" />,
+  apikey: <Icon d={<><circle cx="8" cy="15" r="4"/><path d="M19 8l-5 5"/><path d="M17 6l2 2"/><path d="M15 8l2 2"/></>} />,
+  rules: <Icon d={<><path d="M3 6h18M3 12h12M3 18h8"/><circle cx="18" cy="18" r="3"/><path d="M18 15v3l2 1"/></>} />,
+  danger: <Icon d={<><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.1"/></>} fill="none" />,
   spinner: null, // custom below
 };
 
@@ -121,8 +124,11 @@ const NAV = [
     { label: 'Providers', route: '/settings/llm', icon: I.llm },
     { label: 'Repositories', route: '/settings/repos', icon: I.repos },
     { label: 'Webhook', route: '/settings/webhook', icon: I.webhook },
+    { label: 'API Keys', route: '/settings/api-keys', icon: I.apikey },
+    { label: 'Rules', route: '/settings/rules', icon: I.rules },
     { label: 'Feature flags', route: '/settings/feature-flags', icon: <Icon d={<><path d="M4 21V5"/><path d="M4 5h12l-3 5 3 5H4"/></>} /> },
     { label: 'Prompt Editor', route: '/settings/prompts', icon: I.prompts },
+    { label: 'Danger zone', route: '/settings/danger', icon: I.danger },
   ]},
 ];
 

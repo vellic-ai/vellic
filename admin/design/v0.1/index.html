@@ -23,6 +23,9 @@
 <script type="text/babel" src="components/screens/llm.jsx"></script>
 <script type="text/babel" src="components/screens/repos.jsx"></script>
 <script type="text/babel" src="components/screens/webhook.jsx"></script>
+<script type="text/babel" src="components/screens/api_keys.jsx"></script>
+<script type="text/babel" src="components/screens/rules.jsx"></script>
+<script type="text/babel" src="components/screens/danger.jsx"></script>
 <script type="text/babel" src="components/screens/feature_flags.jsx"></script>
 <script type="text/babel" src="components/screens/prompt_editor.jsx"></script>
 
@@ -36,6 +39,9 @@ const ROUTE_META = {
   '/settings/llm':           { crumbs: [{ label: 'Settings' }, { label: 'Providers' }] },
   '/settings/repos':         { crumbs: [{ label: 'Settings' }, { label: 'Repositories' }] },
   '/settings/webhook':       { crumbs: [{ label: 'Settings' }, { label: 'Webhook' }] },
+  '/settings/api-keys':      { crumbs: [{ label: 'Settings' }, { label: 'API Keys' }] },
+  '/settings/rules':         { crumbs: [{ label: 'Settings' }, { label: 'Rules' }] },
+  '/settings/danger':        { crumbs: [{ label: 'Settings' }, { label: 'Danger zone' }] },
   '/settings/feature-flags': { crumbs: [{ label: 'Settings' }, { label: 'Feature flags' }] },
   '/settings/prompts':       { crumbs: [{ label: 'Settings' }, { label: 'Prompt Editor' }] },
 };
@@ -90,6 +96,9 @@ function App() {
     case '/settings/llm':            screen = <LlmSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
     case '/settings/repos':          screen = <ReposSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
     case '/settings/webhook':        screen = <WebhookSettingsScreen navigate={navigate} />; break;
+    case '/settings/api-keys':       screen = <ApiKeysScreen navigate={navigate} />; break;
+    case '/settings/rules':          screen = <RulesScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/danger':         screen = <DangerScreen navigate={navigate} />; break;
     case '/settings/feature-flags':  screen = <FeatureFlagsScreen navigate={navigate} state={state} setState={setState} />; break;
     case '/settings/prompts':        screen = <PromptEditorScreen navigate={navigate} state={state} setState={setState} />; break;
     default:                         screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />;
@@ -143,6 +152,9 @@ function TweaksPanel({ state, setState, route, navigate }) {
           <option value="/settings/llm">/settings/llm</option>
           <option value="/settings/repos">/settings/repos</option>
           <option value="/settings/webhook">/settings/webhook</option>
+          <option value="/settings/api-keys">/settings/api-keys</option>
+          <option value="/settings/rules">/settings/rules</option>
+          <option value="/settings/danger">/settings/danger</option>
           <option value="/settings/feature-flags">/settings/feature-flags</option>
           <option value="/settings/prompts">/settings/prompts</option>
         </select>
