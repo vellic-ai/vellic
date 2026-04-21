@@ -13,6 +13,7 @@
 <div id="root"></div>
 
 <script type="text/babel" src="components/shell.jsx"></script>
+<script type="text/babel" src="components/features.jsx"></script>
 <script type="text/babel" src="components/mock.jsx"></script>
 <script type="text/babel" src="components/screens/login.jsx"></script>
 <script type="text/babel" src="components/screens/onboarding.jsx"></script>
@@ -22,17 +23,21 @@
 <script type="text/babel" src="components/screens/llm.jsx"></script>
 <script type="text/babel" src="components/screens/repos.jsx"></script>
 <script type="text/babel" src="components/screens/webhook.jsx"></script>
+<script type="text/babel" src="components/screens/feature_flags.jsx"></script>
+<script type="text/babel" src="components/screens/prompt_editor.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect } = React;
 
 const ROUTE_META = {
-  '/':                { crumbs: [{ label: 'Dashboard' }] },
-  '/deliveries':      { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Deliveries' }] },
-  '/jobs':            { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Jobs' }] },
-  '/settings/llm':    { crumbs: [{ label: 'Settings' }, { label: 'Providers' }] },
-  '/settings/repos':  { crumbs: [{ label: 'Settings' }, { label: 'Repositories' }] },
-  '/settings/webhook':{ crumbs: [{ label: 'Settings' }, { label: 'Webhook' }] },
+  '/':                       { crumbs: [{ label: 'Dashboard' }] },
+  '/deliveries':             { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Deliveries' }] },
+  '/jobs':                   { crumbs: [{ label: 'Observe', route: '/deliveries' }, { label: 'Jobs' }] },
+  '/settings/llm':           { crumbs: [{ label: 'Settings' }, { label: 'Providers' }] },
+  '/settings/repos':         { crumbs: [{ label: 'Settings' }, { label: 'Repositories' }] },
+  '/settings/webhook':       { crumbs: [{ label: 'Settings' }, { label: 'Webhook' }] },
+  '/settings/feature-flags': { crumbs: [{ label: 'Settings' }, { label: 'Feature flags' }] },
+  '/settings/prompts':       { crumbs: [{ label: 'Settings' }, { label: 'Prompt Editor' }] },
 };
 
 function App() {
@@ -79,22 +84,26 @@ function App() {
 
   let screen;
   switch (route) {
-    case '/':                 screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />; break;
-    case '/deliveries':       screen = <DeliveriesScreen navigate={navigate} />; break;
-    case '/jobs':             screen = <JobsScreen navigate={navigate} />; break;
-    case '/settings/llm':     screen = <LlmSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
-    case '/settings/repos':   screen = <ReposSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
-    case '/settings/webhook': screen = <WebhookSettingsScreen navigate={navigate} />; break;
-    default:                  screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />;
+    case '/':                        screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/deliveries':              screen = <DeliveriesScreen navigate={navigate} />; break;
+    case '/jobs':                    screen = <JobsScreen navigate={navigate} />; break;
+    case '/settings/llm':            screen = <LlmSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/repos':          screen = <ReposSettingsScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/webhook':        screen = <WebhookSettingsScreen navigate={navigate} />; break;
+    case '/settings/feature-flags':  screen = <FeatureFlagsScreen navigate={navigate} state={state} setState={setState} />; break;
+    case '/settings/prompts':        screen = <PromptEditorScreen navigate={navigate} state={state} setState={setState} />; break;
+    default:                         screen = <DashboardScreen navigate={navigate} state={state} setState={setState} />;
   }
 
   return (
-    <ToastProvider>
-      <Shell route={route} navigate={navigate} crumbs={meta.crumbs}>
-        {screen}
-      </Shell>
-      {tweaksOpen && <TweaksPanel state={state} setState={setState} route={route} navigate={navigate} />}
-    </ToastProvider>
+    <FeatureFlagsProvider>
+      <ToastProvider>
+        <Shell route={route} navigate={navigate} crumbs={meta.crumbs}>
+          {screen}
+        </Shell>
+        {tweaksOpen && <TweaksPanel state={state} setState={setState} route={route} navigate={navigate} />}
+      </ToastProvider>
+    </FeatureFlagsProvider>
   );
 }
 
@@ -134,6 +143,8 @@ function TweaksPanel({ state, setState, route, navigate }) {
           <option value="/settings/llm">/settings/llm</option>
           <option value="/settings/repos">/settings/repos</option>
           <option value="/settings/webhook">/settings/webhook</option>
+          <option value="/settings/feature-flags">/settings/feature-flags</option>
+          <option value="/settings/prompts">/settings/prompts</option>
         </select>
       </div>
 
