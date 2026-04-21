@@ -17,6 +17,7 @@ const I = {
   llm: <Icon d={<><path d="M12 2a4 4 0 00-4 4v2a4 4 0 008 0V6a4 4 0 00-4-4z"/><path d="M5 11v1a7 7 0 0014 0v-1"/><path d="M12 19v3"/></>} />,
   repos: <Icon d={<><path d="M4 5a2 2 0 012-2h10l4 4v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5z"/><path d="M8 13h8M8 17h5"/></>} />,
   webhook: <Icon d={<><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="12" cy="6" r="3"/><path d="M12 9v4M10.5 14l-3 2M13.5 14l3 2"/></>} />,
+  prompts: <Icon d={<><path d="M4 5h10M4 9h6M4 13h8"/><path d="M14 9l4 4-4 4"/></>} />,
   logout: <Icon d={<><path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/></>} />,
   copy: <Icon d={<><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></>} />,
   eye: <Icon d={<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>} />,
@@ -120,6 +121,8 @@ const NAV = [
     { label: 'Providers', route: '/settings/llm', icon: I.llm },
     { label: 'Repositories', route: '/settings/repos', icon: I.repos },
     { label: 'Webhook', route: '/settings/webhook', icon: I.webhook },
+    { label: 'Feature flags', route: '/settings/feature-flags', icon: <Icon d={<><path d="M4 21V5"/><path d="M4 5h12l-3 5 3 5H4"/></>} /> },
+    { label: 'Prompt Editor', route: '/settings/prompts', icon: I.prompts },
   ]},
 ];
 
