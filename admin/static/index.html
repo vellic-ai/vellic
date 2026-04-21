@@ -1435,6 +1435,13 @@
         </svg>
         <span>Webhook</span>
       </a>
+      <a class="nav-item" href="/settings/features" data-navlink>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 4h12M2 8h8M2 12h5"/>
+          <circle cx="13" cy="10" r="2"/>
+        </svg>
+        <span>Features</span>
+      </a>
     </nav>
     <div class="sidebar-footer">
       <button class="nav-item" id="logout-btn" style="color:var(--text-muted);font-size:12px;padding:6px 8px;gap:7px">
@@ -1662,6 +1669,15 @@
       </div>
       <div id="webhook-content"></div>
     </div>
+
+    <!-- Feature flags page -->
+    <div id="page-settings-features" class="content content-wide page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Feature Flags</h1>
+        <p class="page-desc">Runtime overrides — reset on restart. ENV vars take precedence over defaults.</p>
+      </div>
+      <div id="features-content"></div>
+    </div>
   </div>
 
   <div id="toast-root"></div>
@@ -1676,7 +1692,8 @@
         '/deliveries':       { page: 'deliveries',       breadcrumb: ['Observe', 'Deliveries'] },
         '/jobs':             { page: 'jobs',             breadcrumb: ['Observe', 'Jobs'] },
         '/settings/repos':   { page: 'settings-repos',  breadcrumb: ['Settings', 'Repositories'] },
-        '/settings/webhook': { page: 'settings-webhook', breadcrumb: ['Settings', 'Webhook'] },
+        '/settings/webhook':  { page: 'settings-webhook',  breadcrumb: ['Settings', 'Webhook'] },
+        '/settings/features': { page: 'settings-features', breadcrumb: ['Settings', 'Features'] },
       };
 
       function navigate(path) {
@@ -1719,8 +1736,9 @@
         if (route.page === 'settings-llm')    LLMSettings.load();
         if (route.page === 'deliveries')       Deliveries.load();
         if (route.page === 'jobs')             Jobs.load();
-        if (route.page === 'settings-repos')   ReposSettings.load();
-        if (route.page === 'settings-webhook') WebhookSettings.load();
+        if (route.page === 'settings-repos')    ReposSettings.load();
+        if (route.page === 'settings-webhook')  WebhookSettings.load();
+        if (route.page === 'settings-features') FeaturesSettings.load();
       }
 
       document.addEventListener('click', e => {
@@ -3571,6 +3589,113 @@
         bindStep4();
         bindStep5();
         showStep(1);
+      })();
+
+      // ── FeatureFlags ─────────────────────────────────────────────────────
+      // Singleton snapshot loader. Fetches /admin/features once per session,
+      // caches in memory. isEnabled() returns false until the snapshot loads.
+
+      const FeatureFlags = (() => {
+        let _cache = null;
+        let _inflight = null;
+
+        async function load() {
+          if (_cache) return _cache;
+          if (_inflight) return _inflight;
+          _inflight = fetch('/admin/features')
+            .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+            .then(data => { _cache = data; _inflight = null; return data; })
+            .catch(err => { _inflight = null; throw err; });
+          return _inflight;
+        }
+
+        function isEnabled(key) {
+          return _cache ? (_cache.flags[key] === true) : false;
+        }
+
+        function invalidate() { _cache = null; }
+
+        return { load, isEnabled, invalidate };
+      })();
+
+      // ── FeaturesSettings ─────────────────────────────────────────────────
+
+      const FeaturesSettings = (() => {
+        const CATEGORY_LABELS = {
+          vcs:      'VCS Adapters',
+          llm:      'LLM Providers',
+          pipeline: 'Pipeline Stages',
+          ast:      'AST Providers',
+          vector:   'Vector Stores',
+          platform: 'Platform',
+        };
+        const CATEGORY_ORDER = ['vcs', 'llm', 'pipeline', 'ast', 'vector', 'platform'];
+
+        function esc(s) {
+          return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function renderToggle(flag) {
+          const checked = flag.enabled ? 'checked' : '';
+          return `<div class="feature-row">
+              <div class="feature-info">
+                <span class="feature-name">${esc(flag.name)}</span>
+                <span class="feature-key">${esc(flag.key)}</span>
+                <span class="feature-desc">${esc(flag.description)}</span>
+              </div>
+              <label class="toggle" title="${esc(flag.name)}">
+                <input type="checkbox" data-flag="${esc(flag.key)}" ${checked}>
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>`;
+        }
+
+        function renderGroup(category, flags) {
+          const label = CATEGORY_LABELS[category] || category;
+          return `<div class="feature-group">
+              <div class="feature-group-header">${esc(label)}</div>
+              ${flags.map(renderToggle).join('')}
+            </div>`;
+        }
+
+        async function load() {
+          const el = document.getElementById('features-content');
+          if (!el) return;
+          el.innerHTML = '<p style="padding:24px 0;color:var(--text-muted)">Loading\u2026</p>';
+          let data;
+          try {
+            data = await FeatureFlags.load();
+          } catch {
+            el.innerHTML = '<p style="padding:24px 0;color:var(--error)">Failed to load feature flags.</p>';
+            return;
+          }
+          const grouped = data.catalog.reduce((acc, f) => {
+            (acc[f.category] = acc[f.category] || []).push(f);
+            return acc;
+          }, {});
+          el.innerHTML = CATEGORY_ORDER.filter(c => grouped[c]).map(c => renderGroup(c, grouped[c])).join('');
+          el.querySelectorAll('input[data-flag]').forEach(input => {
+            input.addEventListener('change', async () => {
+              const key = input.dataset.flag;
+              const enabled = input.checked;
+              try {
+                const res = await fetch(`/admin/features/${encodeURIComponent(key)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ enabled }),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                FeatureFlags.invalidate();
+                toast(`${key} ${enabled ? 'enabled' : 'disabled'}`, 'success');
+              } catch {
+                input.checked = !enabled;
+                toast(`Failed to update ${key}`, 'error');
+              }
+            });
+          });
+        }
+
+        return { load };
       })();
 
       // ── Boot ─────────────────────────────────────────────────────────────
