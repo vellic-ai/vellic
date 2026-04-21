@@ -39,7 +39,7 @@ It is self-hosted, swap the LLM with a single env var, and adding a new VCS plat
 - **[LLM-agnostic provider registry](docs/llm-providers.md)** — Ollama (default, on-prem), vLLM, OpenAI, Anthropic, Claude Code. Swap with one env var, no rebuild.
 - **[4-stage async pipeline](docs/architecture.md)** — diff fetch → context gather → LLM analysis → VCS feedback posting, all via Redis/Arq with full job tracking.
 - **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
-- **[Admin panel](http://localhost:8001)** — replay events, inspect jobs, tune config without redeploying.
+- **[Admin SPA](http://localhost:80)** — replay events, inspect jobs, tune LLM config. React SPA served by nginx; admin FastAPI serves the REST API on port 8001.
 - **[Kubernetes-ready](docs/deployment.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
 - **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers show a privacy warning in the Admin UI when selected.
 
@@ -58,10 +58,27 @@ bash scripts/health-check.sh            # verify all three services are healthy
 All services respond `{"status": "ok"}` when ready:
 
 ```
-http://localhost:8000/health   api
-http://localhost:8001/health   admin
-http://localhost:8002/health   worker
+http://localhost:8000/health   api       webhook ingestion
+http://localhost:8001/health   admin     REST API for the SPA
+http://localhost:8002/health   worker    async pipeline
+http://localhost:80            frontend  admin SPA (nginx)
 ```
+
+### Accessing the admin panel
+
+Open **http://localhost:80** in your browser. On first launch you will be prompted to set an admin password.
+
+Once logged in you can:
+
+| Page | URL | What it does |
+|---|---|---|
+| Dashboard | `/dashboard` | Live metrics — PRs reviewed, latency p50/p95, failure rate |
+| Deliveries | `/deliveries` | Inbound webhooks, status, replay any delivery |
+| Jobs | `/jobs` | Pipeline runs per PR — status, duration, error logs |
+| Providers | `/settings` | Configure LLM provider, model, API key, base URL |
+| Repositories | `/repos` | Per-repo model overrides and enable/disable toggles |
+
+> **Note:** the `frontend` Docker image must be running. It is included in `docker-compose.yml` and starts automatically with `docker compose up`.
 
 Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: [VCS Integrations](docs/vcs-integrations.md).
 
@@ -108,7 +125,9 @@ POSTGRES_PASSWORD=changeme
 GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
 ```
 
-LLM provider, model, API keys, and per-repo settings are configured in the Admin UI — not in `.env`.
+LLM provider, model, API keys, and per-repo settings are configured in the Admin SPA — not in `.env`.
+
+Set `VELLIC_ADMIN_V2=1` on the `admin` service (default in `docker-compose.yml`) to enable nginx-served SPA mode. Without it, the admin falls back to serving legacy static files from `admin/static/`.
 
 Full infrastructure reference: [docs/configuration.md](docs/configuration.md)
 
@@ -122,9 +141,10 @@ vellic/
 │       ├── pipeline/   4 stages: diff → context → llm → feedback
 │       ├── llm/        Provider registry + adapters
 │       └── adapters/   VCS platform adapters
-├── admin/        Admin panel (FastAPI, port 8001)
+├── admin/        Admin API (FastAPI, port 8001) — auth, stats, settings, delivery replay
+├── frontend/     Admin SPA (Vite + React + TypeScript) — served by nginx on port 80
 ├── infra/k8s/    Kubernetes manifests + HPA
-├── scripts/      Dev tooling (setup, health-check, test-webhook)
+├── scripts/      Dev tooling (setup, health-check, test-webhook, e2e-local)
 └── docs/         Detailed documentation
 ```
 
