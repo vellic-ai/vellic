@@ -1,52 +1,54 @@
 # VCS Integrations
 
-Vellic uses a webhook-based adapter model. Each platform adapter converts platform-specific webhook payloads into the internal `PREvent` format.
+Vellic uses a webhook-based adapter model. Each platform adapter converts platform-specific
+webhook payloads into the internal `PREvent` format, which drives the unified AI review
+pipeline.
+
+## Supported platforms
+
+| Platform | Status | Guide |
+|---|---|---|
+| GitHub | ✅ Live | [docs/integrations/github.md](integrations/github.md) |
+| GitLab | ✅ Live | [docs/integrations/gitlab.md](integrations/gitlab.md) |
+| Bitbucket | 🚧 In progress | — |
+| Custom / self-hosted | ✅ Extensible | See below |
+
+---
 
 ## GitHub
 
-### Webhook setup
+Full setup guide: **[docs/integrations/github.md](integrations/github.md)**
 
-1. Go to your GitHub repo → **Settings → Webhooks → Add webhook**
-2. **Payload URL**: `https://<your-host>/webhook/github`
-3. **Content type**: `application/json`
-4. **Secret**: same value as `GITHUB_WEBHOOK_SECRET` in your `.env`
-5. **Events**: select **Pull requests** (or "Send me everything")
+Quick reference:
 
-### Signature validation
-
-Vellic validates the `X-Hub-Signature-256` header on every request. Requests with a missing or invalid signature are rejected with `403`.
-
-### Events handled
-
-| GitHub event | Action | Behaviour |
-|---|---|---|
-| `pull_request` | `opened` | Triggers full pipeline |
-| `pull_request` | `synchronize` | Triggers full pipeline (new commits pushed) |
-| `pull_request` | `reopened` | Triggers full pipeline |
-| All others | any | Acknowledged (`200`) but not queued |
+- Webhook URL: `https://<your-host>/webhook/github`
+- Signature header: `X-Hub-Signature-256` (HMAC-SHA256)
+- Env var: `GITHUB_WEBHOOK_SECRET`
+- Triggers: `pull_request` (opened / synchronize / reopened)
 
 ---
 
 ## GitLab
 
-> 🚧 **Status: in progress.** The `PREvent` model and pipeline already support `platform: "gitlab"`. The adapter and webhook route are being built.
+Full setup guide: **[docs/integrations/gitlab.md](integrations/gitlab.md)**
 
-### Planned setup
+Quick reference:
 
-1. Go to your GitLab project → **Settings → Webhooks**
-2. **URL**: `https://<your-host>/webhook/gitlab`
-3. **Secret token**: set `GITLAB_WEBHOOK_SECRET` in `.env`
-4. **Trigger**: Merge request events
-
-Adapter location: `worker/app/adapters/gitlab.py` (coming soon).
+- Webhook URL: `https://<your-host>/webhook/gitlab`
+- Token header: `X-Gitlab-Token` (plain shared secret)
+- Env vars: `GITLAB_WEBHOOK_SECRET`, `GITLAB_BASE_URL` (self-managed only)
+- Triggers: `Merge Request Hook` (open / reopen / update)
 
 ---
 
 ## Bitbucket
 
-> 📋 **Status: planned.**
+> 🚧 **Status: in progress.**
 
-Adapter location: `worker/app/adapters/bitbucket.py` (planned).
+- Webhook URL: `https://<your-host>/webhook/bitbucket`
+- Signature header: `X-Hub-Signature` (HMAC-SHA256)
+- Env var: `BITBUCKET_WEBHOOK_SECRET`
+- Adapter: `worker/app/adapters/bitbucket.py`
 
 ---
 
@@ -69,7 +71,7 @@ def normalize_pr(delivery_id: str, payload: dict) -> PREvent:
         repo=payload["..."],
         pr_number=int(payload["..."]),
         action=payload["..."],
-        diff_url=payload["..."],       # URL to fetch file diffs
+        diff_url=payload["..."],
         base_sha=payload["..."],
         head_sha=payload["..."],
         base_branch=payload["..."],
@@ -89,6 +91,7 @@ async def receive_<platform>(request: Request, ...):
     # 4. Enqueue the job
 ```
 
-3. Add a feedback poster in `worker/app/pipeline/feedback_poster.py` that calls your platform's review/comment API.
+3. Add a feedback poster in `worker/app/pipeline/feedback_poster.py` that calls your
+   platform's review/comment API.
 
 4. Open a PR — contributions welcome.
