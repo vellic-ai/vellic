@@ -53,6 +53,29 @@ instance. No API key required for self-hosted deployments unless you add one to 
 
 ---
 
+## DB-backed per-repo LLM config
+
+Vellic supports storing LLM provider config per repository in the database — so different repos can use different models or providers without changing global settings.
+
+This feature is gated behind the `platform.llm_config_ui` feature flag (off by default):
+
+```bash
+# Enable via ENV
+VELLIC_FEATURE_PLATFORM_LLM_CONFIG_UI=true
+
+# Or via Admin UI: Settings → Feature flags → "LLM config UI" → toggle on
+```
+
+Once enabled:
+
+1. Go to **Admin UI → Repositories → select repo → LLM config**.
+2. Override the provider, model, API key, and base URL for that repo.
+3. The worker resolves config in order: **repo override → global config → environment default**.
+
+The per-repo config is stored encrypted in PostgreSQL (same encryption used for all secrets). See [security](../security/index.md) for details.
+
+---
+
 ## Adding a new provider
 
 1. Create `worker/app/llm/providers/<name>.py` implementing the `LLMProvider` protocol:

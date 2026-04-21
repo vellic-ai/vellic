@@ -10,8 +10,9 @@ pipeline.
 |---|---|---|
 | GitHub | ✅ Live | [docs/integrations/github.md](integrations/github.md) |
 | GitLab | ✅ Live | [docs/integrations/gitlab.md](integrations/gitlab.md) |
-| Bitbucket | 🚧 In progress | — |
-| Custom / self-hosted | ✅ Extensible | See below |
+| Bitbucket | 🚧 Alpha | [Enable flag](#bitbucket) |
+| Gitea / Forgejo | 🚧 Alpha | [Enable flag](#gitea--forgejo) |
+| Custom / self-hosted | ✅ Extensible | [Custom adapter guide](#custom--self-hosted-platforms) |
 
 ---
 
@@ -43,12 +44,39 @@ Quick reference:
 
 ## Bitbucket
 
-> 🚧 **Status: in progress.**
+> 🚧 **Status: alpha — available behind the `vcs.bitbucket` feature flag.**
+
+Enable via Admin UI (Settings → Feature flags → "Bitbucket") or:
+
+```bash
+VELLIC_FEATURE_VCS_BITBUCKET=true
+```
+
+Quick reference:
 
 - Webhook URL: `https://<your-host>/webhook/bitbucket`
 - Signature header: `X-Hub-Signature` (HMAC-SHA256)
 - Env var: `BITBUCKET_WEBHOOK_SECRET`
 - Adapter: `worker/app/adapters/bitbucket.py`
+
+---
+
+## Gitea / Forgejo
+
+> 🚧 **Status: alpha — available behind the `vcs.gitea` feature flag.**
+
+Enable via Admin UI (Settings → Feature flags → "Gitea") or:
+
+```bash
+VELLIC_FEATURE_VCS_GITEA=true
+```
+
+Quick reference:
+
+- Webhook URL: `https://<your-host>/webhook/gitea`
+- Signature header: `X-Gitea-Signature` (HMAC-SHA256)
+- Env var: `GITEA_WEBHOOK_SECRET`
+- Adapter: `worker/app/adapters/gitea.py`
 
 ---
 
