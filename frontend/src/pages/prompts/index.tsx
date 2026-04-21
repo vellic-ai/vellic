@@ -484,7 +484,7 @@ export default function PromptsPage() {
         </div>
       ) : prompts.length === 0 ? (
         <EmptyState
-          icon={<Icons.prompts size={20} />}
+          icon={<Icons.flags size={20} />}
           title="No prompts found"
           body="No presets were loaded. Check VELLIC_PRESETS_DIR and that platform.prompt_dsl is enabled."
         />
