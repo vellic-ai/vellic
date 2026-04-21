@@ -30,6 +30,8 @@ __all__ = [
     "CATALOG",
     "by_key",
     "env_var",
+    "ScopeContext",
+    "FlagResolver",
 ]
 
 
@@ -428,6 +430,45 @@ CATALOG: list[FlagDef] = [
         tags=("platform", "prompts"),
     ),
 ]
+
+# ---------------------------------------------------------------------------
+# Scope context and resolver
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ScopeContext:
+    """Carries the runtime scope identifiers used for override resolution."""
+    tenant_id: str | None = None
+    repo_id: str | None = None
+    user_id: str | None = None
+
+
+class FlagResolver:
+    """Resolves flag values from ENV overrides and a store snapshot."""
+
+    def __init__(self, store: object = None) -> None:
+        self._store = store
+
+    def resolve(self, flag: FlagDef, ctx: ScopeContext) -> bool:
+        env_val = flag.read_env()
+        if env_val is not None:
+            return env_val
+        if self._store is not None:
+            for scope, scope_id in [
+                ("user", ctx.user_id),
+                ("repo", ctx.repo_id),
+                ("tenant", ctx.tenant_id),
+                ("global", ""),
+            ]:
+                if scope_id is not None:
+                    val = self._store.get_override(flag.key, scope, scope_id)
+                    if val is not None:
+                        return val
+        return flag.default
+
+    def snapshot(self, ctx: ScopeContext) -> dict[str, bool]:
+        return {f.key: self.resolve(f, ctx) for f in CATALOG}
+
 
 # ---------------------------------------------------------------------------
 # Lookup helpers

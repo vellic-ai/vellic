@@ -75,7 +75,8 @@ services:
 
   worker:
     build:
-      context: ./worker
+      context: .
+      dockerfile: worker/Dockerfile
       target: builder
     command: python -m app.main
     volumes:
@@ -106,7 +107,8 @@ services:
 
   admin:
     build:
-      context: ./admin
+      context: .
+      dockerfile: admin/Dockerfile
       target: builder
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     volumes:

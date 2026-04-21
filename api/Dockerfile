@@ -8,9 +8,12 @@ RUN uv pip install --system --no-cache ".[dev]"
 
 FROM python:3.12-slim
 WORKDIR /app
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 1001 appuser && useradd --uid 1001 --gid 1001 --no-create-home appuser
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+RUN rm -f /usr/local/bin/uv /usr/local/bin/uvx
+RUN pip install --no-cache-dir --upgrade "pip>=25.3"
 COPY api/app/ ./app/
 COPY api/alembic/ ./alembic/
 COPY api/alembic.ini .
