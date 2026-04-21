@@ -194,6 +194,14 @@ export interface paths {
     };
   };
 
+  "/admin/features": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["FeaturesResponse"] } };
+      };
+    };
+  };
+
   "/admin/settings/repos": {
     get: {
       responses: {
@@ -439,6 +447,21 @@ export interface components {
       api_key: string | null;
       extra: Record<string, unknown>;
       updated_at: string | null;
+    };
+
+    FeaturesResponse: {
+      flags: Record<string, boolean>;
+      catalog: Array<{
+        key: string;
+        name: string;
+        category: string;
+        description: string;
+        enabled: boolean;
+        default: boolean;
+        scope: string;
+        tags: string[];
+      }>;
+      snapshot_at: string;
     };
 
     WebhookSettingsOut: {
