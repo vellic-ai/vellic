@@ -27,7 +27,7 @@ async def run_pipeline(
     )
 
     # Stage 2: fetch and chunk diff
-    chunks = await fetch_diff_chunks(event.diff_url)
+    chunks = await fetch_diff_chunks(event.diff_url, platform=event.platform)
     logger.info("stage2 complete chunks=%d", len(chunks))
 
     # Stage 3: LLM analysis
