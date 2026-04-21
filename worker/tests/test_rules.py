@@ -7,10 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.pipeline.models import DiffChunk
-from app.rules.evaluator import evaluate_rules, _file_matches_languages, _file_is_ignored
-from app.rules.loader import parse_rules_yaml, load_repo_config
-from app.rules.models import RepoConfig, Rule, RuleViolation
-
+from app.rules.evaluator import _file_is_ignored, _file_matches_languages, evaluate_rules
+from app.rules.loader import load_repo_config, parse_rules_yaml
+from app.rules.models import RepoConfig, Rule
 
 # ---------------------------------------------------------------------------
 # parse_rules_yaml
@@ -111,7 +110,10 @@ def test_ignored_extension_glob():
 # evaluate_rules — core scenarios
 # ---------------------------------------------------------------------------
 
-def _make_config(pattern: str, severity: str = "warning", languages: list | None = None, ignore: list | None = None) -> RepoConfig:
+def _make_config(
+    pattern: str, severity: str = "warning",
+    languages: list | None = None, ignore: list | None = None,
+) -> RepoConfig:
     return RepoConfig(
         repo_id="org/repo",
         rules=[Rule(id="test_rule", pattern=pattern, languages=languages or [], severity=severity)],

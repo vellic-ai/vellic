@@ -5,7 +5,7 @@ import logging
 import re
 
 from ...pipeline.models import DiffChunk
-from .models import ASTContext, SymbolInfo
+from .models import ASTContext
 from .registry import get_parser
 
 logger = logging.getLogger("worker.context.ast.enricher")

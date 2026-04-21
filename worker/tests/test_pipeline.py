@@ -5,10 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.adapters.github import normalize_pr
+from app.context.ast.models import ASTContext, SymbolInfo
 from app.events import PREvent
 from app.pipeline.context_gatherer import gather_context
 from app.pipeline.diff_fetcher import _chunk_patch, _is_generated, fetch_diff_chunks
-from app.pipeline.llm_analyzer import _extract_json, analyze
+from app.pipeline.llm_analyzer import _build_prompt, _extract_json, _format_symbols, analyze
 from app.pipeline.models import AnalysisResult, DiffChunk, PRContext, ReviewComment
 from app.pipeline.result_persister import persist
 
@@ -308,9 +309,6 @@ async def test_persist_inserts_and_enqueues():
 # ---------------------------------------------------------------------------
 # llm_analyzer — _format_symbols, _build_prompt
 # ---------------------------------------------------------------------------
-
-from app.context.ast.models import ASTContext, SymbolInfo
-from app.pipeline.llm_analyzer import _build_prompt, _format_symbols
 
 
 def test_format_symbols_with_symbols():

@@ -1,8 +1,6 @@
-import pytest
 
 from app.adapters.bitbucket import normalize_pr
 from app.pipeline.diff_fetcher import _parse_unified_diff
-
 
 # ---------------------------------------------------------------------------
 # normalize_pr

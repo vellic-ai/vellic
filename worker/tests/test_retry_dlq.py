@@ -8,7 +8,6 @@ from arq import Retry
 
 from app.metrics import compute_retry_delays
 
-
 # ---------------------------------------------------------------------------
 # compute_retry_delays
 # ---------------------------------------------------------------------------

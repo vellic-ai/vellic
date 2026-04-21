@@ -109,7 +109,9 @@ async def test_run_pipeline_passes_correct_args_to_stages():
     with (
         patch("app.pipeline.runner.gather_context", return_value=_CTX) as mock_gather,
         patch("app.pipeline.runner._flag_enabled", return_value=True),
-        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)) as mock_fetch,
+        patch(
+            "app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)
+        ) as mock_fetch,
         patch("app.pipeline.runner._ast_enricher") as mock_enricher,
         patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=_EMPTY_CONFIG)),
         patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)) as mock_analyze,
@@ -138,13 +140,16 @@ async def test_run_pipeline_with_rule_violations_merges_comments():
         patch("app.pipeline.runner._flag_enabled", return_value=True),
         patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(return_value=_CHUNKS)),
         patch("app.pipeline.runner._ast_enricher") as mock_enricher,
-        patch("app.pipeline.runner.load_repo_config", new=AsyncMock(return_value=config_with_rules)),
+        patch(
+            "app.pipeline.runner.load_repo_config",
+            new=AsyncMock(return_value=config_with_rules),
+        ),
         patch("app.pipeline.runner.analyze", new=AsyncMock(return_value=_RESULT)),
         patch("app.pipeline.runner.evaluate_rules", return_value=[violation]),
         patch("app.pipeline.runner.persist", new=AsyncMock(return_value="rv-1")) as mock_persist,
     ):
         mock_enricher.enrich_all.return_value = {}
-        await run_pipeline(_EVENT, pool, llm := MagicMock(), job_id := uuid.uuid4(), AsyncMock())
+        await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())
 
     # persist receives the merged result
     merged_result = mock_persist.call_args[0][2]
@@ -158,7 +163,10 @@ async def test_run_pipeline_propagates_fetch_error():
     with (
         patch("app.pipeline.runner.gather_context", return_value=_CTX),
         patch("app.pipeline.runner._flag_enabled", return_value=True),
-        patch("app.pipeline.runner.fetch_diff_chunks", new=AsyncMock(side_effect=RuntimeError("net error"))),
+        patch(
+            "app.pipeline.runner.fetch_diff_chunks",
+            new=AsyncMock(side_effect=RuntimeError("net error")),
+        ),
     ):
         with pytest.raises(RuntimeError, match="net error"):
             await run_pipeline(_EVENT, pool, MagicMock(), uuid.uuid4(), AsyncMock())

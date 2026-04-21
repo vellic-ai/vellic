@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -62,7 +62,7 @@ async def test_list_overrides_passes_repo_id():
 
 @pytest.mark.asyncio
 async def test_get_override_found():
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     row = {"path": "api-review", "body": "---\n---\nbody", "updated_at": now}
     conn = _conn(fetchrow=row)
     result = await get_override(conn, "org/repo", "api-review")
@@ -96,7 +96,7 @@ async def test_get_override_passes_both_params():
 
 @pytest.mark.asyncio
 async def test_upsert_override_returns_updated_at():
-    now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=UTC)
     conn = _conn(fetchrow={"updated_at": now})
     result = await upsert_override(conn, "org/repo", "security", "---\n---\nbody")
     assert result == now
@@ -104,7 +104,7 @@ async def test_upsert_override_returns_updated_at():
 
 @pytest.mark.asyncio
 async def test_upsert_override_passes_all_params():
-    now = datetime(2026, 4, 21, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, tzinfo=UTC)
     conn = _conn(fetchrow={"updated_at": now})
     await upsert_override(conn, "acme/api", "review", "---\n---\ncontent")
     call_args = conn.fetchrow.call_args

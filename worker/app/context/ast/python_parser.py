@@ -19,11 +19,11 @@ except Exception as exc:  # pragma: no cover
     logger.debug("tree-sitter-python unavailable: %s", exc)
 
 
-def _text(node: "Node", source_bytes: bytes) -> str:
+def _text(node: Node, source_bytes: bytes) -> str:
     return source_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
 
 
-def _get_docstring(node: "Node", source_bytes: bytes) -> str:
+def _get_docstring(node: Node, source_bytes: bytes) -> str:
     """Return the first string literal child of a function/class body, if any."""
     for child in node.children:
         if child.type == "block":
@@ -37,7 +37,7 @@ def _get_docstring(node: "Node", source_bytes: bytes) -> str:
 
 
 def _extract_symbols(
-    node: "Node",
+    node: Node,
     source_bytes: bytes,
     parent_name: str = "",
 ) -> list[SymbolInfo]:
@@ -91,7 +91,8 @@ class PythonASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _AVAILABLE:
-            return ASTContext(filename=filename, language="python", parse_error="tree-sitter-python not installed")
+            return ASTContext(filename=filename, language="python",
+                              parse_error="tree-sitter-python not installed")
 
         source_bytes = source.encode("utf-8")
         try:

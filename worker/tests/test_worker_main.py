@@ -1,13 +1,11 @@
 """Tests for worker/app/main.py — HealthHandler, startup, shutdown."""
 
 import io
-from http.server import BaseHTTPRequestHandler
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.main import HealthHandler, shutdown, startup
-
 
 # ---------------------------------------------------------------------------
 # HealthHandler

@@ -19,11 +19,11 @@ except Exception as exc:  # pragma: no cover
     logger.debug("tree-sitter-go unavailable: %s", exc)
 
 
-def _text(node: "Node", src: bytes) -> str:
+def _text(node: Node, src: bytes) -> str:
     return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
 
 
-def _extract_go_symbols(node: "Node", src: bytes, parent_name: str = "") -> list[SymbolInfo]:
+def _extract_go_symbols(node: Node, src: bytes, parent_name: str = "") -> list[SymbolInfo]:
     symbols: list[SymbolInfo] = []
     for child in node.children:
         if child.type == "function_declaration":
@@ -72,7 +72,8 @@ class GoASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _AVAILABLE:
-            return ASTContext(filename=filename, language="go", parse_error="tree-sitter-go not installed")
+            return ASTContext(filename=filename, language="go",
+                              parse_error="tree-sitter-go not installed")
         src = source.encode("utf-8")
         try:
             tree = _PARSER.parse(src)

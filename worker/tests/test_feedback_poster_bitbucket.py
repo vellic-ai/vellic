@@ -1,8 +1,6 @@
 import base64
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 from app.pipeline.feedback_poster import (
@@ -12,7 +10,6 @@ from app.pipeline.feedback_poster import (
     post_bitbucket_comment,
 )
 from app.pipeline.models import AnalysisResult, ReviewComment
-
 
 # ---------------------------------------------------------------------------
 # _build_bitbucket_summary_body

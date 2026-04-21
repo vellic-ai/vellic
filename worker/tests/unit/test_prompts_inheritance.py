@@ -1,7 +1,6 @@
 """Unit tests for prompt inheritance resolution and cascading merger (VEL-112)."""
 
 import pytest
-from app.prompts.models import PromptFile, PromptFrontmatter
 
 from app.prompts.inheritance import (
     CircularInheritanceError,
@@ -9,6 +8,7 @@ from app.prompts.inheritance import (
     resolve_all,
     resolve_single,
 )
+from app.prompts.models import PromptFile, PromptFrontmatter
 
 # ---------------------------------------------------------------------------
 # Helpers
