@@ -82,24 +82,28 @@ async def test_db_override_replaces_repo_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_db_only_override_is_appended(tmp_path: Path) -> None:
+async def test_db_only_override_is_authoritative(tmp_path: Path) -> None:
+    # VEL-134: DB is source of truth — when DB has records only DB records are returned,
+    # repo filesystem files are not merged in.
     repo_root = _make_repo_dir(tmp_path, {"my-review": _VALID_PROMPT})
     conn = _FakeConn([{"path": "extra-review", "body": _VALID_PROMPT_B, "updated_at": None}])
     result = await load_repo_prompts(str(repo_root), "org/repo", conn)
     names = {p.name for p in result}
-    assert "my-review" in names
     assert "extra-review" in names
-    assert len(result) == 2
+    assert "my-review" not in names
+    assert len(result) == 1
 
 
 @pytest.mark.asyncio
 async def test_malformed_db_override_is_skipped(tmp_path: Path) -> None:
+    # VEL-134: DB-primary — malformed DB entry is skipped, filesystem is NOT consulted
+    # because DB had records (file fallback only when DB has zero rows for this repo).
     repo_root = _make_repo_dir(tmp_path, {"my-review": _VALID_PROMPT})
     conn = _FakeConn([{"path": "bad", "body": "not valid frontmatter", "updated_at": None}])
     result = await load_repo_prompts(str(repo_root), "org/repo", conn)
     names = {p.name for p in result}
     assert "bad" not in names
-    assert "my-review" in names
+    assert len(result) == 0
 
 
 @pytest.mark.asyncio
