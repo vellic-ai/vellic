@@ -66,7 +66,7 @@ async def test_run_pipeline_passes_correct_args_to_stages():
         await run_pipeline(_EVENT, pool, llm, job_id, arq_redis)
 
     mock_gather.assert_called_once_with(_EVENT)
-    mock_fetch.assert_called_once_with(_EVENT.diff_url)
+    mock_fetch.assert_called_once_with(_EVENT.diff_url, platform=_EVENT.platform)
     mock_analyze.assert_called_once_with(ctx, chunks, llm)
     mock_persist.assert_called_once_with(pool, ctx, result, job_id, arq_redis)
 

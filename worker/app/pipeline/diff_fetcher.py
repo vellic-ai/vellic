@@ -32,20 +32,84 @@ def _chunk_patch(filename: str, patch: str) -> list[DiffChunk]:
     return chunks
 
 
+def _parse_unified_diff(text: str) -> list[tuple[str, str]]:
+    """Parse a raw unified diff into (filename, patch) pairs.
+
+    Handles the format returned by Bitbucket's pullrequests/{id}/diff endpoint.
+    """
+    files: list[tuple[str, str]] = []
+    current_file: str | None = None
+    patch_lines: list[str] = []
+
+    for line in text.splitlines():
+        if line.startswith("+++ b/"):
+            if current_file is not None:
+                files.append((current_file, "\n".join(patch_lines)))
+            current_file = line[6:]
+            patch_lines = []
+        elif line.startswith("+++ /dev/null"):
+            if current_file is not None:
+                files.append((current_file, "\n".join(patch_lines)))
+            current_file = None
+            patch_lines = []
+        elif current_file is not None:
+            patch_lines.append(line)
+
+    if current_file is not None:
+        files.append((current_file, "\n".join(patch_lines)))
+
+    return files
+
+
 async def fetch_diff_chunks(
     diff_url: str,
     token: str | None = None,
+    platform: str = "github",
 ) -> list[DiffChunk]:
-    """Fetch and chunk PR file diffs from a platform files API URL.
+    """Fetch and chunk PR file diffs from a platform files/diff URL.
 
-    The URL is expected to return a JSON array of file objects, each with
-    ``filename`` and optional ``patch`` fields — the shape returned by both
-    the GitHub and GitLab files/changes APIs.
+    GitHub and GitLab return JSON (array or {"changes": [...]}). Bitbucket
+    returns a raw unified diff text that is parsed locally.
     """
     validate_outbound_url(diff_url, context="diff_fetcher")
 
+    if platform == "bitbucket":
+        bb_token = token or os.getenv("BITBUCKET_TOKEN", "")
+        bb_user = os.getenv("BITBUCKET_USERNAME", "")
+        bb_pass = os.getenv("BITBUCKET_APP_PASSWORD", "")
+        headers: dict[str, str] = {"Accept": "text/plain"}
+        auth: tuple[str, str] | None = None
+        if bb_token:
+            headers["Authorization"] = f"Bearer {bb_token}"
+        elif bb_user and bb_pass:
+            auth = (bb_user, bb_pass)
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(diff_url, headers=headers, auth=auth)
+            resp.raise_for_status()
+            raw_diff = resp.text
+
+        file_pairs = _parse_unified_diff(raw_diff)
+        chunks: list[DiffChunk] = []
+        for filename, patch in file_pairs:
+            if not patch.strip():
+                logger.debug("skipping %s: no patch (binary or empty)", filename)
+                continue
+            if _is_generated(filename):
+                logger.info("skipping generated file: %s", filename)
+                continue
+            chunks.extend(_chunk_patch(filename, patch))
+
+        logger.info(
+            "fetched %d chunks from %d files via %s (bitbucket raw diff)",
+            len(chunks),
+            len(file_pairs),
+            diff_url,
+        )
+        return chunks
+
     resolved_token = token or os.getenv("GITHUB_TOKEN", "")
-    headers: dict[str, str] = {"Accept": "application/json"}
+    headers = {"Accept": "application/json"}
     if resolved_token:
         headers["Authorization"] = f"Bearer {resolved_token}"
 
@@ -56,12 +120,12 @@ async def fetch_diff_chunks(
 
     # GitHub returns a JSON array; GitLab changes API returns {"changes": [...]}
     if isinstance(data, dict):
-        files = data.get("changes", [])
+        files_list = data.get("changes", [])
     else:
-        files = data
+        files_list = data
 
-    chunks: list[DiffChunk] = []
-    for file_info in files:
+    chunks = []
+    for file_info in files_list:
         # GitHub: filename/patch; GitLab: new_path/diff
         filename = file_info.get("filename") or file_info.get("new_path", "")
         patch = file_info.get("patch") or file_info.get("diff", "")
@@ -76,5 +140,5 @@ async def fetch_diff_chunks(
 
         chunks.extend(_chunk_patch(filename, patch))
 
-    logger.info("fetched %d chunks from %d files via %s", len(chunks), len(files), diff_url)
+    logger.info("fetched %d chunks from %d files via %s", len(chunks), len(files_list), diff_url)
     return chunks
