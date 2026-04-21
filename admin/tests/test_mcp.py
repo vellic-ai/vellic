@@ -1,6 +1,5 @@
 """Unit tests for /admin/repos/{repo_id}/mcp endpoints."""
 
-import json
 import os
 import uuid
 from datetime import UTC, datetime

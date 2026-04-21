@@ -1,15 +1,10 @@
 """Unit tests for the MCP process manager (spawn, kill, restart)."""
 
-import asyncio
 import sys
 import tempfile
-import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, patch
 
 from app.mcp_host import MCPProcessManager, _build_env, _parse_cmd
-
 
 # ---------------------------------------------------------------------------
 # _parse_cmd / _build_env helpers

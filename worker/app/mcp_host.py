@@ -14,7 +14,7 @@ import asyncio
 import logging
 import os
 import signal
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger("worker.mcp_host")
 
@@ -157,7 +157,7 @@ class MCPProcessManager:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             try:
                 await asyncio.wait_for(proc.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 await proc.wait()
             logger.info("mcp process killed name=%s pid=%d", entry.name, proc.pid)
@@ -233,7 +233,9 @@ def _build_env(credentials: dict | None) -> dict[str, str]:
     They live only in the subprocess environment — never logged here.
     """
     env: dict[str, str] = {
-        "PATH": os.environ.get("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"),
+        "PATH": os.environ.get(
+            "PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ),
         "HOME": "/tmp",
         "TMPDIR": "/tmp",
     }
