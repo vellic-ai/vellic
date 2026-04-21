@@ -166,7 +166,7 @@ In-memory overrides reset on service restart. For persistent overrides, use the 
 | Key | Default | Description |
 |---|---|---|
 | `pipeline.diff` | `true` | Fetch PR diff for analysis |
-| `pipeline.context` | `true` | AST + vector semantic context |
+| `pipeline.context` | `true` | AST + vector semantic context (in development — see AST Providers note below) |
 | `pipeline.llm_analysis` | `true` | Core code-review LLM pass |
 | `pipeline.security_scan` | `false` | SAST and secret detection pass |
 | `pipeline.coverage_hints` | `false` | Test coverage gap suggestions |
@@ -184,6 +184,10 @@ In-memory overrides reset on service restart. For persistent overrides, use the 
 | `ast.typescript` | `true` | TypeScript/JavaScript AST context |
 | `ast.go` | `false` | Go AST context |
 | `ast.rust` | `false` | Rust AST context |
+
+> **Status: in development** — AST and vector context enrichment is not available in the
+> current release. The `pipeline.context`, `ast.*`, and `vector.*` flags are reserved for v0.2.
+> Setting them has no effect today; this section will be updated when the feature ships.
 
 #### Vector stores
 
