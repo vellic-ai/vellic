@@ -4,11 +4,9 @@
 services:
   ollama:
     image: alpine
-    command: >
-      sh -c "mkdir -p /tmp/srv && echo '{}' > /tmp/srv/index.html;
-             while true; do busybox httpd -f -p 11434 -h /tmp/srv 2>/dev/null || true; done"
+    command: sh -c "while true; do nc -l -p 11434 2>/dev/null; done"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:11434/ 2>/dev/null"]
+      test: ["CMD-SHELL", "nc -z localhost 11434 2>/dev/null"]
       interval: 3s
       timeout: 2s
       retries: 3
