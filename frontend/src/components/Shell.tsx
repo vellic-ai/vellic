@@ -29,6 +29,7 @@ const NAV: Array<NavItem | NavSection> = [
     items: [
       { label: "Providers", to: "/settings", icon: <Icons.llm /> },
       { label: "Repositories", to: "/repos", icon: <Icons.repos /> },
+      { label: "Prompts", to: "/prompts", icon: <Icons.prompts /> },
       { label: "Feature Flags", to: "/feature-flags", icon: <Icons.flags /> },
     ],
   },
