@@ -4,7 +4,7 @@
 services:
   ollama:
     image: alpine
-    command: sh -c "while true; do nc -l -p 11434 2>/dev/null; done"
+    command: ["nc", "-lk", "-p", "11434"]
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 11434 2>/dev/null"]
       interval: 3s
