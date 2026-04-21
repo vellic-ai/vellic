@@ -13,6 +13,7 @@ from .auth_router import AdminAuthMiddleware
 from .auth_router import router as auth_router
 from .dlq_router import router as dlq_router
 from .features_router import router as features_router
+from .mcp_router import router as mcp_router
 from .prompts_router import router as prompts_router
 from .repos_router import router as repos_router
 from .settings_router import router as settings_router
@@ -48,6 +49,7 @@ app = FastAPI(title="vellic-admin", version="0.1.0", lifespan=lifespan)
 app.add_middleware(AdminAuthMiddleware)
 app.include_router(auth_router)
 app.include_router(features_router)
+app.include_router(mcp_router)
 app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)

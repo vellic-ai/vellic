@@ -9,6 +9,7 @@ from arq.connections import RedisSettings
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .jobs import post_feedback, process_webhook
+from .mcp_host import get_manager as get_mcp_manager
 from .metrics import get_max_retries, webhook_dlq_depth
 
 logger = logging.getLogger("worker")
@@ -69,8 +70,16 @@ async def startup(ctx: dict) -> None:
 
     logger.info("LLM config will be loaded from DB per job (env vars as fallback)")
 
+    mcp_manager = get_mcp_manager()
+    await mcp_manager.start()
+    ctx["mcp_manager"] = mcp_manager
+    logger.info("mcp process manager started")
+
 
 async def shutdown(ctx: dict) -> None:
+    mcp_manager = ctx.get("mcp_manager")
+    if mcp_manager:
+        await mcp_manager.stop()
     arq_redis = ctx.get("redis")
     if arq_redis:
         await arq_redis.close()
