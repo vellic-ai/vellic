@@ -5,12 +5,33 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from vellic_flags import CATALOG, FlagDef, by_key
 
+from . import db
+
 logger = logging.getLogger("admin.features")
 
 router = APIRouter()
 
-# In-memory runtime overrides (reset on restart; DB persistence added in VEL-97)
+# Warm cache synced from DB on startup and updated on each write.
 _overrides: dict[str, bool] = {}
+
+_SCOPE = "global"
+_SCOPE_ID = "_global"
+
+
+async def init_overrides() -> None:
+    """Load all global-scope overrides from DB into the in-memory cache."""
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT flag_key, value FROM feature_flag_overrides"
+            " WHERE scope = $1 AND scope_id = $2",
+            _SCOPE,
+            _SCOPE_ID,
+        )
+    _overrides.clear()
+    for row in rows:
+        _overrides[row["flag_key"]] = row["value"]
+    logger.info("loaded %d feature flag override(s) from DB", len(rows))
 
 
 def _resolve(flag: FlagDef) -> bool:
@@ -60,6 +81,39 @@ async def put_feature(flag_key: str, body: FeatureToggle) -> dict:
     flag = by_key(flag_key)
     if flag is None:
         raise HTTPException(status_code=404, detail=f"Unknown feature flag: {flag_key!r}")
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO feature_flag_overrides (flag_key, scope, scope_id, value)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (flag_key, scope, scope_id)
+            DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+            """,
+            flag.key,
+            _SCOPE,
+            _SCOPE_ID,
+            body.enabled,
+        )
     _overrides[flag.key] = body.enabled
     logger.info("feature flag override: %s = %s", flag.key, body.enabled)
     return {"key": flag.key, "enabled": body.enabled}
+
+
+@router.delete("/admin/features/{flag_key:path}", status_code=200)
+async def delete_feature(flag_key: str) -> dict:
+    flag = by_key(flag_key)
+    if flag is None:
+        raise HTTPException(status_code=404, detail=f"Unknown feature flag: {flag_key!r}")
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM feature_flag_overrides"
+            " WHERE flag_key = $1 AND scope = $2 AND scope_id = $3",
+            flag.key,
+            _SCOPE,
+            _SCOPE_ID,
+        )
+    _overrides.pop(flag.key, None)
+    logger.info("feature flag override removed: %s", flag.key)
+    return {"key": flag.key, "removed": True}
