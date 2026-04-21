@@ -71,15 +71,23 @@ Then point your GitHub webhook at `https://<your-host>/webhook/github` and open 
 
 ## How it looks
 
-**PR → vellic → inline review, end to end:**
+**Inline review comment posted directly in the PR:**
 
 <p align="center">
-  <img src="docs/assets/pr-flow.svg" alt="PR flow: developer opens PR → webhook API → worker pipeline → LLM → review posted" width="800" />
+  <img src="docs/assets/pr-review-comment.svg" alt="vellic posting an inline review comment on a GitHub PR diff, flagging a double-sleep in retry logic with a suggested fix" width="860" />
 </p>
 
 **Admin dashboard** (PR metrics, job inspection, provider config):
 
-> _Screenshot: open `http://localhost:80` after running `docker compose up`._
+<p align="center">
+  <img src="docs/assets/admin-dashboard.svg" alt="vellic admin dashboard showing 247 PRs reviewed, p50 4.2s latency, 0.8% failure rate, recent job table, and Ollama provider config" width="900" />
+</p>
+
+**PR → vellic → review posted, end to end:**
+
+<p align="center">
+  <img src="docs/assets/pr-flow.svg" alt="PR flow: developer opens PR → webhook API → worker pipeline → LLM → review posted" width="800" />
+</p>
 
 ---
 

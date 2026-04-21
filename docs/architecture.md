@@ -21,6 +21,10 @@ Vellic is a three-service system built around an async job queue. This document 
 
 ## System overview
 
+<p align="center">
+  <img src="assets/architecture.svg" alt="vellic system architecture: VCS webhook → api service → Redis/Arq → worker (4-stage pipeline) → LLM provider → VCS Reviews API, with postgres and admin service alongside" width="820" />
+</p>
+
 ```
 GitHub (or any VCS)
         │
