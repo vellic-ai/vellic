@@ -6,8 +6,9 @@ import secrets
 import time
 from base64 import b64decode
 
+import asyncpg
 import bcrypt
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -32,22 +33,35 @@ UNAUTHENTICATED_PATHS = frozenset({
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
 
+def _raise_db_not_ready() -> None:
+    raise HTTPException(
+        status_code=503,
+        detail="Database migrations have not run yet. Retry shortly.",
+    )
+
+
 async def _get_config(conn, key: str) -> str | None:
-    row = await conn.fetchrow("SELECT value FROM admin_config WHERE key = $1", key)
+    try:
+        row = await conn.fetchrow("SELECT value FROM admin_config WHERE key = $1", key)
+    except asyncpg.exceptions.UndefinedTableError:
+        _raise_db_not_ready()
     return row["value"] if row else None
 
 
 async def _set_config(conn, key: str, value: str) -> None:
-    await conn.execute(
-        """
-        INSERT INTO admin_config (key, value, updated_at)
-        VALUES ($1, $2, NOW())
-        ON CONFLICT (key) DO UPDATE
-            SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
-        """,
-        key,
-        value,
-    )
+    try:
+        await conn.execute(
+            """
+            INSERT INTO admin_config (key, value, updated_at)
+            VALUES ($1, $2, NOW())
+            ON CONFLICT (key) DO UPDATE
+                SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+            """,
+            key,
+            value,
+        )
+    except asyncpg.exceptions.UndefinedTableError:
+        _raise_db_not_ready()
 
 
 async def _require_session_secret(conn) -> str:
@@ -123,7 +137,11 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if not path.startswith("/admin/") or path in UNAUTHENTICATED_PATHS:
             return await call_next(request)
-        if not await check_authenticated(request):
+        try:
+            authed = await check_authenticated(request)
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        if not authed:
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
         return await call_next(request)
 
