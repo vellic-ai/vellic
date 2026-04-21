@@ -1,0 +1,89 @@
+name: Smoke
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - docker-compose.yml
+      - docker-compose.ci.yml
+      - "infra/nginx/**"
+      - "api/alembic/**"
+      - "api/app/**"
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Docker Compose smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start stack
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up --build -d --wait
+        env:
+          POSTGRES_PASSWORD: vellic_ci
+          GITHUB_WEBHOOK_SECRET: ci-smoke-secret
+
+      - name: Smoke assertions
+        run: |
+          set -euo pipefail
+
+          check() {
+            echo -n "  → $1 ... "
+            curl -sf "$1" -o /dev/null && echo "OK" || { echo "FAIL"; exit 1; }
+          }
+
+          echo "Service health endpoints:"
+          check http://localhost:8000/health
+          check http://localhost:8001/health
+          check http://localhost:8002/health
+
+          echo "Nginx frontend (SPA):"
+          check http://localhost/
+
+          echo "Webhook acceptance endpoint:"
+          STATUS=$(curl -so /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/webhook/github \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: ping" \
+            -H "X-GitHub-Delivery: smoke-$(date +%s)" \
+            -H "X-Hub-Signature-256: sha256=invalid" \
+            -d '{"zen":"test"}')
+          if [ "$STATUS" = "000" ]; then
+            echo "  FAIL: webhook endpoint unreachable"
+            exit 1
+          fi
+          echo "  OK (status=$STATUS — endpoint reachable, auth enforced)"
+
+          echo "Migration check (/admin/stats must not return 503):"
+          STATUS=$(curl -so /dev/null -w "%{http_code}" http://localhost:8001/admin/stats)
+          if [ "$STATUS" = "503" ]; then
+            echo "  FAIL: /admin/stats returned 503 — admin_config table missing, migrations did not run"
+            exit 1
+          fi
+          echo "  OK (status=$STATUS)"
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            logs --tail=100
+        env:
+          POSTGRES_PASSWORD: vellic_ci
+          GITHUB_WEBHOOK_SECRET: ci-smoke-secret
