@@ -38,10 +38,14 @@ export function useSetFeatureFlag() {
     onSuccess: (updated) => {
       qc.setQueryData(
         featureFlagKeys.all(),
-        (prev: components["schemas"]["FeatureFlagList"] | undefined) => {
+        (prev: components["schemas"]["FeaturesResponse"] | undefined) => {
           if (!prev) return prev;
           return {
-            items: prev.items.map((f) => (f.key === updated.key ? updated : f)),
+            ...prev,
+            flags: { ...prev.flags, [updated!.key]: updated!.enabled },
+            catalog: prev.catalog.map((f) =>
+              f.key === updated!.key ? { ...f, enabled: updated!.enabled } : f,
+            ),
           };
         },
       );
