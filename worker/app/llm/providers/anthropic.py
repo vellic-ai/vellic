@@ -17,7 +17,9 @@ _ANTHROPIC_VERSION = "2023-06-01"
 
 @register("anthropic")
 class AnthropicProvider:
-    def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022", **_: object) -> None:
+    def __init__(
+        self, api_key: str, model: str = "claude-3-5-sonnet-20241022", **_: object
+    ) -> None:
         logger.warning(_CLOSED_LOOP_WARNING)
         if not api_key:
             raise ValueError("Anthropic provider requires LLM_API_KEY to be set.")
