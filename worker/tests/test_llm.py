@@ -39,11 +39,11 @@ def test_vllm_conforms_to_protocol():
 
 
 def test_openai_conforms_to_protocol():
-    assert isinstance(OpenAIProvider(), LLMProvider)
+    assert isinstance(OpenAIProvider(api_key="test-key"), LLMProvider)
 
 
 def test_anthropic_conforms_to_protocol():
-    assert isinstance(AnthropicProvider(), LLMProvider)
+    assert isinstance(AnthropicProvider(api_key="test-key"), LLMProvider)
 
 
 # --- Ollama adapter ---
@@ -116,34 +116,50 @@ async def test_vllm_health_returns_false():
     assert await VLLMProvider().health() is False
 
 
-# --- OpenAI stub ---
+# --- OpenAI provider ---
 
 def test_openai_logs_closed_loop_warning(caplog):
     with caplog.at_level(logging.WARNING, logger="worker.llm.openai"):
-        OpenAIProvider()
+        OpenAIProvider(api_key="test-key")
     assert "PR diff content will leave your infrastructure" in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_openai_complete_raises_not_implemented():
-    provider = OpenAIProvider()
-    with pytest.raises(NotImplementedError, match="OpenAI"):
-        await provider.complete("prompt", max_tokens=100)
+async def test_openai_complete_success():
+    provider = OpenAIProvider(api_key="test-key")
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": "looks good"}}]
+    }
+
+    with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_response)):
+        result = await provider.complete("review this diff", max_tokens=512)
+
+    assert result == "looks good"
 
 
-# --- Anthropic stub ---
+# --- Anthropic provider ---
 
 def test_anthropic_logs_closed_loop_warning(caplog):
     with caplog.at_level(logging.WARNING, logger="worker.llm.anthropic"):
-        AnthropicProvider()
+        AnthropicProvider(api_key="test-key")
     assert "PR diff content will leave your infrastructure" in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_anthropic_complete_raises_not_implemented():
-    provider = AnthropicProvider()
-    with pytest.raises(NotImplementedError, match="Anthropic"):
-        await provider.complete("prompt", max_tokens=100)
+async def test_anthropic_complete_success():
+    provider = AnthropicProvider(api_key="test-key")
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {"content": [{"text": "lgtm"}]}
+
+    with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_response)):
+        result = await provider.complete("review this diff", max_tokens=512)
+
+    assert result == "lgtm"
 
 
 # --- Claude Code adapter ---
