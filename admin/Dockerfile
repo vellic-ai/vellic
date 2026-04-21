@@ -16,6 +16,7 @@ RUN rm -f /usr/local/bin/uv /usr/local/bin/uvx
 RUN pip install --no-cache-dir --upgrade "pip>=25.3"
 COPY admin/app/ ./app/
 COPY admin/static/ ./static/
+COPY worker/app/prompts/presets/ ./presets/
 USER appuser
 EXPOSE 8001
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
