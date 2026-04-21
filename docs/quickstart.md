@@ -42,7 +42,7 @@ Everything else — LLM provider, model, API keys, per-repo settings — is conf
 docker compose up --build -d
 ```
 
-This builds and starts five containers:
+This builds and starts seven containers:
 
 | Container | Port | Role |
 |---|---|---|
