@@ -17,4 +17,8 @@ services:
 
   frontend:
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "test -f /var/run/nginx.pid && kill -0 $(cat /var/run/nginx.pid) 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
