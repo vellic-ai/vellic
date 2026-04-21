@@ -65,7 +65,7 @@ ENV overrides apply globally (they bypass all DB overrides).
 | `llm.openai` | ✅ on | tenant | High | OpenAI-compatible API (GPT-4, etc.) |
 | `llm.anthropic` | ✅ on | tenant | High | Anthropic Claude via API key |
 | `llm.ollama` | ✅ on | tenant | Low | Self-hosted Ollama (default on-prem) |
-| `llm.vllm` | ⚠️ off | tenant | Low | Self-hosted vLLM inference server |
+| `llm.vllm` | ⚠️ off | tenant | Low | Self-hosted vLLM inference server (🚧 adapter not yet implemented) |
 
 ### Pipeline stages
 

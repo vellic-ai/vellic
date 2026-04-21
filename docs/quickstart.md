@@ -123,7 +123,7 @@ Go to **http://localhost/settings**. The provider dropdown lists all supported b
 | Provider | When to use |
 |---|---|
 | `ollama` (default) | On-prem, no data leaves your host |
-| `vllm` | Self-hosted, OpenAI-compatible endpoint |
+| `vllm` | 🚧 Coming soon — self-hosted OpenAI-compatible endpoint |
 | `openai` | OpenAI API (requires API key; data sent to OpenAI) |
 | `anthropic` | Anthropic API (requires API key; data sent to Anthropic) |
 | `claude_code` | Local Claude Code CLI (data sent to Anthropic API) |

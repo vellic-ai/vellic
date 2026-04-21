@@ -255,7 +255,7 @@ PUT /admin/settings/llm
 }
 ```
 
-Valid providers: `ollama`, `vllm`, `openai`, `anthropic`, `claude_code`.
+Valid providers: `ollama`, `openai`, `anthropic`, `claude_code`. (`vllm` is 🚧 coming soon — the adapter stub is in place but not yet functional.)
 
 Changes take effect on the next job run — no restart required.
 
@@ -394,7 +394,7 @@ POST /admin/settings/repos
 Returns `201 Created` with the created item. Returns `409 Conflict` if the slug is already configured.
 
 Valid platforms: `github`, `gitlab`.
-Valid providers: `ollama`, `vllm`, `openai`, `anthropic`, `claude_code`.
+Valid providers: `ollama`, `openai`, `anthropic`, `claude_code`. (`vllm` is 🚧 coming soon — the adapter stub is in place but not yet functional.)
 
 Use `slug: "acme-org/*"` for a wildcard rule that matches all repos in an org.
 

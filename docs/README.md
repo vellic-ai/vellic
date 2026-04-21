@@ -30,7 +30,7 @@ Your navigation index for everything vellic. Pick a section and follow the links
 | | |
 |---|---|
 | [Configuration reference](configuration.md) | All environment variables, ports, secret generation |
-| [LLM providers](llm-providers/index.md) | Switch between Ollama, vLLM, OpenAI, Anthropic, Claude Code — plus DB-backed config |
+| [LLM providers](llm-providers/index.md) | Switch between Ollama, OpenAI, Anthropic, Claude Code — plus DB-backed config (vLLM: 🚧 coming soon) |
 | [VCS integrations](vcs-integrations.md) | Connect GitHub, GitLab, Bitbucket, or a custom webhook adapter |
 | [Feature flags](feature-flags.md) | Enable/disable pipeline stages, VCS adapters, LLM providers — via Admin UI or ENV |
 | [Security & secrets](security/index.md) | Encrypted secrets, BYOK, threat model, least-privilege guide |

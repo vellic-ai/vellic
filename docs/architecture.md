@@ -307,7 +307,7 @@ Per-repo overrides win for a given repository but do not affect the global defau
 | Name | Self-hosted | Notes |
 |---|---|---|
 | `ollama` | Yes | Default; ships in compose stack |
-| `vllm` | Yes | OpenAI-compatible endpoint |
+| `vllm` | Yes | 🚧 Coming soon — OpenAI-compatible endpoint (stub, not yet implemented) |
 | `openai` | No | Requires `LLM_API_KEY`; data sent to OpenAI |
 | `anthropic` | No | Requires `LLM_API_KEY`; data sent to Anthropic |
 | `claude_code` | No | Wraps `claude --print` CLI; requires CLI installed in worker container |

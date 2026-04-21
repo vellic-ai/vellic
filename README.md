@@ -58,7 +58,7 @@ Then point your GitHub webhook at `https://<your-host>/webhook/github` and open 
 ## Highlights
 
 - **[VCS-agnostic webhook adapter](docs/vcs-integrations.md)** — normalises GitHub, GitLab, Bitbucket, and custom webhooks into one platform-agnostic `PREvent` model. Adding a new platform is one file.
-- **[LLM-agnostic provider registry](docs/llm-providers/index.md)** — Ollama (default, on-prem), vLLM, OpenAI, Anthropic, Claude Code. Swap provider in the Admin UI, no restart.
+- **[LLM-agnostic provider registry](docs/llm-providers/index.md)** — Ollama (default, on-prem), OpenAI, Anthropic, Claude Code. Swap provider in the Admin UI, no restart. (vLLM: 🚧 coming soon)
 - **[4-stage async pipeline](docs/architecture.md)** — diff fetch → context gather → LLM analysis → VCS feedback posting, all via Redis/Arq with full job tracking.
 - **[VCS Reviews API integration](docs/vcs-integrations.md)** — posts structured inline comments at the exact changed lines, grouped into a single review.
 - **[Admin SPA](http://localhost:80)** — replay events, inspect jobs, tune LLM config, toggle feature flags. React SPA served by nginx.
@@ -153,7 +153,7 @@ Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: 
 | Provider | On-prem | BYOK |
 |---|---|---|
 | Ollama (default) | ✅ | — |
-| vLLM | ✅ | — |
+| vLLM | 🚧 Soon | — |
 | OpenAI | — | ✅ |
 | Anthropic | — | ✅ |
 | Claude Code CLI | Partial | ✅ |
@@ -175,7 +175,7 @@ Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: 
 | LLM-agnostic (swap provider freely) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | BYOK (bring your own API key) | ✅ | ⚠️ | ❌ | ⚠️ | ❌ |
 | Plugin / MCP tool host | ✅ | ❌ | ❌ | ❌ | ❌ |
-| On-prem LLM (Ollama / vLLM) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| On-prem LLM (Ollama; vLLM soon) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Open source | ✅ MIT | ❌ | ❌ | ❌ | ❌ |
 
 ---
@@ -301,7 +301,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 - [x] GitHub webhook ingestion with HMAC validation
 - [x] GitLab MR integration
 - [x] 4-stage async pipeline (diff → context → LLM → feedback)
-- [x] 5 LLM provider adapters (Ollama, vLLM, OpenAI, Anthropic, Claude Code)
+- [x] 4 LLM provider adapters (Ollama, OpenAI, Anthropic, Claude Code)
 - [x] Prompt DSL — ship prompts alongside your code
 - [x] Feature flags — per-repo, per-tenant control over pipeline stages
 - [x] DB-backed LLM config — per-repo provider overrides via Admin UI
@@ -310,6 +310,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 ### Near-term
 
+- [ ] vLLM provider adapter — self-hosted OpenAI-compatible inference (stub in place, full implementation pending)
 - [ ] Bitbucket PR integration (alpha → stable)
 - [ ] Issue triage — classify new issues by type/severity; suggest labels and assignees
 - [ ] Security scanning — flag vulnerability patterns in diffs
@@ -337,7 +338,7 @@ Full roadmap: [docs/roadmap.md](docs/roadmap.md)
 Yes. vellic is self-hosted — it runs in your infrastructure and connects to your VCS platform via webhooks. It never touches GitHub.com / GitLab.com / Bitbucket.org directly; the diff is fetched from your VCS platform's API using the credentials you configure.
 
 **Can I self-host the LLM too?**
-Yes. The default stack ships Ollama with a local model — no data leaves your infrastructure at all. You can also run vLLM or any OpenAI-compatible endpoint. Cloud providers (OpenAI, Anthropic) are available but opt-in, and the Admin UI shows an explicit privacy warning before you save.
+Yes. The default stack ships Ollama with a local model — no data leaves your infrastructure at all. Cloud providers (OpenAI, Anthropic) are available but opt-in, and the Admin UI shows an explicit privacy warning before you save. vLLM support (OpenAI-compatible self-hosted inference) is coming soon.
 
 **What data leaves my infrastructure?**
 With the default Ollama setup: nothing. The diff is fetched from your VCS, processed inside the worker container, and the review is posted back. If you switch to a cloud LLM provider, the diff is sent to that provider's API — the Admin UI makes this explicit with a warning.
@@ -352,7 +353,7 @@ vellic posts structured inline comments anchored to the exact changed lines usin
 GitHub and GitLab are fully supported. Bitbucket and Gitea are in alpha (enable via feature flag). Any platform that emits webhooks can be added with a single adapter file. See [docs/vcs-integrations.md](docs/vcs-integrations.md).
 
 **Which LLM providers are supported?**
-Ollama (default, local), vLLM (local), OpenAI, Anthropic, and Claude Code CLI. Any OpenAI-compatible endpoint also works via the vLLM adapter. See [docs/llm-providers/index.md](docs/llm-providers/index.md).
+Ollama (default, local), OpenAI, Anthropic, and Claude Code CLI. vLLM (self-hosted OpenAI-compatible inference) is 🚧 coming soon. See [docs/llm-providers/index.md](docs/llm-providers/index.md).
 
 **How much does it cost to run?**
 The self-hosted stack with Ollama has zero LLM API cost — only your compute cost. With a cloud LLM, cost depends on diff size and model. A typical 200-line diff costs ~$0.01–0.05 with GPT-4o or Claude Haiku. Enable `pipeline.coverage_hints` and `pipeline.security_scan` only for repos where the cost-benefit is clear.
