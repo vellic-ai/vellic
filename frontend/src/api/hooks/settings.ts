@@ -5,7 +5,20 @@ import type { components } from "@/api/schema";
 export const settingsKeys = {
   llm: () => ["settings", "llm"] as const,
   webhook: () => ["settings", "webhook"] as const,
+  features: () => ["features"] as const,
 };
+
+export function useFeatureFlags() {
+  return useQuery({
+    queryKey: settingsKeys.features(),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/admin/features");
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 300_000,
+  });
+}
 
 export function useLLMSettings() {
   return useQuery({
