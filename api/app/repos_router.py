@@ -13,7 +13,7 @@ PUT /api/repos/{repo_id}/config
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -108,7 +108,7 @@ async def get_repo_config(repo_id: str) -> dict[str, Any]:
         return {
             "repo_id": repo_id,
             "rules_yaml": "",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
     return {
         "repo_id": row["repo_id"],

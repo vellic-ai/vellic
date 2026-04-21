@@ -17,12 +17,10 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
-
 from vellic_flags import CATALOG, FlagDef, FlagResolver, ScopeContext
 
 from . import db
@@ -98,7 +96,7 @@ async def _get_snapshot(
     resolver = FlagResolver(store=store)
     ctx = ScopeContext(tenant_id=tenant_id, repo_id=repo_id, user_id=user_id)
     snapshot = resolver.snapshot(ctx)
-    cached_at = datetime.now(timezone.utc).isoformat()
+    cached_at = datetime.now(UTC).isoformat()
 
     # Step 3: re-acquire lock, double-check, write with bounded eviction
     async with _cache_lock:

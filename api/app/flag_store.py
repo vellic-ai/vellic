@@ -25,7 +25,7 @@ class PgOverrideStore:
         self._overrides = overrides
 
     @classmethod
-    async def load(cls, pool: asyncpg.Pool) -> "PgOverrideStore":
+    async def load(cls, pool: asyncpg.Pool) -> PgOverrideStore:
         """
         Fetch all rows from feature_flag_overrides and return a populated store.
 
@@ -61,7 +61,8 @@ class PgOverrideStore:
         """Upsert an override. Audit row is written by the DB trigger."""
         await pool.execute(
             """
-            INSERT INTO feature_flag_overrides (flag_key, scope, scope_id, value, set_by, updated_at)
+            INSERT INTO feature_flag_overrides
+                (flag_key, scope, scope_id, value, set_by, updated_at)
             VALUES ($1, $2, $3, $4, $5, NOW())
             ON CONFLICT (flag_key, scope, scope_id)
             DO UPDATE SET value = EXCLUDED.value,
@@ -91,6 +92,7 @@ class PgOverrideStore:
                         "SELECT set_config('app.deleted_by', $1, true)", deleted_by
                     )
                 await conn.execute(
-                    "DELETE FROM feature_flag_overrides WHERE flag_key=$1 AND scope=$2 AND scope_id=$3",
+                    "DELETE FROM feature_flag_overrides"
+                    " WHERE flag_key=$1 AND scope=$2 AND scope_id=$3",
                     flag_key, scope, scope_id,
                 )

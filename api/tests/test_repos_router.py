@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
-_NOW = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 4, 21, 12, 0, 0, tzinfo=UTC)
 
 _VALID_YAML = """\
 rules:
