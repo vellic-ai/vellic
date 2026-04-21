@@ -23,8 +23,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from vellic_flags import CATALOG, FlagResolver, ScopeContext
-from vellic_flags._catalog import FlagDef
+from vellic_flags import CATALOG, FlagDef, FlagResolver, ScopeContext
 
 from . import db
 from .flag_store import PgOverrideStore
@@ -60,10 +59,24 @@ _CATALOG_RESPONSE: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 _TTL: float = float(os.getenv("FEATURES_CACHE_TTL_SECONDS", "30"))
+_MAX_CACHE_ENTRIES = 512
 
 # key → (snapshot_dict, expires_at_monotonic, cached_at_iso)
-_cache: dict[tuple[str | None, str | None, str | None], tuple[dict[str, bool], float, str]] = {}
+_CacheEntry = tuple[dict[str, bool], float, str]
+_cache: dict[tuple[str | None, str | None, str | None], _CacheEntry] = {}
 _cache_lock = asyncio.Lock()
+
+
+def _evict_stale() -> None:
+    """Remove expired entries; if still over limit, drop those expiring soonest."""
+    now = time.monotonic()
+    stale = [k for k, (_, exp, _) in _cache.items() if now >= exp]
+    for k in stale:
+        del _cache[k]
+    if len(_cache) > _MAX_CACHE_ENTRIES:
+        overflow = len(_cache) - _MAX_CACHE_ENTRIES
+        for k, _ in sorted(_cache.items(), key=lambda kv: kv[1][1])[:overflow]:
+            del _cache[k]
 
 
 async def _get_snapshot(
@@ -72,23 +85,31 @@ async def _get_snapshot(
     user_id: str | None,
 ) -> tuple[dict[str, bool], str]:
     cache_key = (tenant_id, repo_id, user_id)
-    now = time.monotonic()
 
+    # Step 1: check under lock, release immediately on miss
     async with _cache_lock:
         entry = _cache.get(cache_key)
-        if entry is not None:
-            snapshot, expires_at, cached_at = entry
-            if now < expires_at:
-                return snapshot, cached_at
+        if entry is not None and time.monotonic() < entry[1]:
+            return entry[0], entry[2]
 
-        pool = db.get_pool()
-        store = await PgOverrideStore.load(pool)
-        resolver = FlagResolver(store=store)
-        ctx = ScopeContext(tenant_id=tenant_id, repo_id=repo_id, user_id=user_id)
-        snapshot = resolver.snapshot(ctx)
-        cached_at = datetime.now(timezone.utc).isoformat()
-        _cache[cache_key] = (snapshot, now + _TTL, cached_at)
-        return snapshot, cached_at
+    # Step 2: lock is released — perform DB I/O without holding it
+    pool = db.get_pool()
+    store = await PgOverrideStore.load(pool)
+    resolver = FlagResolver(store=store)
+    ctx = ScopeContext(tenant_id=tenant_id, repo_id=repo_id, user_id=user_id)
+    snapshot = resolver.snapshot(ctx)
+    cached_at = datetime.now(timezone.utc).isoformat()
+
+    # Step 3: re-acquire lock, double-check, write with bounded eviction
+    async with _cache_lock:
+        entry = _cache.get(cache_key)
+        if entry is not None and time.monotonic() < entry[1]:
+            return entry[0], entry[2]
+        _cache[cache_key] = (snapshot, time.monotonic() + _TTL, cached_at)
+        if len(_cache) > _MAX_CACHE_ENTRIES:
+            _evict_stale()
+
+    return snapshot, cached_at
 
 
 # ---------------------------------------------------------------------------

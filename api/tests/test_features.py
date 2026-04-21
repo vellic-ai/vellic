@@ -102,6 +102,8 @@ class TestFeaturesSnapshot:
         with patch("app.features_router._cache", {}):
             resp = await client.get("/api/features")
         assert resp.status_code == 200
+        flags = resp.json()["flags"]
+        assert flags["vcs.github"] is False
 
     async def test_caching_avoids_second_db_call(self, client, mock_db_pool):
         mock_db_pool.fetch = AsyncMock(return_value=[])
