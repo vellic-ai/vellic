@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from . import arq_pool, db
 from .auth_router import AdminAuthMiddleware
 from .auth_router import router as auth_router
+from .features_router import router as features_router
 from .repos_router import router as repos_router
 from .settings_router import router as settings_router
 from .stats_router import router as stats_router
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="vellic-admin", version="0.1.0", lifespan=lifespan)
 app.add_middleware(AdminAuthMiddleware)
 app.include_router(auth_router)
+app.include_router(features_router)
 app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)

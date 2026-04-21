@@ -263,7 +263,9 @@ async def test_post_feedback_skips_if_already_posted():
         "pr_number": 42,
         "commit_sha": "abc123",
         "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "github",
         "github_review_id": "existing-review-id",
+        "gitlab_discussion_id": None,
     })
 
     ctx = {"db_pool": mock_pool, "job_try": 1}
@@ -289,7 +291,9 @@ async def test_post_feedback_posts_and_updates_db():
             "summary": "Issues found.",
             "generic_ratio": 0.0,
         },
+        "platform": "github",
         "github_review_id": None,
+        "gitlab_discussion_id": None,
     })
     mock_pool.fetchval = AsyncMock(return_value=uuid.UUID(pr_review_id))
 
@@ -315,7 +319,9 @@ async def test_post_feedback_concurrent_worker_dedup():
         "pr_number": 1,
         "commit_sha": "sha",
         "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "github",
         "github_review_id": None,
+        "gitlab_discussion_id": None,
     })
     mock_pool.fetchval = AsyncMock(return_value=None)  # concurrent worker won the race
 
