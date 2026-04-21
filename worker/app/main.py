@@ -9,7 +9,7 @@ from arq.connections import RedisSettings
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .jobs import post_feedback, process_webhook
-from .metrics import get_max_retries, webhook_dlq_depth
+from .metrics import get_max_retries
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -85,7 +85,7 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 10
-    max_tries = get_max_retries() + 1  # retries + initial attempt
+    max_tries = get_max_retries() + 1  # initial attempt + max_retries retries
     job_timeout = 300
     keep_result = 60
 

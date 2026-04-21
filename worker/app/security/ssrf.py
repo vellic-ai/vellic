@@ -91,6 +91,13 @@ def validate_outbound_url(url: str, context: str = "outbound") -> None:
             f"Set ALLOWED_DIFF_HOSTS to extend it."
         )
 
+    # Hosts explicitly added via ALLOWED_DIFF_HOSTS are operator-trusted
+    # (e.g. self-hosted GitLab on a private IP). Skip IP check for those.
+    raw_custom = os.getenv("ALLOWED_DIFF_HOSTS", "")
+    custom_hosts = frozenset(h.strip().lower() for h in raw_custom.split(",") if h.strip())
+    if hostname in custom_hosts:
+        return
+
     # Pre-flight DNS resolution to block DNS rebinding at request time.
     try:
         infos = socket.getaddrinfo(hostname, None)

@@ -97,12 +97,17 @@ async def test_get_or_create_job_inserts_when_missing():
 async def test_dead_letter_executes_two_queries():
     conn = AsyncMock()
     conn.execute = AsyncMock()
+    conn.fetchval = AsyncMock(return_value=2)
+    conn.transaction = MagicMock(return_value=AsyncMock())
     pool = _make_pool_with_conn(conn)
     job_id = uuid.uuid4()
 
-    await _dead_letter(pool, job_id, "del-1", {"action": "opened"}, ValueError("boom"))
+    with patch("app.jobs.webhook_dlq_depth") as mock_depth:
+        await _dead_letter(pool, job_id, "del-1", {"action": "opened"}, ValueError("boom"))
 
-    assert conn.execute.call_count == 3  # UPDATE pipeline_jobs + INSERT pipeline_failures + INSERT webhook_dlq
+    # pipeline_jobs update + pipeline_failures insert + webhook_dlq upsert
+    assert conn.execute.call_count == 3
+    mock_depth.set.assert_called_once_with(2)
 
 
 # ---------------------------------------------------------------------------

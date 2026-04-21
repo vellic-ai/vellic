@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from . import arq_pool, db
 from .auth_router import AdminAuthMiddleware
 from .auth_router import router as auth_router
+from .dlq_router import router as dlq_router
 from .features_router import router as features_router
 from .repos_router import router as repos_router
 from .settings_router import router as settings_router
@@ -49,6 +50,7 @@ app.include_router(features_router)
 app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)
+app.include_router(dlq_router)
 
 # @deprecated (VELLIC_ADMIN_V2): static mount removed when flag=1; nginx handles SPA routing.
 if not _ADMIN_V2 and _STATIC.is_dir():
