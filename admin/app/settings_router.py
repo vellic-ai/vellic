@@ -2,10 +2,11 @@ import logging
 import os
 import secrets
 from datetime import datetime
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from . import db
 from .crypto import decrypt, encrypt, mask
@@ -100,6 +101,16 @@ async def put_llm_settings(body: LLMSettingsIn) -> LLMSettingsOut:
 
 class WebhookEndpointIn(BaseModel):
     url: str
+
+    @field_validator("url")
+    @classmethod
+    def url_must_be_http_or_https(cls, v: str) -> str:
+        parsed = urlparse(v)
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError("url must use http or https scheme")
+        if not parsed.hostname:
+            raise ValueError("url must include a hostname")
+        return v
 
 
 class GitHubAppIn(BaseModel):
