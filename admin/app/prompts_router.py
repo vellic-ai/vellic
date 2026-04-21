@@ -1,20 +1,31 @@
-"""REST endpoints for the prompt library (VEL-114).
+"""REST endpoints for the prompt library (VEL-114, VEL-134).
 
-GET  /admin/prompts            — list all prompts (presets)
-GET  /admin/prompts/{name}     — get single prompt
-POST /admin/prompts/resolve    — resolve effective prompt for a PR (query: ?pr=<pr_review_id>)
-POST /admin/prompts/dry-run    — render + run LLM without posting (body: DryRunBody)
+VEL-134: UI is source of truth. DB is primary; preset files are fallback/export.
+
+GET    /admin/prompts              — list all prompts (DB + presets)
+GET    /admin/prompts/export       — download DB prompts as .md zip
+POST   /admin/prompts/import       — upload .md files → write to DB
+POST   /admin/prompts              — create a new DB-only prompt
+GET    /admin/prompts/{name}       — get single prompt
+PUT    /admin/prompts/{name}       — save/update prompt body in DB
+PATCH  /admin/prompts/{name}/enabled — toggle enabled/disabled
+DELETE /admin/prompts/{name}       — delete DB entry (revert preset or remove DB-only)
+POST   /admin/prompts/resolve      — resolve effective prompt for a PR
+POST   /admin/prompts/dry-run      — render + run LLM without posting
 """
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
 import re
+import zipfile
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from vellic_flags import by_key
 
@@ -23,6 +34,7 @@ from .crypto import decrypt
 from .prompts.inheritance import cascade_merge, resolve_all
 from .prompts.loader import load_all_presets, load_preset
 from .prompts.models import PromptContext
+from .prompts.parser import parse_prompt_content
 from .prompts.renderer import build_resolved_prompt
 from .prompts.schema import PromptValidationError
 
@@ -30,9 +42,11 @@ logger = logging.getLogger("admin.prompts")
 
 router = APIRouter()
 
+_GLOBAL_REPO_ID = "__global__"
+_GITHUB_API_BASE = "https://api.github.com"
+
 
 def _require_prompt_dsl() -> None:
-    """FastAPI dependency: raise 404 when the prompt_dsl feature flag is off."""
     flag = by_key("platform.prompt_dsl")
     enabled = (flag.read_env() if flag else None)
     if enabled is None:
@@ -40,10 +54,9 @@ def _require_prompt_dsl() -> None:
     if not enabled:
         raise HTTPException(status_code=404, detail="Prompt DSL feature is not enabled")
 
-_GITHUB_API_BASE = "https://api.github.com"
 
 # ---------------------------------------------------------------------------
-# Pydantic output models
+# Pydantic models
 # ---------------------------------------------------------------------------
 
 
@@ -57,9 +70,32 @@ class FrontmatterOut(BaseModel):
 
 class PromptOut(BaseModel):
     name: str
-    source: str
+    source: str          # "preset" | "db" | "preset+db"
     frontmatter: FrontmatterOut
+    body: str            # effective body (db_override if present, else preset)
+    db_override: str | None = None
+    enabled: bool = True
+
+
+class PromptBody(BaseModel):
     body: str
+
+
+class PromptCreate(BaseModel):
+    name: str
+    body: str
+
+
+class PromptEnableBody(BaseModel):
+    enabled: bool
+
+
+class PromptDeleteOut(BaseModel):
+    deleted: bool
+
+
+class PromptList(BaseModel):
+    items: list[PromptOut]
 
 
 class ResolvedOut(BaseModel):
@@ -82,23 +118,65 @@ class DryRunOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _prompt_to_out(p) -> PromptOut:
+def _preset_to_out(p, db_row: dict | None = None) -> PromptOut:
+    fm = FrontmatterOut(
+        scope=p.frontmatter.scope,
+        triggers=p.frontmatter.triggers,
+        priority=p.frontmatter.priority,
+        inherits=p.frontmatter.inherits,
+        variables=p.frontmatter.variables,
+    )
+    if db_row is not None:
+        db_body: str = db_row["body"]
+        enabled: bool = db_row.get("enabled", True)
+        try:
+            parsed = parse_prompt_content(db_body, name=p.name, path="", source="db")
+            effective_fm = FrontmatterOut(
+                scope=parsed.frontmatter.scope,
+                triggers=parsed.frontmatter.triggers,
+                priority=parsed.frontmatter.priority,
+                inherits=parsed.frontmatter.inherits,
+                variables=parsed.frontmatter.variables,
+            )
+        except Exception:
+            effective_fm = fm
+        return PromptOut(
+            name=p.name,
+            source="preset+db",
+            frontmatter=effective_fm,
+            body=db_body,
+            db_override=db_body,
+            enabled=enabled,
+        )
+    return PromptOut(name=p.name, source="preset", frontmatter=fm, body=p.body, enabled=True)
+
+
+def _db_row_to_out(row: dict) -> PromptOut:
+    body: str = row["body"]
+    name: str = row["path"]
+    enabled: bool = row.get("enabled", True)
+    try:
+        parsed = parse_prompt_content(body, name=name, path="", source="db")
+        fm = FrontmatterOut(
+            scope=parsed.frontmatter.scope,
+            triggers=parsed.frontmatter.triggers,
+            priority=parsed.frontmatter.priority,
+            inherits=parsed.frontmatter.inherits,
+            variables=parsed.frontmatter.variables,
+        )
+    except Exception:
+        fm = FrontmatterOut(scope=[], triggers=[], priority=0, inherits=None, variables={})
     return PromptOut(
-        name=p.name,
-        source=p.source,
-        frontmatter=FrontmatterOut(
-            scope=p.frontmatter.scope,
-            triggers=p.frontmatter.triggers,
-            priority=p.frontmatter.priority,
-            inherits=p.frontmatter.inherits,
-            variables=p.frontmatter.variables,
-        ),
-        body=p.body,
+        name=name,
+        source="db",
+        frontmatter=fm,
+        body=body,
+        db_override=body,
+        enabled=enabled,
     )
 
 
 async def _fetch_pr_row(pr_review_id: str) -> dict | None:
-    """Return a row with pr_reviews + webhook delivery payload, or None."""
     pool = db.get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -133,7 +211,6 @@ def _context_from_row(row: dict) -> PromptContext:
 
 
 async def _fetch_diff_chunks(repo: str, pr_number: int) -> list[dict]:
-    """Fetch PR file list from GitHub API; returns raw file dicts."""
     token = os.getenv("GITHUB_TOKEN", "")
     url = f"{_GITHUB_API_BASE}/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Accept": "application/vnd.github+json"}
@@ -150,7 +227,6 @@ async def _fetch_diff_chunks(repo: str, pr_number: int) -> list[dict]:
 
 
 def _build_diff_text(files: list[dict]) -> tuple[str, list[str]]:
-    """Return (diff_text, changed_files) from a GitHub files response."""
     _SKIP_SUFFIXES = (".lock", "-lock.json", "-lock.yaml")
     _SKIP_SEGMENTS = ("dist/", "node_modules/", ".min.js", ".min.css", "vendor/", "generated/")
 
@@ -277,23 +353,249 @@ async def _call_llm(cfg: dict, prompt: str) -> dict:
 
 
 @router.get("/admin/prompts", dependencies=[Depends(_require_prompt_dsl)])
-async def list_prompts() -> dict:
-    """List all available prompts (built-in presets)."""
+async def list_prompts() -> PromptList:
+    """List all prompts. DB entries are primary; presets fill in the rest."""
     try:
-        prompts = load_all_presets()
+        presets = load_all_presets()
     except PromptValidationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return {"items": [_prompt_to_out(p).model_dump() for p in prompts]}
+
+    preset_names = {p.name for p in presets}
+
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
+            _GLOBAL_REPO_ID,
+        )
+    db_map: dict[str, dict] = {r["path"]: dict(r) for r in rows}
+
+    items: list[PromptOut] = []
+    for p in presets:
+        items.append(_preset_to_out(p, db_map.get(p.name)))
+    for name, row in db_map.items():
+        if name not in preset_names:
+            items.append(_db_row_to_out(row))
+
+    return PromptList(items=items)
+
+
+@router.get("/admin/prompts/export", dependencies=[Depends(_require_prompt_dsl)])
+async def export_prompts() -> Response:
+    """Download all DB prompts as a .md zip archive."""
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT path, body FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
+            _GLOBAL_REPO_ID,
+        )
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for row in rows:
+            zf.writestr(f"{row['path']}.md", row["body"])
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="prompts.zip"'},
+    )
+
+
+@router.post("/admin/prompts/import", dependencies=[Depends(_require_prompt_dsl)])
+async def import_prompts(
+    files: list[UploadFile] = File(...),
+) -> dict:
+    """Import .md prompt files into DB. Each file becomes a DB entry (upsert)."""
+    pool = db.get_pool()
+    imported: list[str] = []
+    errors: list[str] = []
+
+    for upload in files:
+        filename = upload.filename or ""
+        if not filename.endswith(".md"):
+            errors.append(f"{filename}: not a .md file")
+            continue
+        name = filename.removesuffix(".md")
+        if not name:
+            errors.append(f"{filename}: empty name")
+            continue
+
+        content = (await upload.read()).decode("utf-8", errors="replace")
+        try:
+            parse_prompt_content(content, name=name, path="", source="db")
+        except Exception as exc:
+            errors.append(f"{name}: parse error — {exc}")
+            continue
+
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO prompt_overrides (repo_id, path, body, enabled)
+                VALUES ($1, $2, $3, TRUE)
+                ON CONFLICT (repo_id, path) DO UPDATE
+                    SET body = EXCLUDED.body, updated_at = NOW()
+                """,
+                _GLOBAL_REPO_ID,
+                name,
+                content,
+            )
+        imported.append(name)
+
+    return {"imported": imported, "errors": errors}
+
+
+@router.post("/admin/prompts", dependencies=[Depends(_require_prompt_dsl)])
+async def create_prompt(body: PromptCreate) -> PromptOut:
+    """Create a new DB-only prompt. Fails if a DB entry already exists for that name."""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required")
+
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchrow(
+            "SELECT path FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+            _GLOBAL_REPO_ID,
+            name,
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409, detail=f"Prompt {name!r} already exists in DB"
+            )
+        try:
+            parse_prompt_content(body.body, name=name, path="", source="db")
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid prompt content: {exc}") from exc
+
+        row = await conn.fetchrow(
+            """
+            INSERT INTO prompt_overrides (repo_id, path, body, enabled)
+            VALUES ($1, $2, $3, TRUE)
+            RETURNING path, body, enabled, updated_at
+            """,
+            _GLOBAL_REPO_ID,
+            name,
+            body.body,
+        )
+    return _db_row_to_out(dict(row))
 
 
 @router.get("/admin/prompts/{name}", dependencies=[Depends(_require_prompt_dsl)])
 async def get_prompt(name: str) -> PromptOut:
-    """Get a single prompt by name."""
+    """Get a single prompt by name (DB state + preset fallback)."""
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+            _GLOBAL_REPO_ID,
+            name,
+        )
+    db_row = dict(row) if row else None
+
     try:
-        prompt = load_preset(name)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=f"Prompt {name!r} not found") from exc
-    return _prompt_to_out(prompt)
+        preset = load_preset(name)
+        return _preset_to_out(preset, db_row)
+    except ValueError:
+        pass
+
+    if db_row:
+        return _db_row_to_out(db_row)
+
+    raise HTTPException(status_code=404, detail=f"Prompt {name!r} not found")
+
+
+@router.put("/admin/prompts/{name}", dependencies=[Depends(_require_prompt_dsl)])
+async def save_prompt(name: str, body: PromptBody) -> PromptOut:
+    """Save (upsert) prompt body in DB. Works for both preset overrides and DB-only prompts."""
+    try:
+        parse_prompt_content(body.body, name=name, path="", source="db")
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid prompt content: {exc}") from exc
+
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO prompt_overrides (repo_id, path, body, enabled)
+            VALUES ($1, $2, $3, TRUE)
+            ON CONFLICT (repo_id, path) DO UPDATE
+                SET body = EXCLUDED.body, updated_at = NOW()
+            RETURNING path, body, enabled, updated_at
+            """,
+            _GLOBAL_REPO_ID,
+            name,
+            body.body,
+        )
+
+    db_row = dict(row)
+    try:
+        preset = load_preset(name)
+        return _preset_to_out(preset, db_row)
+    except ValueError:
+        return _db_row_to_out(db_row)
+
+
+@router.patch("/admin/prompts/{name}/enabled", dependencies=[Depends(_require_prompt_dsl)])
+async def set_prompt_enabled(name: str, body: PromptEnableBody) -> PromptOut:
+    """Enable or disable a prompt. Creates a DB entry if needed (for presets)."""
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchrow(
+            "SELECT path, body FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+            _GLOBAL_REPO_ID,
+            name,
+        )
+        if existing is None:
+            try:
+                preset = load_preset(name)
+                seed_body = preset.body
+            except ValueError as exc:
+                raise HTTPException(status_code=404, detail=f"Prompt {name!r} not found") from exc
+            row = await conn.fetchrow(
+                """
+                INSERT INTO prompt_overrides (repo_id, path, body, enabled)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (repo_id, path) DO UPDATE
+                    SET enabled = EXCLUDED.enabled, updated_at = NOW()
+                RETURNING path, body, enabled, updated_at
+                """,
+                _GLOBAL_REPO_ID,
+                name,
+                seed_body,
+                body.enabled,
+            )
+        else:
+            row = await conn.fetchrow(
+                """
+                UPDATE prompt_overrides SET enabled = $1, updated_at = NOW()
+                WHERE repo_id = $2 AND path = $3
+                RETURNING path, body, enabled, updated_at
+                """,
+                body.enabled,
+                _GLOBAL_REPO_ID,
+                name,
+            )
+
+    db_row = dict(row)
+    try:
+        preset = load_preset(name)
+        return _preset_to_out(preset, db_row)
+    except ValueError:
+        return _db_row_to_out(db_row)
+
+
+@router.delete("/admin/prompts/{name}", dependencies=[Depends(_require_prompt_dsl)])
+async def delete_prompt(name: str) -> PromptDeleteOut:
+    """Delete the DB entry for a prompt. Presets revert to file default; DB-only prompts are removed."""
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+            _GLOBAL_REPO_ID,
+            name,
+        )
+    return PromptDeleteOut(deleted=result != "DELETE 0")
 
 
 @router.post("/admin/prompts/resolve", dependencies=[Depends(_require_prompt_dsl)])
@@ -327,7 +629,6 @@ async def dry_run_prompt(body: DryRunBody) -> DryRunOut:
             status_code=404, detail=f"PR review {body.pr_review_id!r} not found"
         )
 
-    # Build context — fetch diff from GitHub if token is available
     ctx = _context_from_row(row)
     files = await _fetch_diff_chunks(row["repo"], row["pr_number"])
     if files:
