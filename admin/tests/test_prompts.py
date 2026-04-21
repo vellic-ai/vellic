@@ -101,7 +101,11 @@ async def test_get_prompt_found(client):
         body="Check for vulnerabilities.",
         source="preset",
     )
-    with patch("app.prompts_router.load_preset", return_value=fake):
+    pool, _ = _make_pool(fetchrow_result=None)
+    with (
+        patch("app.prompts_router.db.get_pool", return_value=pool),
+        patch("app.prompts_router.load_preset", return_value=fake),
+    ):
         async with client as c:
             r = await c.get("/admin/prompts/secure-review")
 
@@ -112,7 +116,11 @@ async def test_get_prompt_found(client):
 
 
 async def test_get_prompt_not_found(client):
-    with patch("app.prompts_router.load_preset", side_effect=ValueError("not found")):
+    pool, _ = _make_pool(fetchrow_result=None)
+    with (
+        patch("app.prompts_router.db.get_pool", return_value=pool),
+        patch("app.prompts_router.load_preset", side_effect=ValueError("not found")),
+    ):
         async with client as c:
             r = await c.get("/admin/prompts/nonexistent")
     assert r.status_code == 404

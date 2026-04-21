@@ -318,6 +318,61 @@ export interface paths {
     };
   };
 
+  "/admin/prompts": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptList"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    post: {
+      requestBody: { content: { "application/json": components["schemas"]["PromptCreate"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        409: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/prompts/{name}": {
+    get: {
+      parameters: { path: { name: string } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    put: {
+      parameters: { path: { name: string } };
+      requestBody: { content: { "application/json": components["schemas"]["PromptBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    delete: {
+      parameters: { path: { name: string } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptDeleteOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/prompts/{name}/enabled": {
+    patch: {
+      parameters: { path: { name: string } };
+      requestBody: { content: { "application/json": components["schemas"]["PromptEnableBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PromptOut"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
   "/admin/features/{flag_key}": {
     put: {
       parameters: { path: { flag_key: string } };
@@ -560,6 +615,49 @@ export interface components {
       enabled?: boolean;
     };
 
+    PromptFrontmatter: {
+      scope: string[];
+      triggers: string[];
+      priority: number;
+      inherits: string | null;
+      variables: Record<string, string>;
+    };
+
+    PromptOut: {
+      name: string;
+      source: "preset" | "db" | "preset+db";
+      frontmatter: components["schemas"]["PromptFrontmatter"];
+      body: string;
+      db_override: string | null;
+      enabled: boolean;
+    };
+
+    PromptList: {
+      items: components["schemas"]["PromptOut"][];
+    };
+
+    PromptBody: {
+      body: string;
+    };
+
+    PromptCreate: {
+      name: string;
+      body: string;
+    };
+
+    PromptEnableBody: {
+      enabled: boolean;
+    };
+
+    PromptDeleteOut: {
+      deleted: boolean;
+    };
+
+    PromptImportResult: {
+      imported: string[];
+      errors: string[];
+    };
+
     FeatureFlagOverride: {
       enabled: boolean;
     };
@@ -597,3 +695,10 @@ export type McpServerBody = components["schemas"]["McpServerBody"];
 export type McpServerPatchBody = components["schemas"]["McpServerPatchBody"];
 export type FeatureFlagOverride = components["schemas"]["FeatureFlagOverride"];
 export type FeatureFlagToggleOut = components["schemas"]["FeatureFlagToggleOut"];
+export type PromptOut = components["schemas"]["PromptOut"];
+export type PromptList = components["schemas"]["PromptList"];
+export type PromptBody = components["schemas"]["PromptBody"];
+export type PromptCreate = components["schemas"]["PromptCreate"];
+export type PromptEnableBody = components["schemas"]["PromptEnableBody"];
+export type PromptDeleteOut = components["schemas"]["PromptDeleteOut"];
+export type PromptImportResult = components["schemas"]["PromptImportResult"];
