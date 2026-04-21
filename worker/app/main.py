@@ -9,7 +9,7 @@ from arq.connections import RedisSettings
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .jobs import post_feedback, process_webhook
-from .metrics import get_max_retries
+from .metrics import get_max_retries, webhook_dlq_depth
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")

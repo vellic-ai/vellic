@@ -54,10 +54,23 @@ jobs:
           pip install uv
           uv pip install --system -e "${{ matrix.service }}[dev]"
       - name: Run pytest
-        run: pytest ${{ matrix.service }}/ -v --tb=short
+        run: |
+          if [ "${{ matrix.service }}" = "api" ] || [ "${{ matrix.service }}" = "worker" ]; then
+            pytest ${{ matrix.service }}/ -v --tb=short \
+              --cov=app --cov-report=xml:${{ matrix.service }}/coverage.xml \
+              --cov-fail-under=85
+          else
+            pytest ${{ matrix.service }}/ -v --tb=short
+          fi
         env:
           DATABASE_URL: "postgresql://vellic:vellic@localhost:5432/vellic"
           REDIS_URL: "redis://localhost:6379"
+      - name: Upload coverage report
+        if: ${{ matrix.service == 'api' || matrix.service == 'worker' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/coverage.xml
 
   build-push:
     name: Build & Push (${{ matrix.service }})

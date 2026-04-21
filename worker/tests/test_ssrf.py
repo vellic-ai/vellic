@@ -111,3 +111,14 @@ class TestMissingHostname:
     def test_no_hostname_rejected(self):
         with pytest.raises(ValueError):
             validate_outbound_url("https:///path/only")
+
+
+class TestIsPrivateIpDirect:
+    def test_invalid_ip_string_returns_true(self):
+        from app.security.ssrf import _is_private_ip
+        # Invalid IP strings must be treated as private (fail-closed)
+        assert _is_private_ip("not-a-valid-ip") is True
+
+    def test_valid_public_ip_returns_false(self):
+        from app.security.ssrf import _is_private_ip
+        assert _is_private_ip("8.8.8.8") is False
