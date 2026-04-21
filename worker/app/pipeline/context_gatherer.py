@@ -10,4 +10,5 @@ def gather_context(event: PREvent) -> PRContext:
         title=event.title,
         body=event.description,
         base_branch=event.base_branch,
+        platform=event.platform,
     )
