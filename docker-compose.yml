@@ -46,9 +46,13 @@ services:
     build:
       context: ./api
       target: builder
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./api/app:/app/app
+      - ./api/alembic:/app/alembic
+      - ./api/alembic.ini:/app/alembic.ini
     ports:
       - "8000:8000"
     environment:
