@@ -6,6 +6,7 @@ import DeliveriesPage from "@/pages/deliveries";
 import JobsPage from "@/pages/jobs";
 import SettingsPage from "@/pages/settings";
 import ReposPage from "@/pages/repos";
+import RepoExtensionsPage from "@/pages/repo-extensions";
 import NotFoundPage from "@/pages/NotFoundPage";
 import DesignShowcase from "@/pages/design-showcase";
 
@@ -30,6 +31,7 @@ const routes = [
       { path: "/jobs/:jobId", element: <JobsPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/repos", element: <ReposPage /> },
+      { path: "/repos/:repoId/extensions", element: <RepoExtensionsPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },
