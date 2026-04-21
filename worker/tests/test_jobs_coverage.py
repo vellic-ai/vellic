@@ -386,3 +386,157 @@ async def test_post_feedback_exhausts_retries_raises():
     with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=Exception("still failing"))):
         with pytest.raises(Exception, match="still failing"):
             await post_feedback(ctx, pr_review_id)
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage: GitLab path, LLM config fallback, dedup branches
+# ---------------------------------------------------------------------------
+
+_GL_PAYLOAD = {
+    "object_kind": "merge_request",
+    "project": {"path_with_namespace": "acme/backend"},
+    "object_attributes": {
+        "iid": 7,
+        "last_commit": {"id": "glsha"},
+        "target_branch": "main",
+        "title": "GitLab MR",
+        "description": "",
+        "url": "https://gitlab.com/acme/backend/-/merge_requests/7",
+        "action": "open",
+    },
+}
+
+
+@pytest.mark.asyncio
+async def test_process_webhook_gitlab_mr_path():
+    """event_type='merge_request' must use the GitLab platform branch."""
+    job_id = uuid.uuid4()
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(
+        return_value={"event_type": "merge_request", "payload": _GL_PAYLOAD}
+    )
+    pool.execute = AsyncMock()
+
+    with (
+        patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
+        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
+        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}),
+        patch("app.jobs.build_provider", return_value=MagicMock()),
+        patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
+        patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
+    ):
+        ctx = {"db_pool": pool, "redis": AsyncMock(), "job_try": 1}
+        await process_webhook(ctx, "del-gl")
+
+    pool.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_webhook_llm_config_db_error_falls_back():
+    """load_llm_config_from_db raising must silently fall back to env vars."""
+    job_id = uuid.uuid4()
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(
+        return_value={"event_type": "pull_request", "payload": _PR_PAYLOAD}
+    )
+    pool.execute = AsyncMock()
+    env_cfg = {"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}
+
+    with (
+        patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
+        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(side_effect=RuntimeError("db down"))),
+        patch("app.jobs.load_env_llm_config", return_value=env_cfg),
+        patch("app.jobs.build_provider", return_value=MagicMock()),
+        patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
+        patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
+    ):
+        ctx = {"db_pool": pool, "redis": AsyncMock(), "job_try": 1}
+        await process_webhook(ctx, "del-fallback")  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_post_feedback_gitlab_dedup_skip():
+    """Already-posted gitlab review must be dedup-skipped."""
+    pr_review_id = str(uuid.uuid4())
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={
+        "repo": "acme/backend",
+        "pr_number": 7,
+        "commit_sha": "glsha",
+        "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "gitlab",
+        "github_review_id": None,
+        "gitlab_discussion_id": "disc-123",
+    })
+    ctx = {"db_pool": pool, "job_try": 1}
+
+    await post_feedback(ctx, pr_review_id)
+
+    pool.fetchval.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_feedback_bitbucket_dedup_skip():
+    """Already-posted bitbucket review must be dedup-skipped."""
+    pr_review_id = str(uuid.uuid4())
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={
+        "repo": "acme/backend",
+        "pr_number": 3,
+        "commit_sha": "bbsha",
+        "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "bitbucket",
+        "github_review_id": None,
+        "gitlab_discussion_id": None,
+        "bitbucket_comment_id": "bb-456",
+    })
+    ctx = {"db_pool": pool, "job_try": 1}
+
+    await post_feedback(ctx, pr_review_id)
+
+    pool.fetchval.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_feedback_rate_limit_exhausted_raises():
+    """RateLimitError on job_try > max must re-raise (not wrap in Retry)."""
+    pr_review_id = str(uuid.uuid4())
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={
+        "repo": "acme/backend",
+        "pr_number": 1,
+        "commit_sha": "sha",
+        "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "github",
+        "github_review_id": None,
+        "gitlab_discussion_id": None,
+    })
+    ctx = {"db_pool": pool, "job_try": 3}  # >= len(_FEEDBACK_RETRY_DELAYS) + 1
+
+    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=RateLimitError("rate limit exhausted"))):
+        with pytest.raises(RateLimitError):
+            await post_feedback(ctx, pr_review_id)
+
+
+@pytest.mark.asyncio
+async def test_post_feedback_gitlab_platform_path():
+    """post_feedback on platform=gitlab must call post_gitlab_discussion."""
+    pr_review_id = str(uuid.uuid4())
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={
+        "repo": "acme/backend",
+        "pr_number": 7,
+        "commit_sha": "glsha",
+        "feedback": {"comments": [], "summary": "ok", "generic_ratio": 0.0},
+        "platform": "gitlab",
+        "github_review_id": None,
+        "gitlab_discussion_id": None,
+    })
+    pool.fetchval = AsyncMock(return_value=uuid.uuid4())
+    ctx = {"db_pool": pool, "job_try": 1}
+
+    from app.pipeline.feedback_poster import GitLabClientError
+    with patch("app.jobs.post_gitlab_discussion", new=AsyncMock(return_value="disc-789")):
+        await post_feedback(ctx, pr_review_id)
+
+    pool.fetchval.assert_called_once()

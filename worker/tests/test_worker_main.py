@@ -62,6 +62,21 @@ class TestHealthHandler:
         handler = _make_handler("/health")
         handler.log_message("GET %s %s", "/health", "200")  # should not raise
 
+    def test_metrics_path_sends_200(self):
+        handler = _make_handler("/metrics")
+        responses = []
+
+        def fake_send_response(code):
+            responses.append(code)
+
+        handler.send_response = fake_send_response
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+
+        handler.do_GET()
+
+        assert responses == [200]
+
 
 # ---------------------------------------------------------------------------
 # startup / shutdown
@@ -101,3 +116,40 @@ async def test_shutdown_closes_pools():
 async def test_shutdown_handles_missing_pools():
     """shutdown must not raise when ctx keys are absent."""
     await shutdown({})
+
+
+@pytest.mark.asyncio
+async def test_startup_initialises_dlq_depth():
+    """startup sets webhook_dlq_depth gauge from the DB count."""
+    ctx: dict = {}
+    fake_pool = AsyncMock()
+    fake_pool.fetchval = AsyncMock(return_value=5)
+    fake_arq = MagicMock()
+
+    with (
+        patch("app.main.asyncpg.create_pool", new=AsyncMock(return_value=fake_pool)),
+        patch("app.main.arq_create_pool", new=AsyncMock(return_value=fake_arq)),
+        patch("app.main.webhook_dlq_depth") as mock_gauge,
+        patch.dict("os.environ", {"DATABASE_URL": "postgresql://user:pass@localhost/db"}),
+    ):
+        await startup(ctx)
+
+    mock_gauge.set.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
+async def test_startup_dlq_depth_exception_is_swallowed():
+    """startup must not raise when the dlq_depth query fails."""
+    ctx: dict = {}
+    fake_pool = AsyncMock()
+    fake_pool.fetchval = AsyncMock(side_effect=Exception("table missing"))
+    fake_arq = MagicMock()
+
+    with (
+        patch("app.main.asyncpg.create_pool", new=AsyncMock(return_value=fake_pool)),
+        patch("app.main.arq_create_pool", new=AsyncMock(return_value=fake_arq)),
+        patch.dict("os.environ", {"DATABASE_URL": "postgresql://user:pass@localhost/db"}),
+    ):
+        await startup(ctx)  # must not raise
+
+    assert ctx["db_pool"] is fake_pool

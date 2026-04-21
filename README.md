@@ -12,6 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
   <a href="https://github.com/vellic-ai/vellic/releases"><img src="https://img.shields.io/github/v/release/vellic-ai/vellic?include_prereleases&style=for-the-badge" alt="Release"></a>
   <a href="https://github.com/vellic-ai/vellic/stargazers"><img src="https://img.shields.io/github/stars/vellic-ai/vellic?style=for-the-badge" alt="Stars"></a>
+  <img src="https://img.shields.io/badge/coverage-85%25%2B-brightgreen?style=for-the-badge" alt="Test Coverage ≥85%">
 </p>
 
 <p align="center">
