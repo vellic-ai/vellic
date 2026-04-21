@@ -4,7 +4,7 @@
  */
 import { test, expect } from "@playwright/test";
 
-test.skip("job detail shows all required fields", async ({ page }) => {
+test("job detail shows all required fields", async ({ page }) => {
   await page.goto("/jobs");
 
   // Jobs table is rendered.
@@ -23,19 +23,9 @@ test.skip("job detail shows all required fields", async ({ page }) => {
   await expect(page).toHaveURL(/\/jobs\/.+/, { timeout: 5_000 });
 
   // Required detail fields are all visible.
-  const statusBadge = page
-    .locator("[data-testid=job-status]")
-    .or(page.getByText(/running|done|failed|pending/i).first());
-  await expect(statusBadge).toBeVisible();
-
-  const repoField = page
-    .locator("[data-testid=job-repo]")
-    .or(page.getByRole("definition").filter({ hasText: /\// }).first())
-    .or(page.getByText(/\//).first());
-  await expect(repoField).toBeVisible();
-
-  const durationField = page
-    .locator("[data-testid=job-duration]")
-    .or(page.getByText(/ms|sec|min/).first());
-  await expect(durationField).toBeVisible();
+  // Use data-testid locators directly to avoid strict-mode violations from
+  // getByText matching <option> elements in the status filter dropdown.
+  await expect(page.locator("[data-testid=job-status]")).toBeVisible();
+  await expect(page.locator("[data-testid=job-repo]")).toBeVisible();
+  await expect(page.locator("[data-testid=job-duration]")).toBeVisible();
 });
