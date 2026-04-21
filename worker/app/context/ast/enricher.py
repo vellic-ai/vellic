@@ -95,5 +95,17 @@ class ASTEnricher:
         return ast_ctx
 
     def enrich_all(self, chunks: list[DiffChunk]) -> dict[str, ASTContext]:
-        """Return a mapping filename → ASTContext for all supported chunks."""
-        return {chunk.filename: self.enrich(chunk) for chunk in chunks}
+        """Return a mapping filename → ASTContext for all supported chunks.
+
+        A single file may appear in multiple DiffChunk objects when diff_fetcher
+        splits large files at 500-line boundaries.  We merge all patch lines per
+        filename before parsing so that the symbol graph covers the whole file.
+        """
+        from collections import defaultdict
+        grouped: dict[str, list[str]] = defaultdict(list)
+        for chunk in chunks:
+            grouped[chunk.filename].extend(chunk.patch_lines)
+        return {
+            filename: self.enrich(DiffChunk(filename=filename, patch_lines=patch_lines))
+            for filename, patch_lines in grouped.items()
+        }
