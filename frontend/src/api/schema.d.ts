@@ -309,6 +309,25 @@ export interface paths {
       };
     };
   };
+
+  "/admin/features": {
+    get: {
+      responses: {
+        200: { content: { "application/json": components["schemas"]["FeatureFlagList"] } };
+      };
+    };
+  };
+
+  "/admin/features/{flag_key}": {
+    put: {
+      parameters: { path: { flag_key: string } };
+      requestBody: { content: { "application/json": components["schemas"]["FeatureFlagOverride"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["FeatureFlagItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
 }
 
 export interface components {
@@ -525,6 +544,27 @@ export interface components {
     McpServerPatchBody: {
       enabled?: boolean;
     };
+
+    FeatureFlagItem: {
+      key: string;
+      description: string | null;
+      default_value: boolean;
+      override_value: boolean | null;
+      current_value: boolean;
+      scope: "global" | "tenant" | "repo";
+      set_by: string | null;
+      updated_at: string | null;
+      read_only: boolean;
+    };
+
+    FeatureFlagList: {
+      items: components["schemas"]["FeatureFlagItem"][];
+    };
+
+    FeatureFlagOverride: {
+      enabled: boolean;
+      scope?: "global" | "tenant" | "repo";
+    };
   };
   responses: never;
   parameters: never;
@@ -552,3 +592,6 @@ export type PluginPatchBody = components["schemas"]["PluginPatchBody"];
 export type McpServerItem = components["schemas"]["McpServerItem"];
 export type McpServerBody = components["schemas"]["McpServerBody"];
 export type McpServerPatchBody = components["schemas"]["McpServerPatchBody"];
+export type FeatureFlagItem = components["schemas"]["FeatureFlagItem"];
+export type FeatureFlagList = components["schemas"]["FeatureFlagList"];
+export type FeatureFlagOverride = components["schemas"]["FeatureFlagOverride"];
