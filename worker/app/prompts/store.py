@@ -17,7 +17,8 @@ import asyncpg
 async def list_overrides(conn: asyncpg.Connection, repo_id: str) -> list[dict]:
     """Return all prompt overrides for *repo_id*, ordered by path."""
     rows = await conn.fetch(
-        "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
+        "SELECT path, body, enabled, updated_at"
+        " FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
         repo_id,
     )
     return [dict(r) for r in rows]
@@ -28,7 +29,8 @@ async def get_override(
 ) -> dict | None:
     """Return a single override or None if it does not exist."""
     row = await conn.fetchrow(
-        "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+        "SELECT path, body, enabled, updated_at"
+        " FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
         repo_id,
         path,
     )
