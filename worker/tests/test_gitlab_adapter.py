@@ -1,4 +1,3 @@
-import pytest
 
 from app.adapters.gitlab import _gitlab_base, normalize_mr
 

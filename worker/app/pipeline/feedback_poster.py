@@ -237,7 +237,9 @@ async def post_bitbucket_comment(
     headers["Content-Type"] = "application/json"
 
     owner, _, slug = repo.partition("/")
-    base_url = f"{_BITBUCKET_API_BASE}/repositories/{owner}/{slug}/pullrequests/{pr_number}/comments"
+    base_url = (
+        f"{_BITBUCKET_API_BASE}/repositories/{owner}/{slug}/pullrequests/{pr_number}/comments"
+    )
 
     body = _build_bitbucket_summary_body(result)
     summary_payload = {"content": {"raw": body}}

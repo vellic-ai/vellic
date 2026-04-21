@@ -5,7 +5,6 @@ import uuid
 import asyncpg
 from arq import Retry
 
-from .adapters.bitbucket import normalize_pr as normalize_bb_pr
 from .adapters.github import normalize_pr
 from .adapters.gitlab import normalize_mr
 from .llm import build_provider

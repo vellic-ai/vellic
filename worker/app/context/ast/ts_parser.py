@@ -47,11 +47,11 @@ _CLASS_TYPES = {
 }
 
 
-def _text(node: "Node", src: bytes) -> str:
+def _text(node: Node, src: bytes) -> str:
     return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
 
 
-def _get_js_docstring(node: "Node", src: bytes) -> str:
+def _get_js_docstring(node: Node, src: bytes) -> str:
     prev = node.prev_sibling
     if prev and prev.type == "comment":
         raw = _text(prev, src)
@@ -61,7 +61,7 @@ def _get_js_docstring(node: "Node", src: bytes) -> str:
 
 
 def _extract_js_symbols(
-    node: "Node",
+    node: Node,
     src: bytes,
     parent_name: str = "",
 ) -> list[SymbolInfo]:
@@ -112,7 +112,8 @@ class TypeScriptASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _TS_AVAILABLE:
-            return ASTContext(filename=filename, language="typescript", parse_error="tree-sitter-typescript not installed")
+            return ASTContext(filename=filename, language="typescript",
+                              parse_error="tree-sitter-typescript not installed")
         src = source.encode("utf-8")
         try:
             tree = _TS_PARSER.parse(src)
@@ -128,7 +129,8 @@ class TSXASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _TS_AVAILABLE:
-            return ASTContext(filename=filename, language="tsx", parse_error="tree-sitter-typescript not installed")
+            return ASTContext(filename=filename, language="tsx",
+                              parse_error="tree-sitter-typescript not installed")
         src = source.encode("utf-8")
         try:
             tree = _TSX_PARSER.parse(src)
@@ -144,7 +146,8 @@ class JavaScriptASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _JS_AVAILABLE:
-            return ASTContext(filename=filename, language="javascript", parse_error="tree-sitter-javascript not installed")
+            return ASTContext(filename=filename, language="javascript",
+                              parse_error="tree-sitter-javascript not installed")
         src = source.encode("utf-8")
         try:
             tree = _JS_PARSER.parse(src)

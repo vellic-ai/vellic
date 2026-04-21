@@ -9,7 +9,6 @@ from hypothesis import strategies as st
 
 from app.pipeline.diff_fetcher import _chunk_patch, _is_generated
 
-
 # ---------------------------------------------------------------------------
 # _is_generated — should always return bool, never raise
 # ---------------------------------------------------------------------------
@@ -36,10 +35,21 @@ def test_is_generated_source_file(filename: str):
 # ---------------------------------------------------------------------------
 
 
-@given(
-    filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="./_ -")),
-    lines=st.lists(st.text(max_size=100, alphabet=st.characters(blacklist_characters="\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029")), min_size=0, max_size=2000),
+_FILENAME_ST = st.text(
+    min_size=1, max_size=50,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="./_ -"),
 )
+_LINES_ST = st.lists(
+    st.text(
+        max_size=100,
+        alphabet=st.characters(blacklist_characters="\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"),
+    ),
+    min_size=0,
+    max_size=2000,
+)
+
+
+@given(filename=_FILENAME_ST, lines=_LINES_ST)
 @settings(max_examples=50)
 def test_chunk_patch_total_lines_preserved(filename: str, lines: list):
     patch = "\n".join(f"+{line}" for line in lines)
@@ -54,10 +64,13 @@ def test_chunk_patch_total_lines_preserved(filename: str, lines: list):
         assert total == len(lines)
 
 
-@given(
-    filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="./_ -")),
-    lines=st.lists(st.just("+x"), min_size=1, max_size=2000),
+_FILENAME_LINES_ST = st.text(
+    min_size=1, max_size=50,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="./_ -"),
 )
+
+
+@given(filename=_FILENAME_LINES_ST, lines=st.lists(st.just("+x"), min_size=1, max_size=2000))
 @settings(max_examples=50)
 def test_chunk_patch_max_chunk_size_is_500(filename: str, lines: list):
     patch = "\n".join(lines)
@@ -66,10 +79,7 @@ def test_chunk_patch_max_chunk_size_is_500(filename: str, lines: list):
         assert len(chunk.patch_lines) <= 500
 
 
-@given(
-    filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="./_ -")),
-    lines=st.lists(st.just("+x"), min_size=1, max_size=2000),
-)
+@given(filename=_FILENAME_LINES_ST, lines=st.lists(st.just("+x"), min_size=1, max_size=2000))
 @settings(max_examples=50)
 def test_chunk_patch_filename_preserved(filename: str, lines: list):
     patch = "\n".join(lines)
@@ -78,9 +88,13 @@ def test_chunk_patch_filename_preserved(filename: str, lines: list):
         assert chunk.filename == filename
 
 
-@given(
-    filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll"), whitelist_characters="./_ -")),
+_SIMPLE_FILENAME_ST = st.text(
+    min_size=1, max_size=50,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll"), whitelist_characters="./_ -"),
 )
+
+
+@given(filename=_SIMPLE_FILENAME_ST)
 @settings(max_examples=30)
 def test_chunk_patch_single_line_gives_one_chunk(filename: str):
     chunks = _chunk_patch(filename, "+single line")

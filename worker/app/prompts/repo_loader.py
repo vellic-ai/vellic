@@ -11,7 +11,6 @@ Merge strategy:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import asyncpg
 from vellic_flags import by_key

@@ -5,17 +5,16 @@ import os
 
 from .provider import ASTProvider
 
-
 _providers: dict[str, ASTProvider] | None = None
 
 
 def _build_registry() -> dict[str, ASTProvider]:
     registry: dict[str, ASTProvider] = {}
 
-    from .python_parser import PythonASTProvider
-    from .ts_parser import JavaScriptASTProvider, TSXASTProvider, TypeScriptASTProvider
     from .go_parser import GoASTProvider
+    from .python_parser import PythonASTProvider
     from .rust_parser import RustASTProvider
+    from .ts_parser import JavaScriptASTProvider, TSXASTProvider, TypeScriptASTProvider
 
     for provider in (
         PythonASTProvider(),

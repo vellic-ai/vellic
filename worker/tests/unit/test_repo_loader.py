@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.prompts.models import PromptFile
 from app.prompts.repo_loader import _flag_enabled, load_repo_prompts, load_repo_prompts_sync
 
 _VALID_PROMPT = textwrap.dedent("""\

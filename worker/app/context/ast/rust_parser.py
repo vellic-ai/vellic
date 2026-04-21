@@ -19,11 +19,11 @@ except Exception as exc:  # pragma: no cover
     logger.debug("tree-sitter-rust unavailable: %s", exc)
 
 
-def _text(node: "Node", src: bytes) -> str:
+def _text(node: Node, src: bytes) -> str:
     return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
 
 
-def _extract_rust_symbols(node: "Node", src: bytes, parent_name: str = "") -> list[SymbolInfo]:
+def _extract_rust_symbols(node: Node, src: bytes, parent_name: str = "") -> list[SymbolInfo]:
     symbols: list[SymbolInfo] = []
     for child in node.children:
         if child.type == "function_item":
@@ -41,7 +41,10 @@ def _extract_rust_symbols(node: "Node", src: bytes, parent_name: str = "") -> li
         elif child.type in ("struct_item", "enum_item", "trait_item", "impl_item"):
             name_node = child.child_by_field_name("name")
             name = _text(name_node, src) if name_node else "<unknown>"
-            kind_map = {"struct_item": "class", "enum_item": "class", "trait_item": "class", "impl_item": "class"}
+            kind_map = {
+                "struct_item": "class", "enum_item": "class",
+                "trait_item": "class", "impl_item": "class",
+            }
             symbols.append(SymbolInfo(
                 name=name, kind=kind_map.get(child.type, "class"),
                 signature=_text(child, src).split("{")[0].strip()[:120],
@@ -62,7 +65,8 @@ class RustASTProvider(ASTProvider):
 
     def parse(self, filename: str, source: str) -> ASTContext:
         if not _AVAILABLE:
-            return ASTContext(filename=filename, language="rust", parse_error="tree-sitter-rust not installed")
+            return ASTContext(filename=filename, language="rust",
+                              parse_error="tree-sitter-rust not installed")
         src = source.encode("utf-8")
         try:
             tree = _PARSER.parse(src)

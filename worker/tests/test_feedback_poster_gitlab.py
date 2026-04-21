@@ -11,7 +11,6 @@ from app.pipeline.feedback_poster import (
 )
 from app.pipeline.models import AnalysisResult, ReviewComment
 
-
 # ---------------------------------------------------------------------------
 # _build_gitlab_note_body
 # ---------------------------------------------------------------------------

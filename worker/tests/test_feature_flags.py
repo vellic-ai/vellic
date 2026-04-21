@@ -4,9 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.llm.registry import build_provider, register
+from app.llm.registry import build_provider
 from app.pipeline.runner import _flag_enabled
-
 
 # ---------------------------------------------------------------------------
 # _flag_enabled helper
@@ -55,7 +54,7 @@ def test_build_provider_unknown_flag_defaults_enabled():
     """Providers not in _PROVIDER_FLAGS are not blocked even if no flag exists."""
     _dummy_cls = MagicMock(return_value=object())
     with patch("app.llm.registry._REGISTRY", {"custom": _dummy_cls}):
-        result = build_provider("custom")
+        build_provider("custom")
     _dummy_cls.assert_called_once()
 
 
@@ -68,8 +67,8 @@ def test_build_provider_unknown_flag_defaults_enabled():
 async def test_run_pipeline_skips_when_diff_disabled(monkeypatch):
     monkeypatch.setenv("VELLIC_FEATURE_PIPELINE_DIFF", "false")
 
-    from app.pipeline.runner import run_pipeline
     from app.events import PREvent
+    from app.pipeline.runner import run_pipeline
 
     event = PREvent(
         platform="github",
@@ -97,9 +96,9 @@ async def test_run_pipeline_skips_when_diff_disabled(monkeypatch):
 async def test_run_pipeline_skips_when_llm_analysis_disabled(monkeypatch):
     monkeypatch.setenv("VELLIC_FEATURE_PIPELINE_LLM_ANALYSIS", "false")
 
-    from app.pipeline.runner import run_pipeline
     from app.events import PREvent
     from app.pipeline.models import DiffChunk
+    from app.pipeline.runner import run_pipeline
 
     event = PREvent(
         platform="github",
@@ -121,7 +120,8 @@ async def test_run_pipeline_skips_when_llm_analysis_disabled(monkeypatch):
     arq = AsyncMock()
 
     with (
-        patch("app.pipeline.runner.fetch_diff_chunks", AsyncMock(return_value=[DiffChunk("f.py", ["+x"])])),
+        patch("app.pipeline.runner.fetch_diff_chunks",
+              AsyncMock(return_value=[DiffChunk("f.py", ["+x"])])),
         patch("app.pipeline.runner._ast_enricher") as mock_enricher,
     ):
         mock_enricher.enrich_all.return_value = {}

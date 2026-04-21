@@ -7,7 +7,6 @@ Covers:
 - post_feedback (not-found path, rate-limit retry, GitHubClientError terminal path)
 """
 
-import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,7 +15,6 @@ from arq import Retry
 
 from app.jobs import _dead_letter, _get_or_create_job, post_feedback, process_webhook
 from app.pipeline.feedback_poster import GitHubClientError, RateLimitError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -130,7 +128,10 @@ async def test_process_webhook_skips_when_delivery_not_found():
 async def test_process_webhook_marks_processed_for_non_pr_event():
     pool = AsyncMock()
     pool.fetchrow = AsyncMock(
-        return_value={"event_type": "push", "payload": {"repository": {"full_name": "acme/backend"}}}
+        return_value={
+            "event_type": "push",
+            "payload": {"repository": {"full_name": "acme/backend"}},
+        }
     )
     pool.execute = AsyncMock()
     ctx = {"db_pool": pool, "redis": AsyncMock(), "job_try": 1}
@@ -174,7 +175,13 @@ async def test_process_webhook_happy_path():
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
         patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "llama3", "base_url": "http://localhost", "api_key": ""}),
+        patch(
+            "app.jobs.load_env_llm_config",
+            return_value={
+                "provider": "ollama", "model": "llama3",
+                "base_url": "http://localhost", "api_key": "",
+            },
+        ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
         patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
@@ -199,7 +206,10 @@ async def test_process_webhook_retries_on_pipeline_error():
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
         patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}),
+        patch(
+            "app.jobs.load_env_llm_config",
+            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+        ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
         patch("app.jobs.run_pipeline", new=AsyncMock(side_effect=RuntimeError("transient"))),
@@ -221,7 +231,10 @@ async def test_process_webhook_dead_letters_on_third_attempt():
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
         patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}),
+        patch(
+            "app.jobs.load_env_llm_config",
+            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+        ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
         patch("app.jobs.run_pipeline", new=AsyncMock(side_effect=RuntimeError("fatal"))),
@@ -245,7 +258,10 @@ async def test_process_webhook_loads_db_llm_config_when_available():
     )
     pool.execute = AsyncMock()
 
-    db_cfg = {"provider": "ollama", "model": "llama3", "base_url": "http://localhost", "api_key": ""}
+    db_cfg = {
+        "provider": "ollama", "model": "llama3",
+        "base_url": "http://localhost", "api_key": "",
+    }
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
@@ -279,7 +295,10 @@ async def test_process_webhook_per_repo_llm_override():
             "config_json": {"enabled": True, "provider": "openai", "model": "gpt-4o"}
         })),
         patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}),
+        patch(
+            "app.jobs.load_env_llm_config",
+            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+        ),
         patch("app.jobs.build_provider", side_effect=capture_build),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
         patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
@@ -321,7 +340,10 @@ async def test_post_feedback_retries_on_rate_limit():
     })
 
     ctx = {"db_pool": pool, "job_try": 1}
-    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=RateLimitError("rate limit"))):
+    with patch(
+        "app.jobs.post_github_review",
+        new=AsyncMock(side_effect=RateLimitError("rate limit")),
+    ):
         with pytest.raises(Retry):
             await post_feedback(ctx, pr_review_id)
 
@@ -342,7 +364,10 @@ async def test_post_feedback_terminal_on_github_client_error():
     })
 
     ctx = {"db_pool": pool, "job_try": 1}
-    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=GitHubClientError("403 Forbidden"))):
+    with patch(
+        "app.jobs.post_github_review",
+        new=AsyncMock(side_effect=GitHubClientError("403 Forbidden")),
+    ):
         await post_feedback(ctx, pr_review_id)  # must not raise
 
     pool.fetchval.assert_not_called()
@@ -363,7 +388,10 @@ async def test_post_feedback_retries_on_generic_exception():
     })
 
     ctx = {"db_pool": pool, "job_try": 1}
-    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=Exception("unknown error"))):
+    with patch(
+        "app.jobs.post_github_review",
+        new=AsyncMock(side_effect=Exception("unknown error")),
+    ):
         with pytest.raises(Retry):
             await post_feedback(ctx, pr_review_id)
 
@@ -383,7 +411,10 @@ async def test_post_feedback_exhausts_retries_raises():
     })
 
     ctx = {"db_pool": pool, "job_try": 3}
-    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=Exception("still failing"))):
+    with patch(
+        "app.jobs.post_github_review",
+        new=AsyncMock(side_effect=Exception("still failing")),
+    ):
         with pytest.raises(Exception, match="still failing"):
             await post_feedback(ctx, pr_review_id)
 
@@ -420,7 +451,10 @@ async def test_process_webhook_gitlab_mr_path():
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
         patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_env_llm_config", return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}),
+        patch(
+            "app.jobs.load_env_llm_config",
+            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+        ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
         patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
@@ -444,7 +478,10 @@ async def test_process_webhook_llm_config_db_error_falls_back():
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(side_effect=RuntimeError("db down"))),
+        patch(
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ),
         patch("app.jobs.load_env_llm_config", return_value=env_cfg),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -513,7 +550,10 @@ async def test_post_feedback_rate_limit_exhausted_raises():
     })
     ctx = {"db_pool": pool, "job_try": 3}  # >= len(_FEEDBACK_RETRY_DELAYS) + 1
 
-    with patch("app.jobs.post_github_review", new=AsyncMock(side_effect=RateLimitError("rate limit exhausted"))):
+    with patch(
+        "app.jobs.post_github_review",
+        new=AsyncMock(side_effect=RateLimitError("rate limit exhausted")),
+    ):
         with pytest.raises(RateLimitError):
             await post_feedback(ctx, pr_review_id)
 
@@ -535,7 +575,6 @@ async def test_post_feedback_gitlab_platform_path():
     pool.fetchval = AsyncMock(return_value=uuid.uuid4())
     ctx = {"db_pool": pool, "job_try": 1}
 
-    from app.pipeline.feedback_poster import GitLabClientError
     with patch("app.jobs.post_gitlab_discussion", new=AsyncMock(return_value="disc-789")):
         await post_feedback(ctx, pr_review_id)
 

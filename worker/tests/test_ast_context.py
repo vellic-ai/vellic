@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.context.ast.enricher import ASTEnricher, _extract_source_from_patch, _changed_line_numbers
+from app.context.ast.enricher import ASTEnricher, _changed_line_numbers, _extract_source_from_patch
 from app.context.ast.models import ASTContext, SymbolInfo
 from app.context.ast.registry import get_parser
 from app.pipeline.models import DiffChunk
-
 
 # ---------------------------------------------------------------------------
 # helpers

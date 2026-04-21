@@ -9,7 +9,7 @@ import pytest
 
 from app.events import PREvent
 from app.pipeline.models import AnalysisResult, DiffChunk, PRContext
-from app.pipeline.runner import run_pipeline, _merge_rule_violations
+from app.pipeline.runner import _merge_rule_violations, run_pipeline
 from app.rules.models import RepoConfig, Rule, RuleViolation
 
 _EVENT = PREvent(
@@ -69,7 +69,10 @@ def test_merge_preserves_existing_llm_comments():
     existing = ReviewComment(file="x.py", line=2, body="fix this", confidence=0.8, rationale="r")
     result = AnalysisResult(comments=[existing], summary="ok", generic_ratio=0.0)
     violations = [
-        RuleViolation(rule_id="r1", file="app.py", line=1, matched_text="x", severity="warning", description="d")
+        RuleViolation(
+            rule_id="r1", file="app.py", line=1,
+            matched_text="x", severity="warning", description="d",
+        )
     ]
     merged = _merge_rule_violations(result, violations)
     assert len(merged.comments) == 2
