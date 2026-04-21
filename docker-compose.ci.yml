@@ -4,7 +4,9 @@
 services:
   ollama:
     image: alpine
-    command: sh -c "mkdir -p /tmp/srv && echo '{}' > /tmp/srv/index.html && httpd -f -p 11434 -h /tmp/srv"
+    command: >
+      sh -c "mkdir -p /tmp/srv && echo '{}' > /tmp/srv/index.html &&
+             httpd -p 11434 -h /tmp/srv && tail -f /dev/null"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:11434/ 2>/dev/null"]
       interval: 3s
