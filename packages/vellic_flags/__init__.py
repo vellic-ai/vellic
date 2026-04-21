@@ -429,6 +429,16 @@ CATALOG: list[FlagDef] = [
         cost_impact=CostImpact.NONE,
         tags=("platform", "prompts"),
     ),
+    FlagDef(
+        key="platform.llm_config_ui",
+        name="LLM config UI",
+        category=FlagCategory.PLATFORM,
+        description="DB-backed LLM provider config per repo with UI form (VEL-133)",
+        default=False,
+        scope=FlagScope.REPO,
+        cost_impact=CostImpact.NONE,
+        tags=("platform", "llm", "config"),
+    ),
 ]
 
 # ---------------------------------------------------------------------------
