@@ -136,7 +136,7 @@ jobs:
             context: "."
             dockerfile: "api/Dockerfile"
           - service: worker
-            context: "./worker"
+            context: "."
             dockerfile: "worker/Dockerfile"
           - service: admin
             context: "."

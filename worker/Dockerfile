@@ -1,7 +1,9 @@
 FROM python:3.12-slim AS builder
 WORKDIR /app
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml .
+COPY packages/vellic_flags /packages/vellic_flags
+RUN uv pip install --system --no-cache /packages/vellic_flags
+COPY worker/pyproject.toml .
 RUN uv pip install --system --no-cache ".[dev]"
 
 FROM python:3.12-slim
@@ -12,7 +14,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 RUN rm -f /usr/local/bin/uv /usr/local/bin/uvx
 RUN pip install --no-cache-dir --upgrade "pip>=25.3"
-COPY app/ ./app/
+COPY worker/app/ ./app/
 USER appuser
 EXPOSE 8002
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 \

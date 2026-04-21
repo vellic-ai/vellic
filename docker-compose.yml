@@ -75,7 +75,8 @@ services:
 
   worker:
     build:
-      context: ./worker
+      context: .
+      dockerfile: worker/Dockerfile
       target: builder
     command: python -m app.main
     volumes:
