@@ -10,10 +10,12 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.prompts_router import router
+from app.prompts_router import _require_prompt_dsl, router
 
 _app = FastAPI()
 _app.include_router(router)
+# Override the feature-flag guard so unit tests run without the flag enabled.
+_app.dependency_overrides[_require_prompt_dsl] = lambda: None
 
 _REVIEW_ID = str(uuid.uuid4())
 
@@ -268,3 +270,26 @@ async def test_dry_run_no_llm_config(client):
                 json={"pr_review_id": _REVIEW_ID},
             )
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Flag-gating tests (VEL-116): all endpoints return 404 when DSL flag is off
+# ---------------------------------------------------------------------------
+
+
+async def test_prompts_endpoints_return_404_when_flag_disabled():
+    """Without the dependency override, all /admin/prompts endpoints are gated."""
+    gated_app = FastAPI()
+    gated_app.include_router(router)
+    # Note: NO dependency_overrides — flag defaults to False
+
+    async with AsyncClient(transport=ASGITransport(app=gated_app), base_url="http://test") as c:
+        r_list = await c.get("/admin/prompts")
+        r_get = await c.get("/admin/prompts/secure-review")
+        r_resolve = await c.post(f"/admin/prompts/resolve?pr={_REVIEW_ID}")
+        r_dry_run = await c.post("/admin/prompts/dry-run", json={"pr_review_id": _REVIEW_ID})
+
+    assert r_list.status_code == 404
+    assert r_get.status_code == 404
+    assert r_resolve.status_code == 404
+    assert r_dry_run.status_code == 404

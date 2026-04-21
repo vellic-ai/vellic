@@ -159,3 +159,49 @@ def test_load_prompts_invalid_file_raises(tmp_path):
     (tmp_path / "bad.md").write_text("no front-matter here")
     with pytest.raises(PromptValidationError):
         load_prompts_from_dir(tmp_path)
+
+
+def test_load_prompts_oserror_is_suppressed(tmp_path, monkeypatch):
+    (tmp_path / "good.md").write_text(textwrap.dedent("""\
+        ---
+        ---
+        Body text.
+    """))
+    (tmp_path / "unreadable.md").write_text("placeholder")
+
+    original_read_text = type(tmp_path / "x").read_text
+
+    def _fake_read_text(self, *args, **kwargs):
+        if self.name == "unreadable.md":
+            raise OSError("permission denied")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(tmp_path / "x"), "read_text", _fake_read_text)
+    results = load_prompts_from_dir(tmp_path)
+    assert len(results) == 1
+    assert results[0].name == "good"
+
+
+# ---------------------------------------------------------------------------
+# validate_frontmatter — additional edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_validate_scope_non_list_raises():
+    with pytest.raises(PromptValidationError, match="'scope' must be a string or list"):
+        validate_frontmatter({"scope": {"nested": "dict"}})
+
+
+def test_validate_triggers_as_string_coerced_to_list():
+    fm = validate_frontmatter({"triggers": "pr.opened"})
+    assert fm.triggers == ["pr.opened"]
+
+
+def test_validate_triggers_non_list_raises():
+    with pytest.raises(PromptValidationError, match="'triggers' must be a string or list"):
+        validate_frontmatter({"triggers": {"key": "val"}})
+
+
+def test_validate_variable_key_non_string_raises():
+    with pytest.raises(PromptValidationError, match="must be a string"):
+        validate_frontmatter({"variables": {1: "value"}})
