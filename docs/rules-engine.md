@@ -159,7 +159,7 @@ In-memory overrides reset on service restart. For persistent overrides, use the 
 | `llm.openai` | `true` | OpenAI-compatible API |
 | `llm.anthropic` | `true` | Anthropic Claude |
 | `llm.ollama` | `true` | Self-hosted Ollama |
-| `llm.vllm` | `false` | Self-hosted vLLM inference server |
+| `llm.vllm` | `false` | Self-hosted vLLM inference server (🚧 coming soon) |
 
 #### Pipeline stages
 

@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 520" width="860" height="520" font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+  <!-- Background -->
+  <rect width="860" height="520" fill="#0d1117"/>
+
+  <!-- PR header bar -->
+  <rect x="0" y="0" width="860" height="48" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <circle cx="24" cy="24" r="8" fill="#3fb950"/>
+  <text x="40" y="20" fill="#e6edf3" font-size="14" font-weight="bold">Add async retry with exponential back-off</text>
+  <text x="40" y="38" fill="#8b949e" font-size="11">#1482 · opened by alice · 3 files changed · +124 −18</text>
+  <rect x="740" y="12" width="104" height="24" rx="10" fill="#1a4731" stroke="#3fb950" stroke-width="1"/>
+  <text x="792" y="28" fill="#3fb950" font-size="11" text-anchor="middle">✓ Open</text>
+
+  <!-- File header -->
+  <rect x="0" y="56" width="860" height="36" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="16" y="78" fill="#8b949e" font-size="11">▼</text>
+  <text x="30" y="78" fill="#58a6ff" font-size="12">worker/app/pipeline/retry.py</text>
+  <text x="680" y="78" fill="#8b949e" font-size="11">+98 −12</text>
+
+  <!-- Code diff -->
+  <!-- Line 42 context -->
+  <rect x="0" y="92" width="860" height="20" fill="#0d1117"/>
+  <text x="16" y="106" fill="#8b949e" font-size="11">42</text>
+  <text x="48" y="106" fill="#8b949e" font-size="11"> async def retry_job(job_id: str, max_retries: int = 3) -&gt; None:</text>
+
+  <!-- Line 43 removed -->
+  <rect x="0" y="112" width="860" height="20" fill="#4d1414"/>
+  <text x="16" y="126" fill="#f85149" font-size="11">43</text>
+  <text x="32" y="126" fill="#f85149" font-size="11">-</text>
+  <text x="48" y="126" fill="#ffa198" font-size="11">    await asyncio.sleep(2 ** attempt)</text>
+
+  <!-- Line 43 added -->
+  <rect x="0" y="132" width="860" height="20" fill="#1a4731"/>
+  <text x="16" y="146" fill="#3fb950" font-size="11">43</text>
+  <text x="32" y="146" fill="#3fb950" font-size="11">+</text>
+  <text x="48" y="146" fill="#aff5b4" font-size="11">    await asyncio.sleep(min(2 ** attempt, MAX_BACKOFF_SECONDS))</text>
+
+  <!-- Line 44 added -->
+  <rect x="0" y="152" width="860" height="20" fill="#1a4731"/>
+  <text x="16" y="166" fill="#3fb950" font-size="11">44</text>
+  <text x="32" y="166" fill="#3fb950" font-size="11">+</text>
+  <text x="48" y="166" fill="#aff5b4" font-size="11">    jitter = random.uniform(0, 0.1 * (2 ** attempt))</text>
+
+  <!-- Line 45 added -->
+  <rect x="0" y="172" width="860" height="20" fill="#1a4731"/>
+  <text x="16" y="186" fill="#3fb950" font-size="11">45</text>
+  <text x="32" y="186" fill="#3fb950" font-size="11">+</text>
+  <text x="48" y="186" fill="#aff5b4" font-size="11">    await asyncio.sleep(jitter)</text>
+
+  <!-- Line 46 context -->
+  <rect x="0" y="192" width="860" height="20" fill="#0d1117"/>
+  <text x="16" y="206" fill="#8b949e" font-size="11">46</text>
+  <text x="48" y="206" fill="#8b949e" font-size="11">    logger.info("retry %d/%d for job %s", attempt+1, max_retries, job_id)</text>
+
+  <!-- vellic inline comment block -->
+  <rect x="0" y="212" width="860" height="180" fill="#0d1117"/>
+  <rect x="20" y="218" width="820" height="168" rx="6" fill="#161b22" stroke="#1f6feb" stroke-width="1"/>
+
+  <!-- Comment header -->
+  <rect x="20" y="218" width="820" height="32" rx="6" fill="#1c2b41"/>
+  <rect x="20" y="234" width="820" height="16" fill="#1c2b41"/>
+  <!-- vellic avatar circle -->
+  <circle cx="42" cy="234" r="10" fill="#1f6feb"/>
+  <text x="42" y="238" fill="#ffffff" font-size="9" text-anchor="middle" font-weight="bold">v</text>
+  <text x="58" y="232" fill="#58a6ff" font-size="12" font-weight="bold">vellic</text>
+  <text x="107" y="232" fill="#8b949e" font-size="11">bot</text>
+  <rect x="112" y="222" width="24" height="12" rx="2" fill="#0d419d"/>
+  <text x="124" y="231" fill="#79c0ff" font-size="9" text-anchor="middle">bot</text>
+  <text x="680" y="232" fill="#8b949e" font-size="11">just now</text>
+
+  <!-- Comment body -->
+  <text x="42" y="266" fill="#e6edf3" font-size="12" font-weight="bold">⚠️  Potential issue: jitter applied twice</text>
+
+  <text x="42" y="290" fill="#c9d1d9" font-size="11">The back-off now waits</text>
+  <text x="160" y="290" fill="#aff5b4" font-size="11" font-style="italic">min(2**attempt, MAX_BACKOFF_SECONDS)</text>
+  <text x="460" y="290" fill="#c9d1d9" font-size="11">and then</text>
+  <text x="510" y="290" fill="#aff5b4" font-size="11" font-style="italic">jitter</text>
+  <text x="542" y="290" fill="#c9d1d9" font-size="11">as two separate sleeps.</text>
+
+  <text x="42" y="310" fill="#c9d1d9" font-size="11">This doubles latency on high-attempt retries. Consider combining:</text>
+
+  <!-- Suggestion code block -->
+  <rect x="42" y="320" width="640" height="40" rx="4" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+  <text x="56" y="336" fill="#aff5b4" font-size="11">delay = min(2 ** attempt, MAX_BACKOFF_SECONDS)</text>
+  <text x="56" y="352" fill="#aff5b4" font-size="11">await asyncio.sleep(delay + random.uniform(0, 0.1 * delay))</text>
+
+  <text x="42" y="376" fill="#c9d1d9" font-size="11">Also note:</text>
+  <text x="96" y="376" fill="#ffa657" font-size="11" font-style="italic">MAX_BACKOFF_SECONDS</text>
+  <text x="245" y="376" fill="#c9d1d9" font-size="11">is not defined in this file — import or define it before use.</text>
+
+  <!-- Comment footer -->
+  <rect x="728" y="356" width="96" height="20" rx="4" fill="#21262d" stroke="#30363d" stroke-width="1"/>
+  <text x="776" y="369" fill="#8b949e" font-size="10" text-anchor="middle">Reply...</text>
+
+  <!-- Second inline comment (separate file location) -->
+  <rect x="0" y="400" width="860" height="36" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="16" y="422" fill="#8b949e" font-size="11">▼</text>
+  <text x="30" y="422" fill="#58a6ff" font-size="12">worker/app/pipeline/retry.py · line 67</text>
+
+  <!-- Code context for second comment -->
+  <rect x="0" y="436" width="860" height="20" fill="#1a4731"/>
+  <text x="16" y="450" fill="#3fb950" font-size="11">67</text>
+  <text x="32" y="450" fill="#3fb950" font-size="11">+</text>
+  <text x="48" y="450" fill="#aff5b4" font-size="11">    if attempt &gt;= max_retries: raise JobExhaustedError(job_id)</text>
+
+  <!-- Second vellic comment inline -->
+  <rect x="20" y="460" width="820" height="52" rx="6" fill="#161b22" stroke="#1f6feb" stroke-width="1"/>
+  <circle cx="42" cy="480" r="10" fill="#1f6feb"/>
+  <text x="42" y="484" fill="#ffffff" font-size="9" text-anchor="middle" font-weight="bold">v</text>
+  <text x="58" y="477" fill="#58a6ff" font-size="12" font-weight="bold">vellic</text>
+  <text x="107" y="477" fill="#8b949e" font-size="11">bot</text>
+  <text x="680" y="477" fill="#8b949e" font-size="11">just now</text>
+  <text x="42" y="498" fill="#c9d1d9" font-size="11">✅  Good: raising a typed exception here makes it easy for callers to distinguish exhausted retries from transient errors.</text>
+</svg>

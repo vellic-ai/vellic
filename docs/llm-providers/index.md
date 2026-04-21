@@ -12,7 +12,7 @@ Vellic is LLM-agnostic. You configure the provider through the **Admin UI** at
 | Provider | Guide | Self-hosted | Data leaves infra |
 |---|---|:---:|:---:|
 | Ollama (default) | [ollama.md](ollama.md) | ✅ | No |
-| vLLM | (see below) | ✅ | No |
+| vLLM | (see below) | 🚧 Soon | No |
 | OpenAI / OpenAI-compatible BYOK | [byok.md](byok.md) | No | ⚠️ Yes |
 | Anthropic BYOK | [byok.md](byok.md) | No | ⚠️ Yes |
 | Claude Code CLI | [claude-code.md](claude-code.md) | Partial | ⚠️ Yes |
@@ -47,9 +47,32 @@ See the [full Ollama guide](ollama.md) to change the model or run Ollama outside
 
 ## vLLM
 
-vLLM exposes an OpenAI-compatible API endpoint. In the Admin UI, set provider to **vLLM**,
-enter your vLLM base URL (e.g. `http://vllm-host:8000`) and the model ID served by that
-instance. No API key required for self-hosted deployments unless you add one to vLLM.
+> **🚧 Coming soon.** The vLLM adapter stub is in place (`worker/app/llm/providers/vllm.py`) but not yet implemented. Full support is planned for a near-term release.
+
+vLLM exposes an OpenAI-compatible API endpoint. Once released, you will be able to set provider to **vLLM** in the Admin UI, enter your vLLM base URL (e.g. `http://vllm-host:8000`) and the model ID served by that instance. No API key required for self-hosted deployments unless you add one to vLLM.
+
+---
+
+## DB-backed per-repo LLM config
+
+Vellic supports storing LLM provider config per repository in the database — so different repos can use different models or providers without changing global settings.
+
+This feature is gated behind the `platform.llm_config_ui` feature flag (off by default):
+
+```bash
+# Enable via ENV
+VELLIC_FEATURE_PLATFORM_LLM_CONFIG_UI=true
+
+# Or via Admin UI: Settings → Feature flags → "LLM config UI" → toggle on
+```
+
+Once enabled:
+
+1. Go to **Admin UI → Repositories → select repo → LLM config**.
+2. Override the provider, model, API key, and base URL for that repo.
+3. The worker resolves config in order: **repo override → global config → environment default**.
+
+The per-repo config is stored encrypted in PostgreSQL (same encryption used for all secrets). See [security](../security/index.md) for details.
 
 ---
 
