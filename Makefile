@@ -1,8 +1,4 @@
-.PHONY: hooks up down logs test-webhook release
-
-hooks:
-	git config core.hooksPath .githooks
-	@echo "git hooks configured (.githooks)"
+.PHONY: up down logs test-webhook release
 
 up:
 	docker compose up -d --build
