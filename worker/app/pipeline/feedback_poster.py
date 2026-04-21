@@ -110,3 +110,43 @@ async def post_github_review(
     _check_rate_limit(resp.headers)
     data = resp.json()
     return str(data["id"])
+
+
+class GitLabClientError(Exception):
+    """Terminal 4xx error from GitLab (not 429)."""
+
+
+_GITLAB_API_BASE = os.getenv("GITLAB_API_URL", "https://gitlab.com/api/v4")
+
+
+async def post_gitlab_discussion(
+    repo: str,
+    mr_iid: int,
+    commit_sha: str,
+    result: AnalysisResult,
+    token: str | None = None,
+) -> str:
+    """Post analysis as a GitLab MR discussion note. Returns the discussion ID."""
+    resolved_token = token or os.getenv("GITLAB_TOKEN", "")
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if resolved_token:
+        headers["PRIVATE-TOKEN"] = resolved_token
+
+    body, _ = _build_review_body(result)
+    project_path = repo.replace("/", "%2F")
+    url = f"{_GITLAB_API_BASE}/projects/{project_path}/merge_requests/{mr_iid}/discussions"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(url, json={"body": body}, headers=headers)
+
+    if resp.status_code == 429:
+        raise RateLimitError("429 from GitLab")
+
+    if resp.status_code >= 500:
+        resp.raise_for_status()
+
+    if resp.status_code >= 400:
+        raise GitLabClientError(f"GitLab {resp.status_code}: {resp.text[:300]}")
+
+    data = resp.json()
+    return str(data["id"])
