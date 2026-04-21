@@ -1,7 +1,7 @@
 /**
  * /__/design — dev-only design system showcase.
- * Demonstrates all VEL-88 / VEL-62 design system components.
- * Only mounted in development (see router.tsx).
+ * Shows every VEL-43 component mapped to its shadcn/ui equivalent.
+ * Only mounted in development (see router config in App).
  */
 import { Button }   from "@/components/ui/button";
 import { Input }    from "@/components/ui/input";
@@ -19,8 +19,6 @@ import {
 import {
   ToastProvider, ToastViewport, Toast, ToastTitle, ToastDescription, ToastClose,
 } from "@/components/ui/toast";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Text } from "@/design-system/typography";
 import { useState } from "react";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -39,14 +37,14 @@ function Row({ children }: { children: React.ReactNode }) {
 }
 
 const SAMPLE_ROWS = [
-  { id: "d-001", status: "success", repo: "acme/api",      ref: "main",   ts: "2m ago" },
-  { id: "d-002", status: "error",   repo: "acme/worker",   ref: "feat/x", ts: "14m ago" },
-  { id: "d-003", status: "default", repo: "acme/frontend", ref: "main",   ts: "1h ago" },
+  { id: "d-001", status: "success", repo: "acme/api",     ref: "main",   ts: "2m ago" },
+  { id: "d-002", status: "error",   repo: "acme/worker",  ref: "feat/x", ts: "14m ago" },
+  { id: "d-003", status: "default", repo: "acme/frontend",ref: "main",   ts: "1h ago" },
 ];
 
 export default function DesignShowcase() {
   const [toastOpen, setToastOpen] = useState(false);
-  const [toastVariant, setToastVariant] = useState<"success" | "error" | "info">("info");
+  const [toastVariant, setToastVariant] = useState<"success"|"error"|"info">("info");
 
   function fireToast(v: typeof toastVariant) {
     setToastVariant(v);
@@ -57,33 +55,12 @@ export default function DesignShowcase() {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-bg text-text font-sans text-base p-8 max-w-5xl mx-auto">
-        <header className="mb-10 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-semibold mb-1">vellic design system</h1>
-            <p className="text-sm text-text-muted">
-              VEL-62 tokens · VEL-88 components · Tailwind v4 + shadcn/ui.
-              Dev-only showcase at <code className="font-mono">/__/design</code>.
-            </p>
-          </div>
-          <ThemeToggle />
+        <header className="mb-10">
+          <h1 className="text-lg font-semibold mb-1">vellic design system</h1>
+          <p className="text-sm text-text-muted">
+            VEL-43 → Tailwind v4 + shadcn/ui mapping. Dev-only showcase at <code className="font-mono">/__/design</code>.
+          </p>
         </header>
-
-        {/* ── Typography ── */}
-        <Section title="Typography">
-          <div className="flex flex-col gap-3">
-            <Text variant="h1">Heading 1 — 22px semibold</Text>
-            <Text variant="h2">Heading 2 — 16px semibold</Text>
-            <Text variant="h3">Heading 3 — 14px semibold</Text>
-            <Text variant="h4">Heading 4 — 12.5px semibold</Text>
-            <Text variant="body">Body — 14px regular. The quick brown fox jumps over the lazy dog.</Text>
-            <Text variant="small">Small — 12.5px regular. Secondary body copy.</Text>
-            <Text variant="muted">Muted — 12.5px muted. Supplementary information.</Text>
-            <Text variant="caption">Caption label — uppercase tracking</Text>
-            <Text variant="label">Label — form field label</Text>
-            <Text variant="mono">Monospace span — v0.4.2 / feat/vel-88</Text>
-            <Text variant="code">inline code snippet</Text>
-          </div>
-        </Section>
 
         {/* ── Buttons ── */}
         <Section title="Button">
@@ -124,7 +101,7 @@ export default function DesignShowcase() {
               <Input placeholder="Enter value…" />
             </div>
             <div>
-              <label className="block text-sm text-text-muted mb-1.5 font-medium">Error state</label>
+              <label className="block text-sm text-text-muted mb-1.5 font-medium">Error</label>
               <Input placeholder="Invalid value" error />
               <p className="text-xs text-error mt-1.5">This field is required</p>
             </div>
@@ -189,9 +166,7 @@ export default function DesignShowcase() {
                   <TableRow key={r.id}>
                     <TableCell><code className="font-mono text-text-muted">{r.id}</code></TableCell>
                     <TableCell>
-                      <Badge variant={r.status as "default" | "success" | "error" | "warning" | "info"}>
-                        {r.status}
-                      </Badge>
+                      <Badge variant={r.status as "default" | "success" | "error" | "warning" | "info"}>{r.status}</Badge>
                     </TableCell>
                     <TableCell>{r.repo}</TableCell>
                     <TableCell><code className="font-mono text-sm">{r.ref}</code></TableCell>
@@ -242,9 +217,9 @@ export default function DesignShowcase() {
           </Row>
         </Section>
 
-        {/* ── Color tokens ── */}
+        {/* ── Color palette ── */}
         <Section title="Color tokens">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             {[
               ["bg",           "var(--bg)"],
               ["surface",      "var(--surface)"],

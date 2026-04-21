@@ -1,112 +1,25 @@
 @import "tailwindcss";
 
-/* ─── VEL-62 Design Tokens: Dark (default) ──────────────────────────── */
-/* All text/bg pairings WCAG AA verified (≥4.5:1 for normal text) */
+/* ─── VEL-43 design tokens ─────────────────────────────────────────── */
 :root {
-  /* Surfaces */
   --bg:              #0f1117;
   --surface:         #1a1d27;
   --surface-2:       #22263a;
   --border:          #2e3347;
-
-  /* Text — dark: verified contrast ratios */
-  --text:            #e8eaf0;    /* 15.6:1 on --bg ✓ */
-  --text-muted:      #7b82a0;    /* 4.6:1 on --bg ✓ */
-
-  /* Brand */
+  --text:            #e8eaf0;
+  --text-muted:      #7b82a0;
   --accent:          #6c63ff;
   --accent-hover:    #7c74ff;
-
-  /* Semantic */
   --danger:          #ff4d6d;
   --warning-bg:      #2a1f10;
   --warning-border:  #c87941;
-  --warning-text:    #f0a05a;    /* 4.6:1 on --warning-bg ✓ */
+  --warning-text:    #f0a05a;
   --success:         #22c55e;
   --error:           #ef4444;
-
-  /* Inputs */
   --input-bg:        #12141e;
-
-  /* Overlay scrim */
-  --overlay-bg:      rgba(5, 6, 12, 0.60);
-
-  /* Shimmer gradient for skeleton loading */
-  --shimmer-from:    var(--surface-2);
-  --shimmer-mid:     #2a2f44;
-
-  /* Misc */
   --radius:          8px;
   --font:            -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono:       "SF Mono", "Fira Code", "Consolas", monospace;
-
-  /* Focus ring — 2px brand ring with bg-colored offset, WCAG 2.4.7 */
-  --focus-ring:      0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
-
-  /* Spacing scale (4pt base) */
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  20px;
-  --space-6:  24px;
-  --space-8:  32px;
-  --space-10: 40px;
-  --space-12: 48px;
-
-  /* Typography scale */
-  --text-xs:   11.5px;
-  --text-sm:   12.5px;
-  --text-base: 14px;
-  --text-lg:   16px;
-  --text-xl:   18px;
-  --text-2xl:  22px;
-
-  /* Z-index scale */
-  --z-base:     0;
-  --z-raised:   10;
-  --z-dropdown: 40;
-  --z-modal:    50;
-  --z-toast:    100;
-}
-
-/* ─── VEL-62 Design Tokens: Light ──────────────────────────────────── */
-/* Applied via data-theme="light" on <html>. Toggled by ThemeProvider. */
-[data-theme="light"] {
-  /* Surfaces */
-  --bg:              #f5f7fb;
-  --surface:         #ffffff;
-  --surface-2:       #edf0f7;
-  --border:          #cbd2e8;
-
-  /* Text — light: all WCAG AA verified */
-  --text:            #0d0f1a;    /* 18.7:1 on --surface ✓ */
-  --text-muted:      #525875;    /*  6.8:1 on --surface ✓ (AAA) */
-
-  /* Brand — shifted for adequate contrast on light bg */
-  --accent:          #4f46e5;    /* 4.6:1 on --surface ✓ */
-  --accent-hover:    #4338ca;
-
-  /* Semantic — all ≥4.5:1 on white */
-  --danger:          #dc2626;    /* 5.3:1 ✓ */
-  --warning-bg:      #fef9ee;
-  --warning-border:  #d97706;
-  --warning-text:    #92400e;    /* 7.5:1 on --warning-bg ✓ */
-  --success:         #16a34a;    /* 4.7:1 ✓ */
-  --error:           #dc2626;
-
-  /* Inputs */
-  --input-bg:        #ffffff;
-
-  /* Overlay scrim — lighter for light mode */
-  --overlay-bg:      rgba(0, 0, 0, 0.40);
-
-  /* Shimmer */
-  --shimmer-from:    var(--surface-2);
-  --shimmer-mid:     #d8ddf0;
-
-  /* Focus ring adapts to light bg */
-  --focus-ring:      0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 }
 
 /* ─── Tailwind v4 theme registration ───────────────────────────────── */
@@ -157,7 +70,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 a    { color: inherit; text-decoration: none; }
@@ -167,60 +79,34 @@ input, textarea, select {
   font-size: inherit;
   color: inherit;
 }
-
-/* ─── Global focus-visible: WCAG 2.4.7 keyboard navigation ─────────── */
-:focus { outline: none; }
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--radius);
-}
-
+input:focus, textarea:focus, select:focus { outline: none; }
 code, .mono { font-family: var(--font-mono); }
 
 /* ─── Slim scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--surface-2);
-  border-radius: 6px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
-  background-clip: content-box;
-}
-
-/* ─── Reduced-motion: respect OS preference (WCAG 2.3.3) ───────────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+::-webkit-scrollbar-thumb { background: #2a2f44; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4058; }
 
 /* ─── shadcn/ui CSS variable aliases (required by shadcn primitives) ── */
-:root,
-[data-theme="light"] {
-  --background:            var(--bg);
-  --foreground:            var(--text);
-  --card:                  var(--surface);
-  --card-foreground:       var(--text);
-  --popover:               var(--surface);
-  --popover-foreground:    var(--text);
-  --primary:               var(--accent);
-  --primary-foreground:    #ffffff;
-  --secondary:             var(--surface-2);
-  --secondary-foreground:  var(--text);
-  --muted:                 var(--surface-2);
-  --muted-foreground:      var(--text-muted);
-  --accent-shadcn:         var(--surface-2);
-  --accent-foreground:     var(--text);
-  --destructive:           var(--danger);
+:root {
+  --background:       var(--bg);
+  --foreground:       var(--text);
+  --card:             var(--surface);
+  --card-foreground:  var(--text);
+  --popover:          var(--surface);
+  --popover-foreground: var(--text);
+  --primary:          var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary:        var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted:            var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent-shadcn:    var(--surface-2);
+  --accent-foreground:var(--text);
+  --destructive:      var(--danger);
   --destructive-foreground: #ffffff;
-  --border-shadcn:         var(--border);
-  --input:                 var(--input-bg);
-  --ring:                  var(--accent);
+  --border-shadcn:    var(--border);
+  --input:            var(--input-bg);
+  --ring:             var(--accent);
 }
