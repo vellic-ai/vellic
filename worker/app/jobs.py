@@ -6,10 +6,24 @@ import asyncpg
 from arq import Retry
 
 from .adapters.github import normalize_pr
+from .adapters.gitlab import normalize_mr
 from .llm import build_provider
 from .llm.config import _EXTERNAL_PROVIDERS, load_env_llm_config
-from .llm.db_config import load_llm_config_from_db
-from .pipeline.feedback_poster import GitHubClientError, RateLimitError, post_github_review
+from .llm.db_config import load_llm_config_from_db, load_repo_llm_config_from_db
+from .metrics import (
+    compute_retry_delays,
+    get_max_retries,
+    get_retry_base_delay,
+    webhook_dlq_depth,
+    webhook_retry_total,
+)
+from .pipeline.feedback_poster import (
+    GitHubClientError,
+    GitLabClientError,
+    RateLimitError,
+    post_github_review,
+    post_gitlab_discussion,
+)
 from .pipeline.models import AnalysisResult, ReviewComment
 from .pipeline.runner import run_pipeline
 
@@ -20,8 +34,6 @@ _EXTERNAL_PROVIDER_WARNING = (
     "PR diff content will leave your infrastructure."
 )
 
-# Backoff delays between attempt N and N+1 (seconds): 5s → 25s → dead-letter
-_RETRY_DELAYS = [5, 25]
 # Backoff for post_feedback rate-limit / 5xx retries (seconds)
 _FEEDBACK_RETRY_DELAYS = [60, 300]
 
@@ -56,22 +68,53 @@ async def _dead_letter(
     delivery_id: str,
     payload: dict,
     exc: Exception,
+    retry_count: int = 0,
 ) -> None:
+    error_str = str(exc)
     async with pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE pipeline_jobs SET status = 'failed', updated_at = NOW() WHERE id = $1",
-            job_id,
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE pipeline_jobs SET status = 'failed', updated_at = NOW() WHERE id = $1",
+                job_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO pipeline_failures (job_id, payload, error)
+                VALUES ($1, $2::jsonb, $3)
+                """,
+                job_id,
+                json.dumps({"delivery_id": delivery_id, "payload": payload}),
+                error_str,
+            )
+            await conn.execute(
+                """
+                INSERT INTO webhook_dlq
+                    (delivery_id, job_id, payload, last_error, retry_count, last_attempted_at)
+                VALUES ($1, $2, $3::jsonb, $4, $5, NOW())
+                ON CONFLICT (delivery_id) DO UPDATE SET
+                    job_id            = EXCLUDED.job_id,
+                    last_error        = EXCLUDED.last_error,
+                    retry_count       = EXCLUDED.retry_count,
+                    last_attempted_at = EXCLUDED.last_attempted_at,
+                    status            = 'pending'
+                """,
+                delivery_id,
+                job_id,
+                json.dumps(payload),
+                error_str,
+                retry_count,
+            )
+        pending_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM webhook_dlq WHERE status = 'pending'"
         )
-        await conn.execute(
-            """
-            INSERT INTO pipeline_failures (job_id, payload, error)
-            VALUES ($1, $2::jsonb, $3)
-            """,
-            job_id,
-            json.dumps({"delivery_id": delivery_id, "payload": payload}),
-            str(exc),
-        )
-    logger.error("dead-letter: job_id=%s delivery=%s error=%s", job_id, delivery_id, exc)
+    webhook_dlq_depth.set(pending_count)
+    logger.error(
+        "dead-letter: job_id=%s delivery=%s retries=%d error=%s",
+        job_id,
+        delivery_id,
+        retry_count,
+        exc,
+    )
 
 
 async def _get_repo_installation(
@@ -80,7 +123,7 @@ async def _get_repo_installation(
     """Return the most-specific matching installation row, or None if no rows exist."""
     rows = await pool.fetch(
         """
-        SELECT config_json FROM installations
+        SELECT id, config_json FROM installations
         WHERE platform = $1 AND org = $2
           AND (repo = $3 OR repo IS NULL)
         ORDER BY (repo = $3) DESC NULLS LAST
@@ -112,21 +155,31 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
     payload: dict = row["payload"]
     logger.info("delivery=%s event=%s attempt=%d", delivery_id, event_type, job_try)
 
-    if event_type != "pull_request":
+    if event_type not in ("pull_request", "merge_request", "Merge Request Hook"):
         await pool.execute(
             "UPDATE webhook_deliveries SET processed_at = NOW() WHERE delivery_id = $1",
             delivery_id,
         )
-        logger.info("non-PR event %s — marked processed", event_type)
+        logger.info("non-MR event %s — marked processed", event_type)
         return
 
+    # Determine platform and extract repo path.
+    is_gitlab = event_type in ("merge_request", "Merge Request Hook")
+    if is_gitlab:
+        repo_full = (payload.get("project") or {}).get("path_with_namespace", "")
+        platform = "gitlab"
+    else:
+        repo_full = (payload.get("repository") or {}).get("full_name", "")
+        platform = "github"
+
     # Check repo allow-list; apply per-repo LLM overrides if present.
-    repo_full = (payload.get("repository") or {}).get("full_name", "")
     installation_cfg: dict = {}
+    installation_id: str | None = None
     if repo_full:
         org_part, _, repo_part = repo_full.partition("/")
-        inst = await _get_repo_installation(pool, "github", org_part, repo_part)
+        inst = await _get_repo_installation(pool, platform, org_part, repo_part)
         if inst is not None:
+            installation_id = str(inst["id"]) if inst.get("id") else None
             installation_cfg = inst.get("config_json") or {}
             if not installation_cfg.get("enabled", True):
                 logger.info("repo %s disabled — skipping delivery %s", repo_full, delivery_id)
@@ -136,22 +189,41 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
                 )
                 return
 
-    # Load LLM config: DB row takes precedence; fall back to env vars.
-    try:
-        cfg = await load_llm_config_from_db(pool)
-    except Exception as exc:
-        logger.warning("failed to load LLM config from DB, falling back to env vars: %s", exc)
-        cfg = None
+    # Load LLM config. Resolution order: per-repo llm_configs > global llm_settings > env vars.
+    cfg: dict | None = None
+    if installation_id:
+        try:
+            cfg = await load_repo_llm_config_from_db(pool, installation_id)
+            if cfg is not None:
+                logger.info(
+                    "llm config: per-repo DB row provider=%s model=%s for %s",
+                    cfg["provider"],
+                    cfg["model"],
+                    repo_full,
+                )
+        except Exception as exc:
+            logger.warning("failed to load per-repo LLM config for %s: %s", repo_full, exc)
+            cfg = None
     if cfg is None:
-        cfg = load_env_llm_config()
-        logger.info("llm config: using env-var fallback (no DB row)")
-    else:
-        logger.info(
-            "llm config: loaded from DB provider=%s model=%s", cfg["provider"], cfg["model"]
-        )
+        try:
+            cfg = await load_llm_config_from_db(pool)
+        except Exception as exc:
+            logger.warning(
+                "failed to load global LLM config from DB, falling back to env vars: %s", exc
+            )
+            cfg = None
+        if cfg is None:
+            cfg = load_env_llm_config()
+            logger.info("llm config: using env-var fallback (no DB row)")
+        else:
+            logger.info(
+                "llm config: loaded from global DB provider=%s model=%s",
+                cfg["provider"],
+                cfg["model"],
+            )
 
-    # Per-repo provider/model override.
-    if installation_cfg.get("provider") and installation_cfg.get("model"):
+    # Per-repo config_json provider/model override (legacy path, lower priority than llm_configs).
+    if installation_cfg.get("provider") and installation_cfg.get("model") and not installation_id:
         cfg = {**cfg, "provider": installation_cfg["provider"], "model": installation_cfg["model"]}
         logger.info(
             "per-repo llm override provider=%s model=%s for %s",
@@ -171,8 +243,14 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
         bin_path=cfg.get("bin_path", "claude"),
     )
 
-    event = normalize_pr(delivery_id, payload)
+    event = normalize_mr(delivery_id, payload) if is_gitlab else normalize_pr(delivery_id, payload)
     job_id = await _get_or_create_job(pool, delivery_id)
+
+    max_retries = get_max_retries()
+    base_delay = get_retry_base_delay()
+    retry_delays = compute_retry_delays(max_retries, base_delay)
+    # job_try=1 is the initial attempt; retries start at job_try=2
+    max_attempts = max_retries + 1
 
     try:
         await run_pipeline(event, pool, llm, job_id, arq_redis)
@@ -181,22 +259,24 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
             delivery_id,
         )
     except Exception as exc:
-        logger.warning("pipeline error attempt=%d: %s", job_try, exc)
-        if job_try >= 3:
-            await _dead_letter(pool, job_id, delivery_id, payload, exc)
+        logger.warning("pipeline error attempt=%d/%d: %s", job_try, max_attempts, exc)
+        if job_try >= max_attempts:
+            await _dead_letter(pool, job_id, delivery_id, payload, exc, retry_count=job_try - 1)
             raise
-        delay = _RETRY_DELAYS[job_try - 1]
-        logger.info("scheduling retry in %ds", delay)
-        raise Retry(defer_by=delay) from exc
+        webhook_retry_total.inc()
+        delay = retry_delays[job_try - 1]
+        logger.info("scheduling retry in %ds (attempt %d/%d)", delay, job_try + 1, max_attempts)
+        raise Retry(defer=delay) from exc
 
 
 async def post_feedback(ctx: dict, pr_review_id: str) -> None:
-    """Post analysis feedback to GitHub as a PR review."""
+    """Post analysis feedback to the appropriate VCS platform."""
     pool: asyncpg.Pool = ctx["db_pool"]
     job_try: int = ctx.get("job_try", 1)
 
     row = await pool.fetchrow(
-        "SELECT repo, pr_number, commit_sha, feedback, github_review_id"
+        "SELECT repo, pr_number, commit_sha, feedback, platform,"
+        " github_review_id, gitlab_discussion_id"
         " FROM pr_reviews WHERE id = $1",
         uuid.UUID(pr_review_id),
     )
@@ -204,11 +284,28 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
         logger.warning("pr_review %s not found — skipping post_feedback", pr_review_id)
         return
 
-    if row["github_review_id"] is not None:
+    platform = row["platform"] or "github"
+
+    # Dedup: skip if already posted for this platform.
+    if platform == "gitlab" and row["gitlab_discussion_id"] is not None:
+        logger.info(
+            "pr_review %s already posted (gitlab_discussion_id=%s) — skipping dedup",
+            pr_review_id,
+            row["gitlab_discussion_id"],
+        )
+        return
+    if platform == "github" and row["github_review_id"] is not None:
         logger.info(
             "pr_review %s already posted (github_review_id=%s) — skipping dedup",
             pr_review_id,
             row["github_review_id"],
+        )
+        return
+    if platform == "bitbucket" and row["bitbucket_comment_id"] is not None:
+        logger.info(
+            "pr_review %s already posted (bitbucket_comment_id=%s) — skipping dedup",
+            pr_review_id,
+            row["bitbucket_comment_id"],
         )
         return
 
@@ -229,21 +326,33 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
     )
 
     try:
-        github_review_id = await post_github_review(
-            repo=row["repo"],
-            pr_number=row["pr_number"],
-            commit_sha=row["commit_sha"],
-            result=result,
-        )
+        if platform == "gitlab":
+            platform_id = await post_gitlab_discussion(
+                repo=row["repo"],
+                mr_iid=row["pr_number"],
+                commit_sha=row["commit_sha"],
+                result=result,
+            )
+            id_col = "gitlab_discussion_id"
+            dedup_clause = "AND gitlab_discussion_id IS NULL"
+        else:
+            platform_id = await post_github_review(
+                repo=row["repo"],
+                pr_number=row["pr_number"],
+                commit_sha=row["commit_sha"],
+                result=result,
+            )
+            id_col = "github_review_id"
+            dedup_clause = "AND github_review_id IS NULL"
     except RateLimitError as exc:
         logger.warning("rate limit hit for pr_review=%s attempt=%d: %s", pr_review_id, job_try, exc)
         if job_try >= len(_FEEDBACK_RETRY_DELAYS) + 1:
             logger.error("rate limit retry exhausted for pr_review=%s", pr_review_id)
             raise
         delay = _FEEDBACK_RETRY_DELAYS[min(job_try - 1, len(_FEEDBACK_RETRY_DELAYS) - 1)]
-        raise Retry(defer_by=delay) from exc
-    except GitHubClientError as exc:
-        logger.error("terminal GitHub error for pr_review=%s: %s", pr_review_id, exc)
+        raise Retry(defer=delay) from exc
+    except (GitHubClientError, GitLabClientError) as exc:
+        logger.error("terminal %s error for pr_review=%s: %s", platform, pr_review_id, exc)
         return
     except Exception as exc:
         logger.warning(
@@ -253,20 +362,21 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
             logger.error("post_feedback retries exhausted for pr_review=%s", pr_review_id)
             raise
         delay = _FEEDBACK_RETRY_DELAYS[min(job_try - 1, len(_FEEDBACK_RETRY_DELAYS) - 1)]
-        raise Retry(defer_by=delay) from exc
+        raise Retry(defer=delay) from exc
 
     updated = await pool.fetchval(
-        "UPDATE pr_reviews SET github_review_id = $1, posted_at = NOW() "
-        "WHERE id = $2 AND github_review_id IS NULL RETURNING id",
-        github_review_id,
+        f"UPDATE pr_reviews SET {id_col} = $1, posted_at = NOW() "
+        f"WHERE id = $2 {dedup_clause} RETURNING id",
+        platform_id,
         uuid.UUID(pr_review_id),
     )
     if updated is None:
         logger.info("pr_review %s already posted by concurrent worker — skipping", pr_review_id)
         return
     logger.info(
-        "posted GitHub review=%s for pr_review=%s repo=%s pr=%d",
-        github_review_id,
+        "posted %s review=%s for pr_review=%s repo=%s mr=%d",
+        platform,
+        platform_id,
         pr_review_id,
         row["repo"],
         row["pr_number"],

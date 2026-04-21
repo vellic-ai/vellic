@@ -5,10 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.adapters.github import normalize_pr
+from app.context.ast.models import ASTContext, SymbolInfo
 from app.events import PREvent
 from app.pipeline.context_gatherer import gather_context
 from app.pipeline.diff_fetcher import _chunk_patch, _is_generated, fetch_diff_chunks
-from app.pipeline.llm_analyzer import _extract_json, analyze
+from app.pipeline.llm_analyzer import _build_prompt, _extract_json, _format_symbols, analyze
 from app.pipeline.models import AnalysisResult, DiffChunk, PRContext, ReviewComment
 from app.pipeline.result_persister import persist
 
@@ -303,3 +304,65 @@ async def test_persist_inserts_and_enqueues():
     mock_arq.enqueue_job.assert_called_once_with(
         "post_feedback", str(pr_review_id), _job_id=f"post_feedback:{pr_review_id}"
     )
+
+
+# ---------------------------------------------------------------------------
+# llm_analyzer — _format_symbols, _build_prompt
+# ---------------------------------------------------------------------------
+
+
+def test_format_symbols_with_symbols():
+    sym = SymbolInfo(name="my_func", kind="function", parent="MyClass", signature="(self, x)")
+    ctx = ASTContext(filename="app.py", language="python", symbols=[sym])
+    result = _format_symbols(ctx)
+    assert "my_func" in result
+    assert "MyClass" in result
+    assert "(self, x)" in result
+    assert "Symbols changed:" in result
+
+
+def test_format_symbols_with_docstring():
+    sym = SymbolInfo(name="fn", kind="function", docstring="Does something.")
+    ctx = ASTContext(filename="app.py", language="python", symbols=[sym])
+    result = _format_symbols(ctx)
+    assert "Does something." in result
+
+
+def test_format_symbols_empty_returns_empty():
+    ctx = ASTContext(filename="app.py", language="python", symbols=[])
+    assert _format_symbols(ctx) == ""
+
+
+def test_build_prompt_with_body():
+    ctx = PRContext("acme/x", 1, "sha", "My PR", "This PR adds caching.", "main")
+    chunks = [DiffChunk("app.py", ["+x = 1"])]
+    prompt = _build_prompt(ctx, chunks)
+    assert "This PR adds caching." in prompt
+    assert "Description:" in prompt
+
+
+def test_build_prompt_without_body_excludes_description():
+    ctx = PRContext("acme/x", 1, "sha", "My PR", "", "main")
+    chunks = [DiffChunk("app.py", ["+x = 1"])]
+    prompt = _build_prompt(ctx, chunks)
+    assert "Description:" not in prompt
+
+
+def test_build_prompt_with_ast_contexts_and_symbols():
+    ctx = PRContext("acme/x", 1, "sha", "My PR", "", "main")
+    chunks = [DiffChunk("app.py", ["+x = 1"])]
+    sym = SymbolInfo(name="cache_get", kind="function")
+    ast_ctx = ASTContext(filename="app.py", language="python", symbols=[sym])
+    prompt = _build_prompt(ctx, chunks, ast_contexts={"app.py": ast_ctx})
+    assert "cache_get" in prompt
+    assert "Symbols changed:" in prompt
+
+
+def test_build_prompt_ast_contexts_no_symbol_match():
+    ctx = PRContext("acme/x", 1, "sha", "My PR", "", "main")
+    chunks = [DiffChunk("app.py", ["+x = 1"])]
+    # ast_contexts provided, file matches, but no symbols
+    ast_ctx = ASTContext(filename="app.py", language="python", symbols=[])
+    prompt = _build_prompt(ctx, chunks, ast_contexts={"app.py": ast_ctx})
+    assert "app.py" in prompt
+    assert "Symbols changed:" not in prompt

@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
 
+from ..context.ast.models import ASTContext
 from ..llm.protocol import LLMProvider
 from .models import AnalysisResult, DiffChunk, PRContext, ReviewComment
 
@@ -51,9 +54,30 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"No JSON object found in LLM output: {text[:300]!r}")
 
 
-def _build_prompt(context: PRContext, chunks: list[DiffChunk]) -> str:
+def _format_symbols(ast_ctx: ASTContext) -> str:
+    if not ast_ctx.symbols:
+        return ""
+    lines = ["Symbols changed:"]
+    for sym in ast_ctx.symbols:
+        entry = f"  - {sym.kind} `{sym.name}`"
+        if sym.parent:
+            entry += f" (in `{sym.parent}`)"
+        if sym.signature:
+            entry += f" — `{sym.signature}`"
+        if sym.docstring:
+            entry += f"\n    doc: {sym.docstring[:200]}"
+        lines.append(entry)
+    return "\n".join(lines)
+
+
+def _build_prompt(
+    context: PRContext,
+    chunks: list[DiffChunk],
+    ast_contexts: dict[str, ASTContext] | None = None,
+    custom_instructions: str | None = None,
+) -> str:
     parts = [
-        _INSTRUCTIONS,
+        custom_instructions if custom_instructions is not None else _INSTRUCTIONS,
         "",
         f"PR: {context.title}",
         f"Repo: {context.repo}   Base: {context.base_branch}",
@@ -68,6 +92,10 @@ def _build_prompt(context: PRContext, chunks: list[DiffChunk]) -> str:
         parts.append("```diff")
         parts.append(chunk.patch)
         parts.append("```")
+        if ast_contexts:
+            ast_ctx = ast_contexts.get(chunk.filename)
+            if ast_ctx and ast_ctx.symbols:
+                parts.append(_format_symbols(ast_ctx))
 
     parts.append("\nReturn the JSON analysis now.")
     return "\n".join(parts)
@@ -78,12 +106,16 @@ async def analyze(
     chunks: list[DiffChunk],
     llm: LLMProvider,
     max_tokens: int = 2048,
+    ast_contexts: dict[str, ASTContext] | None = None,
+    custom_instructions: str | None = None,
 ) -> AnalysisResult:
     if not chunks:
         logger.info("no reviewable diff chunks for %s#%d", context.repo, context.pr_number)
         return AnalysisResult(comments=[], summary="No reviewable diff found.", generic_ratio=0.0)
 
-    prompt = _build_prompt(context, chunks)
+    prompt = _build_prompt(
+        context, chunks, ast_contexts=ast_contexts, custom_instructions=custom_instructions
+    )
     raw = await llm.complete(prompt, max_tokens=max_tokens)
     logger.debug("LLM raw response length=%d", len(raw))
 

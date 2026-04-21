@@ -5,17 +5,26 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import arq_pool, db
 from .auth_router import AdminAuthMiddleware
 from .auth_router import router as auth_router
+from .dlq_router import router as dlq_router
+from .features_router import init_overrides
+from .features_router import router as features_router
+from .mcp_router import router as mcp_router
+from .prompts_router import router as prompts_router
 from .repos_router import router as repos_router
 from .settings_router import router as settings_router
 from .stats_router import router as stats_router
 
 _STATIC = Path(__file__).parent.parent / "static"
+
+# VELLIC_ADMIN_V2=1 means the nginx frontend serves the SPA; admin/static/ is deprecated.
+# Set to 0 (default) until VEL-51 e2e green run confirms SPA stability.
+_ADMIN_V2 = os.getenv("VELLIC_ADMIN_V2", "0") == "1"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("admin")
@@ -23,8 +32,15 @@ logger = logging.getLogger("admin")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("vellic admin starting on port %s", os.getenv("PORT", "8001"))
+    logger.info("vellic admin starting on port %s (v2=%s)", os.getenv("PORT", "8001"), _ADMIN_V2)
+    if _ADMIN_V2:
+        # @deprecated: admin/static/ is superseded by the nginx SPA bundle (VEL-52).
+        # Scheduled for removal after 7 days of stable staging; track in VEL-52 deprecation plan.
+        logger.warning(
+            "VELLIC_ADMIN_V2=1: admin/static/ serving is deprecated — SPA served by nginx"
+        )
     await db.init_pool()
+    await init_overrides()
     await arq_pool.init_pool()
     yield
     await arq_pool.close_pool()
@@ -34,11 +50,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="vellic-admin", version="0.1.0", lifespan=lifespan)
 app.add_middleware(AdminAuthMiddleware)
 app.include_router(auth_router)
+app.include_router(features_router)
+app.include_router(mcp_router)
 app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)
+app.include_router(dlq_router)
+app.include_router(prompts_router)
 
-if _STATIC.is_dir():
+# @deprecated (VELLIC_ADMIN_V2): static mount removed when flag=1; nginx handles SPA routing.
+if not _ADMIN_V2 and _STATIC.is_dir():
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 
@@ -48,7 +69,10 @@ async def health() -> dict:
 
 
 @app.get("/")
-async def admin_root() -> FileResponse:
+async def admin_root() -> Response:
+    # @deprecated (VELLIC_ADMIN_V2): when flag=1, nginx serves / directly from SPA dist.
+    if _ADMIN_V2:
+        return Response(status_code=404, content="served by nginx")
     return FileResponse(str(_STATIC / "index.html"))
 
 
@@ -171,7 +195,9 @@ async def list_jobs(
 
 
 @app.get("/{path:path}")
-async def admin_spa(path: str) -> FileResponse:
+async def admin_spa(path: str) -> Response:
+    if _ADMIN_V2:
+        return Response(status_code=404, content="served by nginx")
     return FileResponse(str(_STATIC / "index.html"))
 
 

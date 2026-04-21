@@ -8,12 +8,13 @@ Vellic's mission is to integrate AI deeply into the software development lifecyc
 - [x] Platform-agnostic `PREvent` model
 - [x] 4-stage async analysis pipeline (diff → context → LLM → feedback)
 - [x] GitHub Reviews API integration (inline PR comments)
-- [x] 5 LLM provider adapters (Ollama, vLLM, OpenAI, Anthropic, Claude Code)
+- [x] 4 LLM provider adapters (Ollama, OpenAI, Anthropic, Claude Code)
 - [x] Admin panel (event replay, job inspection)
 - [x] Kubernetes manifests with HPA
 
 ## Near-term
 
+- [ ] **vLLM provider adapter** — self-hosted OpenAI-compatible inference server (stub in place, full implementation pending)
 - [ ] **GitLab MR integration** — adapter + webhook route + MR discussions API
 - [ ] **Bitbucket PR integration**
 - [ ] **Issue triage** — classify new issues by type/severity using LLM; suggest labels and assignees

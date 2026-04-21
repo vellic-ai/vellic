@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 env:
   REGISTRY: ghcr.io
@@ -22,6 +22,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-ruff-${{ runner.os }}
+          restore-keys: pip-ruff-${{ runner.os }}
       - name: Install ruff
         run: pip install ruff
       - name: Run ruff
@@ -39,15 +44,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('{0}/pyproject.toml', matrix.service)) }}
+          restore-keys: uv-${{ runner.os }}-${{ matrix.service }}-
       - name: Install dependencies
         run: |
           pip install uv
           uv pip install --system -e "${{ matrix.service }}[dev]"
       - name: Run pytest
-        run: pytest ${{ matrix.service }}/ -v --tb=short
+        run: |
+          if [ "${{ matrix.service }}" = "api" ] || [ "${{ matrix.service }}" = "worker" ]; then
+            pytest ${{ matrix.service }}/ -v --tb=short \
+              --cov=app --cov-report=xml:${{ matrix.service }}/coverage.xml \
+              --cov-fail-under=85
+          else
+            pytest ${{ matrix.service }}/ -v --tb=short
+          fi
         env:
           DATABASE_URL: "postgresql://vellic:vellic@localhost:5432/vellic"
           REDIS_URL: "redis://localhost:6379"
+      - name: Upload coverage report
+        if: ${{ matrix.service == 'api' || matrix.service == 'worker' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/coverage.xml
 
   build-push:
     name: Build & Push (${{ matrix.service }})
@@ -81,7 +104,8 @@ jobs:
       - name: Build (and push on main)
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
+          context: .
+          file: ./${{ matrix.service }}/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

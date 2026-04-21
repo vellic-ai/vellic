@@ -1,0 +1,183 @@
+name: Dependency Scan
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  pip-audit:
+    name: pip-audit (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, worker, admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-audit-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('{0}/pyproject.toml', matrix.service)) }}
+          restore-keys: pip-audit-${{ runner.os }}-${{ matrix.service }}-
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Install service dependencies
+        run: |
+          pip install uv
+          uv pip install --system ./packages/vellic_flags
+          uv pip install --system -e "${{ matrix.service }}"
+
+      - name: Run pip-audit
+        run: |
+          pip-audit \
+            --format json \
+            -o "${{ matrix.service }}-pip-audit.json" \
+            --skip-editable
+
+      - name: Fail on HIGH/CRITICAL findings
+        run: |
+          COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('${{ matrix.service }}-pip-audit.json'))
+          deps = data.get('dependencies', [])
+          vulns = [v for d in deps for v in d.get('vulns', [])]
+          print(len(vulns))
+          ")
+          echo "Findings: $COUNT"
+          if [ "$COUNT" -gt "0" ]; then
+            echo "::error::pip-audit found $COUNT HIGH/CRITICAL vulnerabilities in ${{ matrix.service }}"
+            cat "${{ matrix.service }}-pip-audit.json" | python3 -m json.tool
+            exit 1
+          fi
+          echo "No HIGH/CRITICAL pip vulnerabilities found in ${{ matrix.service }}."
+
+      - name: Upload pip-audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-${{ matrix.service }}
+          path: ${{ matrix.service }}-pip-audit.json
+
+  npm-audit:
+    name: npm audit (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for package.json
+        id: check
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No frontend/package.json — skipping npm audit"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.exists == 'true'
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Run npm audit
+        if: steps.check.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm audit --audit-level=high --json > npm-audit.json || true
+
+      - name: Fail on high/critical vulnerabilities
+        if: steps.check.outputs.exists == 'true'
+        working-directory: frontend
+        run: |
+          HIGH=$(python3 -c "
+          import json
+          data = json.load(open('npm-audit.json'))
+          meta = data.get('metadata', {}).get('vulnerabilities', {})
+          print(meta.get('high', 0) + meta.get('critical', 0))
+          ")
+          if [ "$HIGH" -gt "0" ]; then
+            echo "::error::npm audit found $HIGH high/critical vulnerabilities"
+            cat npm-audit.json | python3 -m json.tool
+            exit 1
+          fi
+          echo "No high/critical npm vulnerabilities found."
+
+      - name: Upload npm audit artifact
+        if: steps.check.outputs.exists == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-frontend
+          path: frontend/npm-audit.json
+
+  trivy:
+    name: Trivy image scan (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            context: "."
+            dockerfile: "api/Dockerfile"
+          - service: worker
+            context: "."
+            dockerfile: "worker/Dockerfile"
+          - service: admin
+            context: "."
+            dockerfile: "admin/Dockerfile"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: vellic/${{ matrix.service }}:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: vellic/${{ matrix.service }}:scan
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}
+
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-${{ matrix.service }}
+          path: trivy-${{ matrix.service }}.sarif

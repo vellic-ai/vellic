@@ -10,3 +10,8 @@ dist/
 
 # K8s secret manifests contain real credentials — never commit
 infra/k8s/**/secret.yaml
+
+# Playwright
+frontend/playwright/.auth/
+frontend/playwright-results/
+frontend/playwright-report/

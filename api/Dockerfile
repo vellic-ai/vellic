@@ -1,18 +1,23 @@
 FROM python:3.12-slim AS builder
 WORKDIR /app
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml .
+COPY packages/vellic_flags /packages/vellic_flags
+RUN uv pip install --system --no-cache /packages/vellic_flags
+COPY api/pyproject.toml .
 RUN uv pip install --system --no-cache ".[dev]"
 
 FROM python:3.12-slim
 WORKDIR /app
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 1001 appuser && useradd --uid 1001 --gid 1001 --no-create-home appuser
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY app/ ./app/
-COPY alembic/ ./alembic/
-COPY alembic.ini .
-COPY entrypoint.sh .
+RUN rm -f /usr/local/bin/uv /usr/local/bin/uvx
+RUN pip install --no-cache-dir --upgrade "pip>=25.3"
+COPY api/app/ ./app/
+COPY api/alembic/ ./alembic/
+COPY api/alembic.ini .
+COPY api/entrypoint.sh .
 RUN chmod +x entrypoint.sh
 USER appuser
 EXPOSE 8000

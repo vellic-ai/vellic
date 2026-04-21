@@ -1,0 +1,30 @@
+# Version control
+.git
+.gitignore
+
+# Node
+node_modules
+frontend/node_modules
+frontend/.next
+frontend/out
+
+# Python virtualenvs and caches
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/*.pyo
+
+# Services not needed by the api build
+frontend
+infra
+
+# Docs and tooling
+docs
+*.md
+.env*
+Makefile
+
+# Test artifacts
+**/coverage
+**/.coverage
