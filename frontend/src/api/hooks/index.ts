@@ -1,6 +1,7 @@
 export * from "./auth";
 export * from "./deliveries";
 export * from "./extensions";
+export * from "./feature-flags";
 export * from "./jobs";
 export * from "./repos";
 export * from "./settings";

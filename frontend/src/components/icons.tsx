@@ -234,6 +234,17 @@ export const Icons = {
   menu: ({ size = 16 }: IconProps) => (
     <Icon size={size} d={<path d="M4 7h16M4 12h16M4 17h16" />} />
   ),
+  flags: ({ size = 16 }: IconProps) => (
+    <Icon
+      size={size}
+      d={
+        <>
+          <path d="M4 4v16" />
+          <path d="M4 4h12l-3 4 3 4H4" />
+        </>
+      }
+    />
+  ),
   plugin: ({ size = 16 }: IconProps) => (
     <Icon
       size={size}
