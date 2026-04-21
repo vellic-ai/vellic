@@ -10,9 +10,9 @@ from fastapi.staticfiles import StaticFiles
 
 from . import arq_pool, db
 from .auth_router import AdminAuthMiddleware
-from .features_router import init_overrides
 from .auth_router import router as auth_router
 from .dlq_router import router as dlq_router
+from .features_router import init_overrides
 from .features_router import router as features_router
 from .mcp_router import router as mcp_router
 from .prompts_router import router as prompts_router
