@@ -120,7 +120,7 @@ export default function FeatureFlagsPage() {
   const [search, setSearch] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const flags = data?.catalog ?? [];
+  const flags = useMemo(() => data?.catalog ?? [], [data]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
