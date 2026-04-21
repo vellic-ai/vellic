@@ -41,29 +41,38 @@ jobs:
           pip install uv
           uv pip install --system -e "${{ matrix.service }}"
 
-      - name: Run pip-audit (SARIF output)
+      - name: Run pip-audit
         run: |
           pip-audit \
             --project-dir "${{ matrix.service }}" \
-            --format sarif \
-            --output "${{ matrix.service }}-pip-audit.sarif" \
+            --format json \
+            --output "${{ matrix.service }}-pip-audit.json" \
             --skip-editable \
             --severity high
-        continue-on-error: true
 
-      - name: Upload SARIF to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ matrix.service }}-pip-audit.sarif
-          category: pip-audit-${{ matrix.service }}
+      - name: Fail on HIGH/CRITICAL findings
+        run: |
+          COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('${{ matrix.service }}-pip-audit.json'))
+          deps = data.get('dependencies', [])
+          vulns = [v for d in deps for v in d.get('vulns', [])]
+          print(len(vulns))
+          ")
+          echo "Findings: $COUNT"
+          if [ "$COUNT" -gt "0" ]; then
+            echo "::error::pip-audit found $COUNT HIGH/CRITICAL vulnerabilities in ${{ matrix.service }}"
+            cat "${{ matrix.service }}-pip-audit.json" | python3 -m json.tool
+            exit 1
+          fi
+          echo "No HIGH/CRITICAL pip vulnerabilities found in ${{ matrix.service }}."
 
-      - name: Upload SARIF artifact
+      - name: Upload pip-audit artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pip-audit-sarif-${{ matrix.service }}
-          path: ${{ matrix.service }}-pip-audit.sarif
+          name: pip-audit-${{ matrix.service }}
+          path: ${{ matrix.service }}-pip-audit.json
 
   npm-audit:
     name: npm audit (frontend)
@@ -123,7 +132,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, worker, admin]
+        include:
+          - service: api
+            context: "."
+            dockerfile: "api/Dockerfile"
+          - service: worker
+            context: "./worker"
+            dockerfile: "worker/Dockerfile"
+          - service: admin
+            context: "."
+            dockerfile: "admin/Dockerfile"
     steps:
       - uses: actions/checkout@v4
 
@@ -133,7 +151,8 @@ jobs:
       - name: Build image for scanning
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: false
           load: true
           tags: vellic/${{ matrix.service }}:scan
@@ -146,7 +165,7 @@ jobs:
           image-ref: vellic/${{ matrix.service }}:scan
           format: sarif
           output: trivy-${{ matrix.service }}.sarif
-          exit-code: "0"
+          exit-code: "1"
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
 
