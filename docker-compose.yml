@@ -120,6 +120,8 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: "8001"
       VELLIC_ADMIN_V2: ${VELLIC_ADMIN_V2:-1}
+      VELLIC_PRESETS_DIR: /app/presets
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy

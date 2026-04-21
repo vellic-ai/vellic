@@ -13,6 +13,7 @@ from .auth_router import AdminAuthMiddleware
 from .auth_router import router as auth_router
 from .dlq_router import router as dlq_router
 from .features_router import router as features_router
+from .prompts_router import router as prompts_router
 from .repos_router import router as repos_router
 from .settings_router import router as settings_router
 from .stats_router import router as stats_router
@@ -51,6 +52,7 @@ app.include_router(settings_router)
 app.include_router(repos_router)
 app.include_router(stats_router)
 app.include_router(dlq_router)
+app.include_router(prompts_router)
 
 # @deprecated (VELLIC_ADMIN_V2): static mount removed when flag=1; nginx handles SPA routing.
 if not _ADMIN_V2 and _STATIC.is_dir():
