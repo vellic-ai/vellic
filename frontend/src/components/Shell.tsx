@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router";
 import { Icons, Wordmark } from "@/components/icons";
 import { useLogout } from "@/api";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface NavItem {
   label: string;
@@ -41,7 +42,7 @@ function SidebarNavItem({ to, icon, label }: NavItem) {
       className={({ isActive }) =>
         cn(
           "flex items-center gap-2.5 h-8 mx-2 px-2.5 rounded-[6px] text-sm transition-colors duration-[120ms]",
-          "border-l-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          "border-l-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
           isActive
             ? "bg-surface-2 text-text border-l-accent font-medium"
             : "text-text-muted border-l-transparent hover:bg-surface-2/50 hover:text-text",
@@ -114,7 +115,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         <button
           onClick={handleLogout}
           disabled={logout.isPending}
-          className="inline-flex items-center gap-1.5 text-text-muted text-sm hover:text-text transition-colors"
+          className="inline-flex items-center gap-1.5 text-text-muted text-sm hover:text-text transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] rounded"
           aria-label="Log out"
         >
           <span className="inline-flex w-3.5">
@@ -122,9 +123,12 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           </span>
           Logout
         </button>
-        <span className="font-mono text-[10.5px] text-text-muted px-1.5 py-0.5 bg-surface-2 rounded">
-          v0.4.2
-        </span>
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+          <span className="font-mono text-[10.5px] text-text-muted px-1.5 py-0.5 bg-surface-2 rounded">
+            v0.4.2
+          </span>
+        </div>
       </div>
     </aside>
   );
@@ -240,8 +244,8 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-block rounded bg-surface-2 animate-shimmer",
-        "bg-[linear-gradient(90deg,var(--surface-2)_25%,#2a2f44_50%,var(--surface-2)_75%)]",
+        "inline-block rounded animate-shimmer",
+        "bg-[linear-gradient(90deg,var(--shimmer-from)_25%,var(--shimmer-mid)_50%,var(--shimmer-from)_75%)]",
         "bg-[length:400px_100%]",
         className,
       )}
