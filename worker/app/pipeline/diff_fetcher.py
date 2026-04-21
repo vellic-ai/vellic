@@ -74,15 +74,45 @@ async def fetch_diff_chunks(
     """
     validate_outbound_url(diff_url, context="diff_fetcher")
 
-    headers: dict[str, str] = {"Accept": "application/json"}
-    if platform == "gitlab":
-        resolved_token = token or os.getenv("GITLAB_TOKEN", "")
-        if resolved_token:
-            headers["PRIVATE-TOKEN"] = resolved_token
-    else:
-        resolved_token = token or os.getenv("GITHUB_TOKEN", "")
-        if resolved_token:
-            headers["Authorization"] = f"Bearer {resolved_token}"
+    if platform == "bitbucket":
+        bb_token = token or os.getenv("BITBUCKET_TOKEN", "")
+        bb_user = os.getenv("BITBUCKET_USERNAME", "")
+        bb_pass = os.getenv("BITBUCKET_APP_PASSWORD", "")
+        headers: dict[str, str] = {"Accept": "text/plain"}
+        auth: tuple[str, str] | None = None
+        if bb_token:
+            headers["Authorization"] = f"Bearer {bb_token}"
+        elif bb_user and bb_pass:
+            auth = (bb_user, bb_pass)
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(diff_url, headers=headers, auth=auth)
+            resp.raise_for_status()
+            raw_diff = resp.text
+
+        file_pairs = _parse_unified_diff(raw_diff)
+        chunks: list[DiffChunk] = []
+        for filename, patch in file_pairs:
+            if not patch.strip():
+                logger.debug("skipping %s: no patch (binary or empty)", filename)
+                continue
+            if _is_generated(filename):
+                logger.info("skipping generated file: %s", filename)
+                continue
+            chunks.extend(_chunk_patch(filename, patch))
+
+        logger.info(
+            "fetched %d chunks from %d files via %s (bitbucket raw diff)",
+            len(chunks),
+            len(file_pairs),
+            diff_url,
+        )
+        return chunks
+
+    resolved_token = token or os.getenv("GITHUB_TOKEN", "")
+    headers = {"Accept": "application/json"}
+    if resolved_token:
+        headers["Authorization"] = f"Bearer {resolved_token}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(diff_url, headers=headers)
@@ -91,12 +121,12 @@ async def fetch_diff_chunks(
 
     # GitHub returns a JSON array; GitLab changes API returns {"changes": [...]}
     if isinstance(data, dict):
-        files = data.get("changes", [])
+        files_list = data.get("changes", [])
     else:
-        files = data
+        files_list = data
 
-    chunks: list[DiffChunk] = []
-    for file_info in files:
+    chunks = []
+    for file_info in files_list:
         # GitHub: filename/patch; GitLab: new_path/diff
         filename = file_info.get("filename") or file_info.get("new_path", "")
         patch = file_info.get("patch") or file_info.get("diff", "")
