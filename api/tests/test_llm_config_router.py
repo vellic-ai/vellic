@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -266,8 +265,10 @@ class TestTestLLMConfig:
         cfg_row = _config_row(api_key_enc=None)
         pool = _make_pool(fetchrow_side_effect=[install_row, cfg_row])
 
-        with patch("app.llm_config_router.db") as mock_db, \
-             patch("app.llm_config_router._probe_openai_compat", new=AsyncMock(side_effect=Exception("conn refused"))):
+        with patch("app.llm_config_router.db") as mock_db, patch(
+            "app.llm_config_router._probe_openai_compat",
+            new=AsyncMock(side_effect=Exception("conn refused")),
+        ):
             mock_db.get_pool.return_value = pool
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post("/api/repos/org/repo/llm-config/test")
