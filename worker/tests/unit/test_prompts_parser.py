@@ -4,7 +4,6 @@ import textwrap
 
 import pytest
 
-from app.prompts.models import PromptFrontmatter
 from app.prompts.parser import load_prompts_from_dir, parse_prompt_content
 from app.prompts.schema import PromptValidationError, validate_frontmatter
 

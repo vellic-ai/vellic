@@ -57,7 +57,7 @@ def validate_frontmatter(raw: dict[str, Any], source_hint: str = "") -> PromptFr
     try:
         priority = int(priority_raw)
     except (TypeError, ValueError):
-        raise PromptValidationError(f"'priority' must be an integer{loc}")
+        raise PromptValidationError(f"'priority' must be an integer{loc}") from None
 
     # --- inherits ---
     inherits_raw = raw.get("inherits")

@@ -44,7 +44,9 @@ def _split_frontmatter(content: str, source_hint: str) -> tuple[str, str]:
     return frontmatter_yaml, body
 
 
-def parse_prompt_content(content: str, name: str, path: str = "", source: str = "repo") -> PromptFile:
+def parse_prompt_content(
+    content: str, name: str, path: str = "", source: str = "repo"
+) -> PromptFile:
     """Parse *content* (a full .md file string) into a :class:`PromptFile`.
 
     Raises :class:`PromptValidationError` on invalid front-matter.

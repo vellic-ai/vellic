@@ -2,7 +2,7 @@
 
 import textwrap
 
-from app.prompts.models import PromptContext, PromptFrontmatter
+from app.prompts.models import PromptContext
 from app.prompts.parser import parse_prompt_content
 from app.prompts.renderer import build_resolved_prompt, render_body, render_prompt
 
