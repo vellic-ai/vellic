@@ -6,8 +6,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import asyncpg
 from arq import create_pool as arq_create_pool
 from arq.connections import RedisSettings
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .jobs import post_feedback, process_webhook
+from .metrics import get_max_retries, webhook_dlq_depth
 
 logger = logging.getLogger("worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -22,6 +24,13 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == "/metrics":
+            output = generate_latest()
+            self.send_response(200)
+            self.send_header("Content-Type", CONTENT_TYPE_LATEST)
+            self.send_header("Content-Length", str(len(output)))
+            self.end_headers()
+            self.wfile.write(output)
         else:
             self.send_response(404)
             self.end_headers()
@@ -48,6 +57,16 @@ async def startup(ctx: dict) -> None:
     ctx["redis"] = arq_redis
     logger.info("arq pool ready")
 
+    # Initialise dlq_depth gauge from DB so it survives restarts
+    try:
+        count = await pool.fetchval(
+            "SELECT COUNT(*) FROM webhook_dlq WHERE status = 'pending'"
+        )
+        webhook_dlq_depth.set(count or 0)
+        logger.info("dlq_depth initialised to %d", count or 0)
+    except Exception:
+        logger.warning("could not initialise dlq_depth gauge (table may not exist yet)")
+
     logger.info("LLM config will be loaded from DB per job (env vars as fallback)")
 
 
@@ -66,7 +85,7 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 10
-    max_tries = 3
+    max_tries = get_max_retries() + 1  # retries + initial attempt
     job_timeout = 300
     keep_result = 60
 

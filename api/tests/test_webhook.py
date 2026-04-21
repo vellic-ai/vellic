@@ -83,13 +83,13 @@ async def client(mock_db_pool, mock_arq_pool):
 
 
 class TestSignatureValidation:
-    async def test_invalid_signature_returns_400(self, client, env_secret):
+    async def test_invalid_signature_returns_401(self, client, env_secret):
         body = json.dumps(PR_PAYLOAD).encode()
         headers = _pr_headers(body, secret="wrong-secret")
         resp = await client.post("/webhook/github", content=body, headers=headers)
-        assert resp.status_code == 400
+        assert resp.status_code == 401
 
-    async def test_missing_signature_with_secret_returns_400(self, client, env_secret):
+    async def test_missing_signature_with_secret_returns_401(self, client, env_secret):
         body = json.dumps(PR_PAYLOAD).encode()
         headers = {
             "X-GitHub-Delivery": DELIVERY_ID,
@@ -97,7 +97,7 @@ class TestSignatureValidation:
             "Content-Type": "application/json",
         }
         resp = await client.post("/webhook/github", content=body, headers=headers)
-        assert resp.status_code == 400
+        assert resp.status_code == 401
 
     async def test_no_secret_configured_rejects(self, client, monkeypatch):
         monkeypatch.delenv("GITHUB_WEBHOOK_SECRET", raising=False)
@@ -108,7 +108,7 @@ class TestSignatureValidation:
             "Content-Type": "application/json",
         }
         resp = await client.post("/webhook/github", content=body, headers=headers)
-        assert resp.status_code == 400
+        assert resp.status_code == 401
 
 
 class TestEventFiltering:

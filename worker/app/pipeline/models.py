@@ -9,6 +9,7 @@ class PRContext:
     title: str
     body: str
     base_branch: str
+    platform: str = "github"
 
 
 @dataclass

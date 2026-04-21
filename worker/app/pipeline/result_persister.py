@@ -29,16 +29,17 @@ async def persist(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO pr_reviews (repo, pr_number, commit_sha, feedback)
-            VALUES ($1, $2, $3, $4::jsonb)
+            INSERT INTO pr_reviews (repo, pr_number, commit_sha, feedback, platform)
+            VALUES ($1, $2, $3, $4::jsonb, $5)
             ON CONFLICT ON CONSTRAINT uq_pr_reviews_repo_pr_sha
-                DO UPDATE SET feedback = EXCLUDED.feedback
+                DO UPDATE SET feedback = EXCLUDED.feedback, platform = EXCLUDED.platform
             RETURNING id
             """,
             context.repo,
             context.pr_number,
             context.commit_sha,
             feedback_json,
+            context.platform,
         )
         pr_review_id: uuid.UUID = row["id"]
 
