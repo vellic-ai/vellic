@@ -2,6 +2,7 @@ import logging
 import uuid
 
 import asyncpg
+from vellic_flags import by_key
 
 from ..context.ast.enricher import ASTEnricher
 from ..events import PREvent
@@ -14,6 +15,14 @@ from .result_persister import persist
 logger = logging.getLogger("worker.pipeline.runner")
 
 _ast_enricher = ASTEnricher()
+
+
+def _flag_enabled(key: str) -> bool:
+    flag = by_key(key)
+    if flag is None:
+        return False
+    env = flag.read_env()
+    return env if env is not None else flag.default
 
 
 async def run_pipeline(
@@ -30,7 +39,10 @@ async def run_pipeline(
     )
 
     # Stage 2: fetch and chunk diff
-    chunks = await fetch_diff_chunks(event.diff_url, platform=event.platform)
+    if not _flag_enabled("pipeline.diff"):
+        logger.info("pipeline.diff disabled — skipping diff fetch; aborting pipeline")
+        return ""
+    chunks = await fetch_diff_chunks(event.diff_url)
     logger.info("stage2 complete chunks=%d", len(chunks))
 
     # Stage 2b: AST enrichment (best-effort; failures are non-fatal)
@@ -43,7 +55,10 @@ async def run_pipeline(
         logger.warning("AST enrichment failed (non-fatal): %s", exc)
 
     # Stage 3: LLM analysis
-    result = await analyze(context, chunks, llm, ast_contexts=ast_contexts)
+    if not _flag_enabled("pipeline.llm_analysis"):
+        logger.info("pipeline.llm_analysis disabled — skipping LLM pass")
+        return ""
+    result = await analyze(context, chunks, llm)
     logger.info(
         "stage3 complete comments=%d generic_ratio=%.2f",
         len(result.comments),
