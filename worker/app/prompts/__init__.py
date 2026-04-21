@@ -4,10 +4,18 @@ from .context_resolver import build_prompt_context, extract_symbols_from_diff, f
 from .inheritance import CircularInheritanceError, cascade_merge, resolve_all, resolve_single
 from .models import PromptContext, PromptFile, PromptFrontmatter, ResolvedPrompt
 from .parser import load_prompts_from_dir, parse_prompt_content
+from .preset_loader import (
+    BUILTIN_PRESET_NAMES,
+    fork_preset,
+    list_presets,
+    load_all_presets,
+    load_preset,
+)
 from .renderer import build_resolved_prompt, render_prompt
 from .schema import PromptValidationError, validate_frontmatter
 
 __all__ = [
+    "BUILTIN_PRESET_NAMES",
     "CircularInheritanceError",
     "PromptContext",
     "PromptFile",
@@ -19,6 +27,10 @@ __all__ = [
     "cascade_merge",
     "extract_symbols_from_diff",
     "fetch_prev_reviews",
+    "fork_preset",
+    "list_presets",
+    "load_all_presets",
+    "load_preset",
     "load_prompts_from_dir",
     "parse_prompt_content",
     "render_prompt",
