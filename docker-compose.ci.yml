@@ -1,6 +1,8 @@
 # CI overrides: replace ollama with a lightweight HTTP stub to avoid pulling
 # large model weights in CI. No service depends on ollama being healthy, but
 # docker compose --wait requires every service with a healthcheck to pass.
+# Frontend healthcheck is overridden to probe nginx directly rather than via
+# the /health proxy to admin — the proxy chain is verified by smoke assertions.
 services:
   ollama:
     image: alpine
@@ -12,3 +14,11 @@ services:
       timeout: 2s
       retries: 3
       start_period: 2s
+
+  frontend:
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
