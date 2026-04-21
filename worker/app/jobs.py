@@ -9,7 +9,7 @@ from .adapters.github import normalize_pr
 from .adapters.gitlab import normalize_mr
 from .llm import build_provider
 from .llm.config import _EXTERNAL_PROVIDERS, load_env_llm_config
-from .llm.db_config import load_llm_config_from_db
+from .llm.db_config import load_llm_config_from_db, load_repo_llm_config_from_db
 from .metrics import (
     compute_retry_delays,
     get_max_retries,
@@ -123,7 +123,7 @@ async def _get_repo_installation(
     """Return the most-specific matching installation row, or None if no rows exist."""
     rows = await pool.fetch(
         """
-        SELECT config_json FROM installations
+        SELECT id, config_json FROM installations
         WHERE platform = $1 AND org = $2
           AND (repo = $3 OR repo IS NULL)
         ORDER BY (repo = $3) DESC NULLS LAST
@@ -174,10 +174,12 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
 
     # Check repo allow-list; apply per-repo LLM overrides if present.
     installation_cfg: dict = {}
+    installation_id: str | None = None
     if repo_full:
         org_part, _, repo_part = repo_full.partition("/")
         inst = await _get_repo_installation(pool, platform, org_part, repo_part)
         if inst is not None:
+            installation_id = str(inst["id"]) if inst.get("id") else None
             installation_cfg = inst.get("config_json") or {}
             if not installation_cfg.get("enabled", True):
                 logger.info("repo %s disabled — skipping delivery %s", repo_full, delivery_id)
@@ -187,22 +189,41 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
                 )
                 return
 
-    # Load LLM config: DB row takes precedence; fall back to env vars.
-    try:
-        cfg = await load_llm_config_from_db(pool)
-    except Exception as exc:
-        logger.warning("failed to load LLM config from DB, falling back to env vars: %s", exc)
-        cfg = None
+    # Load LLM config. Resolution order: per-repo llm_configs > global llm_settings > env vars.
+    cfg: dict | None = None
+    if installation_id:
+        try:
+            cfg = await load_repo_llm_config_from_db(pool, installation_id)
+            if cfg is not None:
+                logger.info(
+                    "llm config: per-repo DB row provider=%s model=%s for %s",
+                    cfg["provider"],
+                    cfg["model"],
+                    repo_full,
+                )
+        except Exception as exc:
+            logger.warning("failed to load per-repo LLM config for %s: %s", repo_full, exc)
+            cfg = None
     if cfg is None:
-        cfg = load_env_llm_config()
-        logger.info("llm config: using env-var fallback (no DB row)")
-    else:
-        logger.info(
-            "llm config: loaded from DB provider=%s model=%s", cfg["provider"], cfg["model"]
-        )
+        try:
+            cfg = await load_llm_config_from_db(pool)
+        except Exception as exc:
+            logger.warning(
+                "failed to load global LLM config from DB, falling back to env vars: %s", exc
+            )
+            cfg = None
+        if cfg is None:
+            cfg = load_env_llm_config()
+            logger.info("llm config: using env-var fallback (no DB row)")
+        else:
+            logger.info(
+                "llm config: loaded from global DB provider=%s model=%s",
+                cfg["provider"],
+                cfg["model"],
+            )
 
-    # Per-repo provider/model override.
-    if installation_cfg.get("provider") and installation_cfg.get("model"):
+    # Per-repo config_json provider/model override (legacy path, lower priority than llm_configs).
+    if installation_cfg.get("provider") and installation_cfg.get("model") and not installation_id:
         cfg = {**cfg, "provider": installation_cfg["provider"], "model": installation_cfg["model"]}
         logger.info(
             "per-repo llm override provider=%s model=%s for %s",
