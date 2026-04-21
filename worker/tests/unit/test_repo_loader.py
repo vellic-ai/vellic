@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.prompts.models import PromptFile
-from app.prompts.repo_loader import load_repo_prompts, load_repo_prompts_sync
+from app.prompts.repo_loader import _flag_enabled, load_repo_prompts, load_repo_prompts_sync
 
 _VALID_PROMPT = textwrap.dedent("""\
     ---
@@ -143,3 +143,36 @@ def test_load_repo_prompts_sync_returns_empty_when_flag_disabled(tmp_path: Path)
     with patch("app.prompts.repo_loader._flag_enabled", return_value=False):
         result = load_repo_prompts_sync(str(repo_root))
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# _flag_enabled unit tests (exercises vellic_flags.by_key integration)
+# ---------------------------------------------------------------------------
+
+
+def test_flag_enabled_returns_false_when_key_unknown():
+    with patch("app.prompts.repo_loader.by_key", return_value=None):
+        assert _flag_enabled("nonexistent.key") is False
+
+
+def test_flag_enabled_returns_env_value_when_set():
+    mock_flag = MagicMock()
+    mock_flag.read_env.return_value = True
+    with patch("app.prompts.repo_loader.by_key", return_value=mock_flag):
+        assert _flag_enabled("platform.prompt_dsl") is True
+
+
+def test_flag_enabled_falls_back_to_default_when_env_is_none():
+    mock_flag = MagicMock()
+    mock_flag.read_env.return_value = None
+    mock_flag.default = False
+    with patch("app.prompts.repo_loader.by_key", return_value=mock_flag):
+        assert _flag_enabled("platform.prompt_dsl") is False
+
+
+def test_flag_enabled_default_true_used_when_env_none():
+    mock_flag = MagicMock()
+    mock_flag.read_env.return_value = None
+    mock_flag.default = True
+    with patch("app.prompts.repo_loader.by_key", return_value=mock_flag):
+        assert _flag_enabled("platform.prompt_dsl") is True
