@@ -74,9 +74,10 @@ def _build_prompt(
     context: PRContext,
     chunks: list[DiffChunk],
     ast_contexts: dict[str, ASTContext] | None = None,
+    custom_instructions: str | None = None,
 ) -> str:
     parts = [
-        _INSTRUCTIONS,
+        custom_instructions if custom_instructions is not None else _INSTRUCTIONS,
         "",
         f"PR: {context.title}",
         f"Repo: {context.repo}   Base: {context.base_branch}",
@@ -106,12 +107,13 @@ async def analyze(
     llm: LLMProvider,
     max_tokens: int = 2048,
     ast_contexts: dict[str, ASTContext] | None = None,
+    custom_instructions: str | None = None,
 ) -> AnalysisResult:
     if not chunks:
         logger.info("no reviewable diff chunks for %s#%d", context.repo, context.pr_number)
         return AnalysisResult(comments=[], summary="No reviewable diff found.", generic_ratio=0.0)
 
-    prompt = _build_prompt(context, chunks, ast_contexts=ast_contexts)
+    prompt = _build_prompt(context, chunks, ast_contexts=ast_contexts, custom_instructions=custom_instructions)
     raw = await llm.complete(prompt, max_tokens=max_tokens)
     logger.debug("LLM raw response length=%d", len(raw))
 

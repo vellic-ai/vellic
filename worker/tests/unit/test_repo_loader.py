@@ -1,4 +1,4 @@
-"""Unit tests for worker/app/prompts/repo_loader.py (VEL-115)."""
+"""Unit tests for worker/app/prompts/repo_loader.py (VEL-115, VEL-116)."""
 
 from __future__ import annotations
 
@@ -46,6 +46,20 @@ class _FakeConn:
     async def fetch(self, query: str, *args) -> list[dict]:
         return self._rows
 
+
+# ---------------------------------------------------------------------------
+# Fixture: enable the feature flag for all tests unless explicitly overridden
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _dsl_flag_on():
+    with patch("app.prompts.repo_loader._flag_enabled", return_value=True):
+        yield
+
+
+# ---------------------------------------------------------------------------
+# Existing load tests (run with flag enabled via autouse fixture)
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_no_overrides_returns_repo_files(tmp_path: Path) -> None:
@@ -108,4 +122,24 @@ def test_sync_loader_returns_repo_files(tmp_path: Path) -> None:
 
 def test_sync_loader_empty_dir(tmp_path: Path) -> None:
     result = load_repo_prompts_sync(str(tmp_path))
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Flag-gating tests (VEL-116): flag disabled → empty list, no I/O
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_load_repo_prompts_returns_empty_when_flag_disabled(tmp_path: Path) -> None:
+    repo_root = _make_repo_dir(tmp_path, {"my-review": _VALID_PROMPT})
+    conn = _FakeConn([{"path": "db-only", "body": _VALID_PROMPT_B, "updated_at": None}])
+    with patch("app.prompts.repo_loader._flag_enabled", return_value=False):
+        result = await load_repo_prompts(str(repo_root), "org/repo", conn)
+    assert result == []
+
+
+def test_load_repo_prompts_sync_returns_empty_when_flag_disabled(tmp_path: Path) -> None:
+    repo_root = _make_repo_dir(tmp_path, {"my-review": _VALID_PROMPT})
+    with patch("app.prompts.repo_loader._flag_enabled", return_value=False):
+        result = load_repo_prompts_sync(str(repo_root))
     assert result == []

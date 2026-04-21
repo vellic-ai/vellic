@@ -7,6 +7,10 @@ from vellic_flags import by_key
 from ..context.ast.enricher import ASTEnricher
 from ..events import PREvent
 from ..llm.protocol import LLMProvider
+from ..prompts.inheritance import cascade_merge, resolve_all
+from ..prompts.models import PromptContext
+from ..prompts.renderer import build_resolved_prompt
+from ..prompts.repo_loader import load_repo_prompts
 from ..rules import evaluate_rules, load_repo_config
 from .context_gatherer import gather_context
 from .diff_fetcher import fetch_diff_chunks
@@ -81,11 +85,35 @@ async def run_pipeline(
     repo_config = await load_repo_config(pool, context.repo)
     logger.info("stage2c complete rules=%d repo=%s", len(repo_config.rules), context.repo)
 
+    # Stage 2d: load DSL prompts (gated by platform.prompt_dsl flag)
+    custom_instructions: str | None = None
+    if _flag_enabled("platform.prompt_dsl"):
+        async with pool.acquire() as conn:
+            dsl_prompts = await load_repo_prompts("", context.repo, conn)
+        if dsl_prompts:
+            prompt_ctx = PromptContext(
+                repo=context.repo,
+                pr_title=context.title,
+                pr_body=context.body,
+                base_branch=context.base_branch,
+            )
+            resolved = resolve_all(dsl_prompts)
+            merged = cascade_merge(resolved)
+            rendered = build_resolved_prompt(merged, prompt_ctx)
+            custom_instructions = rendered.body
+            logger.info(
+                "stage2d complete dsl_prompts=%d sources=%s",
+                len(dsl_prompts),
+                rendered.sources,
+            )
+        else:
+            logger.debug("stage2d: platform.prompt_dsl enabled but no prompts found for repo=%s", context.repo)
+
     # Stage 3: LLM analysis
     if not _flag_enabled("pipeline.llm_analysis"):
         logger.info("pipeline.llm_analysis disabled — skipping LLM pass")
         return ""
-    result = await analyze(context, chunks, llm)
+    result = await analyze(context, chunks, llm, custom_instructions=custom_instructions)
     logger.info(
         "stage3 complete comments=%d generic_ratio=%.2f",
         len(result.comments),
