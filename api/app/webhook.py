@@ -137,7 +137,8 @@ async def github_webhook(request: Request) -> Response:
 # GitLab
 # ---------------------------------------------------------------------------
 
-_GITLAB_HANDLED_EVENTS = {"Merge Request Hook", "Note Hook"}
+# TODO: add "Note Hook" here once the worker pipeline handles MR note events
+_GITLAB_HANDLED_EVENTS = {"Merge Request Hook"}
 _MR_ACTIONS = {"open", "reopen", "update"}
 
 
@@ -158,6 +159,9 @@ async def gitlab_webhook(request: Request) -> Response:
     obj_attrs = payload.get("object_attributes", {})
     obj_id = str(obj_attrs.get("id", ""))
     received_ts = datetime.now(UTC).isoformat()
+    # GitLab has no stable delivery UUID header; we construct one from object ID +
+    # timestamp. This means ON CONFLICT DO NOTHING won't dedup GitLab retries of the
+    # same event — duplicate jobs are possible but idempotent at the pipeline level.
     delivery_id = f"gitlab-{obj_id}-{received_ts}" if obj_id else f"gitlab-{received_ts}"
 
     if event_type not in _GITLAB_HANDLED_EVENTS:

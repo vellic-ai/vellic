@@ -20,19 +20,23 @@ from fastapi.responses import JSONResponse
 
 _LIMIT = int(os.getenv("RATE_LIMIT_WEBHOOK", "60"))
 _WINDOW = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+_CLEANUP_EVERY = 500  # sweep stale IP entries every N requests
 
 # ip -> deque of request timestamps (float, monotonic)
 _counters: dict[str, collections.deque] = {}
 _lock = asyncio.Lock()
+_request_count = 0
 
 
 async def check_rate_limit(request: Request) -> Response | None:
     """Return a 429 Response if the caller has exceeded the rate limit, else None."""
+    global _request_count
     ip = request.client.host if request.client else "unknown"
     now = time.monotonic()
     cutoff = now - _WINDOW
 
     async with _lock:
+        _request_count += 1
         q = _counters.setdefault(ip, collections.deque())
         # Evict timestamps outside the current window
         while q and q[0] < cutoff:
@@ -44,6 +48,11 @@ async def check_rate_limit(request: Request) -> Response | None:
                 headers={"Retry-After": str(_WINDOW)},
             )
         q.append(now)
+        # Periodically remove IPs with no recent requests to bound memory usage.
+        if _request_count % _CLEANUP_EVERY == 0:
+            stale = [k for k, v in _counters.items() if not v]
+            for k in stale:
+                del _counters[k]
     return None
 
 

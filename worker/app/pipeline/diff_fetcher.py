@@ -34,6 +34,7 @@ def _chunk_patch(filename: str, patch: str) -> list[DiffChunk]:
 
 async def fetch_diff_chunks(
     diff_url: str,
+    platform: str = "github",
     token: str | None = None,
 ) -> list[DiffChunk]:
     """Fetch and chunk PR file diffs from a platform files API URL.
@@ -44,10 +45,15 @@ async def fetch_diff_chunks(
     """
     validate_outbound_url(diff_url, context="diff_fetcher")
 
-    resolved_token = token or os.getenv("GITHUB_TOKEN", "")
     headers: dict[str, str] = {"Accept": "application/json"}
-    if resolved_token:
-        headers["Authorization"] = f"Bearer {resolved_token}"
+    if platform == "gitlab":
+        resolved_token = token or os.getenv("GITLAB_TOKEN", "")
+        if resolved_token:
+            headers["PRIVATE-TOKEN"] = resolved_token
+    else:
+        resolved_token = token or os.getenv("GITHUB_TOKEN", "")
+        if resolved_token:
+            headers["Authorization"] = f"Bearer {resolved_token}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(diff_url, headers=headers)
