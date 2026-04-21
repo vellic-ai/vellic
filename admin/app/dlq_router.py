@@ -73,7 +73,10 @@ async def replay_dlq_entry(dlq_id: str) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail=f"DLQ entry {dlq_id!r} not found")
     if row["status"] == "discarded":
-        raise HTTPException(status_code=409, detail="entry has been discarded and cannot be replayed")
+        raise HTTPException(
+            status_code=409,
+            detail="entry has been discarded and cannot be replayed",
+        )
 
     arq = arq_pool.get_pool()
     await arq.enqueue_job("process_webhook", row["delivery_id"])

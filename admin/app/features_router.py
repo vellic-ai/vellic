@@ -1,9 +1,8 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from vellic_flags import CATALOG, FlagDef, by_key
 
 logger = logging.getLogger("admin.features")
@@ -43,7 +42,7 @@ def _snapshot() -> dict:
             }
             for f in CATALOG
         ],
-        "snapshot_at": datetime.now(timezone.utc).isoformat(),
+        "snapshot_at": datetime.now(UTC).isoformat(),
     }
 
 
