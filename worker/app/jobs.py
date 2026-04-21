@@ -19,11 +19,9 @@ from .metrics import (
     webhook_retry_total,
 )
 from .pipeline.feedback_poster import (
-    BitbucketClientError,
     GitHubClientError,
     GitLabClientError,
     RateLimitError,
-    post_bitbucket_comment,
     post_github_review,
     post_gitlab_discussion,
 )
@@ -154,10 +152,7 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
     payload: dict = row["payload"]
     logger.info("delivery=%s event=%s attempt=%d", delivery_id, event_type, job_try)
 
-    _BITBUCKET_EVENTS = {"pullrequest:created", "pullrequest:updated", "pullrequest:fulfilled"}
-    _PR_EVENTS = {"pull_request", "merge_request", "Merge Request Hook"} | _BITBUCKET_EVENTS
-
-    if event_type not in _PR_EVENTS:
+    if event_type not in ("pull_request", "merge_request", "Merge Request Hook"):
         await pool.execute(
             "UPDATE webhook_deliveries SET processed_at = NOW() WHERE delivery_id = $1",
             delivery_id,
@@ -167,13 +162,9 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
 
     # Determine platform and extract repo path.
     is_gitlab = event_type in ("merge_request", "Merge Request Hook")
-    is_bitbucket = event_type in _BITBUCKET_EVENTS
     if is_gitlab:
         repo_full = (payload.get("project") or {}).get("path_with_namespace", "")
         platform = "gitlab"
-    elif is_bitbucket:
-        repo_full = (payload.get("repository") or {}).get("full_name", "")
-        platform = "bitbucket"
     else:
         repo_full = (payload.get("repository") or {}).get("full_name", "")
         platform = "github"
@@ -228,12 +219,7 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
         bin_path=cfg.get("bin_path", "claude"),
     )
 
-    if is_gitlab:
-        event = normalize_mr(delivery_id, payload)
-    elif is_bitbucket:
-        event = normalize_bb_pr(delivery_id, payload)
-    else:
-        event = normalize_pr(delivery_id, payload)
+    event = normalize_mr(delivery_id, payload) if is_gitlab else normalize_pr(delivery_id, payload)
     job_id = await _get_or_create_job(pool, delivery_id)
 
     max_retries = get_max_retries()
@@ -266,7 +252,7 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
 
     row = await pool.fetchrow(
         "SELECT repo, pr_number, commit_sha, feedback, platform,"
-        " github_review_id, gitlab_discussion_id, bitbucket_comment_id"
+        " github_review_id, gitlab_discussion_id"
         " FROM pr_reviews WHERE id = $1",
         uuid.UUID(pr_review_id),
     )
@@ -325,14 +311,6 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
             )
             id_col = "gitlab_discussion_id"
             dedup_clause = "AND gitlab_discussion_id IS NULL"
-        elif platform == "bitbucket":
-            platform_id = await post_bitbucket_comment(
-                repo=row["repo"],
-                pr_number=row["pr_number"],
-                result=result,
-            )
-            id_col = "bitbucket_comment_id"
-            dedup_clause = "AND bitbucket_comment_id IS NULL"
         else:
             platform_id = await post_github_review(
                 repo=row["repo"],
@@ -349,7 +327,7 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
             raise
         delay = _FEEDBACK_RETRY_DELAYS[min(job_try - 1, len(_FEEDBACK_RETRY_DELAYS) - 1)]
         raise Retry(defer=delay) from exc
-    except (GitHubClientError, GitLabClientError, BitbucketClientError) as exc:
+    except (GitHubClientError, GitLabClientError) as exc:
         logger.error("terminal %s error for pr_review=%s: %s", platform, pr_review_id, exc)
         return
     except Exception as exc:
