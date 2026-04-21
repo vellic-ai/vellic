@@ -234,6 +234,41 @@ export const Icons = {
   menu: ({ size = 16 }: IconProps) => (
     <Icon size={size} d={<path d="M4 7h16M4 12h16M4 17h16" />} />
   ),
+  plugin: ({ size = 16 }: IconProps) => (
+    <Icon
+      size={size}
+      d={
+        <>
+          <path d="M12 2l9 4.5v9L12 20l-9-4.5v-9L12 2z" />
+          <path d="M12 8v8M8 10l4-2 4 2" />
+        </>
+      }
+    />
+  ),
+  mcpServer: ({ size = 16 }: IconProps) => (
+    <Icon
+      size={size}
+      d={
+        <>
+          <rect x="3" y="4" width="18" height="7" rx="2" />
+          <rect x="3" y="13" width="18" height="7" rx="2" />
+          <circle cx="7" cy="7.5" r="1" fill="currentColor" stroke="none" />
+          <circle cx="7" cy="16.5" r="1" fill="currentColor" stroke="none" />
+        </>
+      }
+    />
+  ),
+  extensions: ({ size = 16 }: IconProps) => (
+    <Icon
+      size={size}
+      d={
+        <>
+          <path d="M12 2l3 3h4v4l3 3-3 3v4h-4l-3 3-3-3H5v-4l-3-3 3-3V5h4z" />
+          <circle cx="12" cy="12" r="2" />
+        </>
+      }
+    />
+  ),
   github: ({ size = 16, className }: IconProps) => (
     <svg
       width={size}

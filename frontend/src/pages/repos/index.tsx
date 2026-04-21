@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Shell, PageHeader, EmptyState, Skeleton } from "@/components/Shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -281,6 +282,7 @@ function ConfirmDeleteModal({ repo, onCancel, onConfirm, pending }: ConfirmModal
 
 export default function ReposPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { data: repoList, isLoading } = useRepos();
   const createRepo = useCreateRepo();
   const updateRepo = useUpdateRepo();
@@ -401,6 +403,17 @@ export default function ReposPage() {
                   )}
                 </div>
               </div>
+
+              {/* Extensions */}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate(`/repos/${r.id}/extensions`)}
+                aria-label={`Plugins & MCP servers for ${r.slug}`}
+              >
+                <Icons.extensions size={13} />
+                Extensions
+              </Button>
 
               {/* Edit */}
               <Button

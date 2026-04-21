@@ -244,6 +244,71 @@ export interface paths {
       };
     };
   };
+
+  "/admin/settings/repos/{repo_id}/plugins": {
+    get: {
+      parameters: { path: { repo_id: string } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PluginList"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos/{repo_id}/plugins/{plugin_id}": {
+    patch: {
+      parameters: { path: { repo_id: string; plugin_id: string } };
+      requestBody: { content: { "application/json": components["schemas"]["PluginPatchBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["PluginItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    delete: {
+      parameters: { path: { repo_id: string; plugin_id: string } };
+      responses: {
+        204: { content?: never };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos/{repo_id}/mcp-servers": {
+    get: {
+      parameters: { path: { repo_id: string } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["McpServerList"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    post: {
+      parameters: { path: { repo_id: string } };
+      requestBody: { content: { "application/json": components["schemas"]["McpServerBody"] } };
+      responses: {
+        201: { content: { "application/json": components["schemas"]["McpServerItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
+  "/admin/settings/repos/{repo_id}/mcp-servers/{server_id}": {
+    patch: {
+      parameters: { path: { repo_id: string; server_id: string } };
+      requestBody: { content: { "application/json": components["schemas"]["McpServerPatchBody"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["McpServerItem"] } };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+    delete: {
+      parameters: { path: { repo_id: string; server_id: string } };
+      responses: {
+        204: { content?: never };
+        404: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
 }
 
 export interface components {
@@ -413,6 +478,53 @@ export interface components {
     RepoList: {
       items: components["schemas"]["RepoItem"][];
     };
+
+    PluginItem: {
+      id: string;
+      name: string;
+      type: "zip" | "git";
+      source: string;
+      version: string | null;
+      version_pin: string | null;
+      enabled: boolean;
+      last_used_at: string | null;
+      installed_at: string;
+    };
+
+    PluginList: {
+      items: components["schemas"]["PluginItem"][];
+    };
+
+    PluginPatchBody: {
+      enabled?: boolean;
+      version_pin?: string | null;
+    };
+
+    McpServerItem: {
+      id: string;
+      name: string;
+      url: string;
+      transport: "sse" | "stdio" | "streamable_http";
+      credentials_set: boolean;
+      enabled: boolean;
+      last_used_at: string | null;
+      attached_at: string;
+    };
+
+    McpServerList: {
+      items: components["schemas"]["McpServerItem"][];
+    };
+
+    McpServerBody: {
+      name: string;
+      url: string;
+      transport: "sse" | "stdio" | "streamable_http";
+      credentials: Record<string, string> | null;
+    };
+
+    McpServerPatchBody: {
+      enabled?: boolean;
+    };
   };
   responses: never;
   parameters: never;
@@ -435,3 +547,8 @@ export type LLMSettingsOut = components["schemas"]["LLMSettingsOut"];
 export type WebhookSettingsOut = components["schemas"]["WebhookSettingsOut"];
 export type RepoItem = components["schemas"]["RepoItem"];
 export type RepoBody = components["schemas"]["RepoBody"];
+export type PluginItem = components["schemas"]["PluginItem"];
+export type PluginPatchBody = components["schemas"]["PluginPatchBody"];
+export type McpServerItem = components["schemas"]["McpServerItem"];
+export type McpServerBody = components["schemas"]["McpServerBody"];
+export type McpServerPatchBody = components["schemas"]["McpServerPatchBody"];

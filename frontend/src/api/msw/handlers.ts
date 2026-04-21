@@ -1,6 +1,48 @@
 import { http, HttpResponse } from "msw";
 import type { components } from "@/api/schema";
 
+const pluginStore: Record<string, components["schemas"]["PluginItem"][]> = {
+  "repo-001": [
+    {
+      id: "plug-001",
+      name: "acme-lint",
+      type: "git",
+      source: "https://github.com/acme/vellic-lint-plugin",
+      version: "1.2.0",
+      version_pin: null,
+      enabled: true,
+      last_used_at: new Date(Date.now() - 3_600_000).toISOString(),
+      installed_at: new Date(Date.now() - 86_400_000 * 7).toISOString(),
+    },
+    {
+      id: "plug-002",
+      name: "security-scanner",
+      type: "zip",
+      source: "security-scanner-v0.9.zip",
+      version: "0.9.0",
+      version_pin: "0.9.0",
+      enabled: false,
+      last_used_at: null,
+      installed_at: new Date(Date.now() - 86_400_000 * 2).toISOString(),
+    },
+  ],
+};
+
+const mcpStore: Record<string, components["schemas"]["McpServerItem"][]> = {
+  "repo-001": [
+    {
+      id: "mcp-001",
+      name: "GitHub MCP",
+      url: "https://mcp.github.com/sse",
+      transport: "sse",
+      credentials_set: true,
+      enabled: true,
+      last_used_at: new Date(Date.now() - 7_200_000).toISOString(),
+      attached_at: new Date(Date.now() - 86_400_000 * 3).toISOString(),
+    },
+  ],
+};
+
 const authStatus: components["schemas"]["AuthStatus"] = {
   setup_required: false,
   authenticated: true,
@@ -239,6 +281,92 @@ export const apiHandlers = [
   http.delete("/admin/settings/repos/:repo_id", ({ params }) => {
     const existing = repos.find((r) => r.id === params.repo_id);
     if (!existing) return HttpResponse.json({ detail: "Not found" }, { status: 404 });
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // --- Plugins ---
+  http.get("/admin/settings/repos/:repo_id/plugins", ({ params }) => {
+    const items = pluginStore[params.repo_id as string] ?? [];
+    return HttpResponse.json({ items });
+  }),
+
+  http.post("/admin/settings/repos/:repo_id/plugins", async ({ params, request }) => {
+    const fd = await request.formData();
+    const type = fd.get("type") as "zip" | "git";
+    const file = fd.get("file") as File | null;
+    const url = fd.get("url") as string | null;
+    const newPlugin: components["schemas"]["PluginItem"] = {
+      id: `plug-${Date.now()}`,
+      name: type === "zip" ? (file?.name.replace(/\.zip$/, "") ?? "plugin") : (url?.split("/").pop() ?? "plugin"),
+      type,
+      source: type === "zip" ? (file?.name ?? "") : (url ?? ""),
+      version: null,
+      version_pin: null,
+      enabled: true,
+      last_used_at: null,
+      installed_at: new Date().toISOString(),
+    };
+    const repoId = params.repo_id as string;
+    pluginStore[repoId] = [...(pluginStore[repoId] ?? []), newPlugin];
+    return HttpResponse.json(newPlugin, { status: 201 });
+  }),
+
+  http.patch("/admin/settings/repos/:repo_id/plugins/:plugin_id", async ({ params, request }) => {
+    const repoId = params.repo_id as string;
+    const pluginId = params.plugin_id as string;
+    const body = (await request.json()) as components["schemas"]["PluginPatchBody"];
+    const list = pluginStore[repoId] ?? [];
+    const idx = list.findIndex((p) => p.id === pluginId);
+    if (idx === -1) return HttpResponse.json({ detail: "Not found" }, { status: 404 });
+    list[idx] = { ...list[idx], ...body };
+    return HttpResponse.json(list[idx]);
+  }),
+
+  http.delete("/admin/settings/repos/:repo_id/plugins/:plugin_id", ({ params }) => {
+    const repoId = params.repo_id as string;
+    const pluginId = params.plugin_id as string;
+    pluginStore[repoId] = (pluginStore[repoId] ?? []).filter((p) => p.id !== pluginId);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // --- MCP Servers ---
+  http.get("/admin/settings/repos/:repo_id/mcp-servers", ({ params }) => {
+    const items = mcpStore[params.repo_id as string] ?? [];
+    return HttpResponse.json({ items });
+  }),
+
+  http.post("/admin/settings/repos/:repo_id/mcp-servers", async ({ params, request }) => {
+    const body = (await request.json()) as components["schemas"]["McpServerBody"];
+    const newServer: components["schemas"]["McpServerItem"] = {
+      id: `mcp-${Date.now()}`,
+      name: body.name,
+      url: body.url,
+      transport: body.transport,
+      credentials_set: Boolean(body.credentials && Object.keys(body.credentials).length > 0),
+      enabled: true,
+      last_used_at: null,
+      attached_at: new Date().toISOString(),
+    };
+    const repoId = params.repo_id as string;
+    mcpStore[repoId] = [...(mcpStore[repoId] ?? []), newServer];
+    return HttpResponse.json(newServer, { status: 201 });
+  }),
+
+  http.patch("/admin/settings/repos/:repo_id/mcp-servers/:server_id", async ({ params, request }) => {
+    const repoId = params.repo_id as string;
+    const serverId = params.server_id as string;
+    const body = (await request.json()) as components["schemas"]["McpServerPatchBody"];
+    const list = mcpStore[repoId] ?? [];
+    const idx = list.findIndex((s) => s.id === serverId);
+    if (idx === -1) return HttpResponse.json({ detail: "Not found" }, { status: 404 });
+    list[idx] = { ...list[idx], ...body };
+    return HttpResponse.json(list[idx]);
+  }),
+
+  http.delete("/admin/settings/repos/:repo_id/mcp-servers/:server_id", ({ params }) => {
+    const repoId = params.repo_id as string;
+    const serverId = params.server_id as string;
+    mcpStore[repoId] = (mcpStore[repoId] ?? []).filter((s) => s.id !== serverId);
     return new HttpResponse(null, { status: 204 });
   }),
 ];
