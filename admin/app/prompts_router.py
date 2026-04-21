@@ -365,7 +365,8 @@ async def list_prompts() -> PromptList:
     pool = db.get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
+            "SELECT path, body, enabled, updated_at"
+            " FROM prompt_overrides WHERE repo_id = $1 ORDER BY path",
             _GLOBAL_REPO_ID,
         )
     db_map: dict[str, dict] = {r["path"]: dict(r) for r in rows}
@@ -404,7 +405,7 @@ async def export_prompts() -> Response:
 
 @router.post("/admin/prompts/import", dependencies=[Depends(_require_prompt_dsl)])
 async def import_prompts(
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File(),  # noqa: B008
 ) -> dict:
     """Import .md prompt files into DB. Each file becomes a DB entry (upsert)."""
     pool = db.get_pool()
@@ -487,7 +488,8 @@ async def get_prompt(name: str) -> PromptOut:
     pool = db.get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT path, body, enabled, updated_at FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
+            "SELECT path, body, enabled, updated_at"
+            " FROM prompt_overrides WHERE repo_id = $1 AND path = $2",
             _GLOBAL_REPO_ID,
             name,
         )
@@ -587,7 +589,7 @@ async def set_prompt_enabled(name: str, body: PromptEnableBody) -> PromptOut:
 
 @router.delete("/admin/prompts/{name}", dependencies=[Depends(_require_prompt_dsl)])
 async def delete_prompt(name: str) -> PromptDeleteOut:
-    """Delete the DB entry for a prompt. Presets revert to file default; DB-only prompts are removed."""
+    """Delete the DB entry for a prompt. Presets revert to file default; DB-only prompts removed."""
     pool = db.get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(
