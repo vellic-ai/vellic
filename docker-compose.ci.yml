@@ -1,0 +1,13 @@
+# CI overrides: replace ollama with a lightweight HTTP stub to avoid pulling
+# large model weights in CI. No service depends on ollama being healthy, but
+# docker compose --wait requires every service with a healthcheck to pass.
+services:
+  ollama:
+    image: alpine
+    command: sh -c "mkdir -p /tmp/srv && echo '{}' > /tmp/srv/index.html && httpd -f -p 11434 -h /tmp/srv"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:11434/ 2>/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 3
+      start_period: 2s
