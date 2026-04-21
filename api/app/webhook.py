@@ -99,17 +99,17 @@ async def _persist_and_enqueue(delivery_id: str, event_type: str, payload: dict)
 
 @router.post("/webhook/github")
 async def github_webhook(request: Request) -> Response:
+    body = await request.body()
+    sig_header = request.headers.get("X-Hub-Signature-256", "")
+    if not _verify_github_signature(body, sig_header):
+        return Response(status_code=401)
+
     blocked = await check_rate_limit(request)
     if blocked is not None:
         return blocked
 
     delivery_id = request.headers.get("X-GitHub-Delivery", "")
     event_type = request.headers.get("X-GitHub-Event", "")
-    sig_header = request.headers.get("X-Hub-Signature-256", "")
-
-    body = await request.body()
-    if not _verify_github_signature(body, sig_header):
-        return Response(status_code=401)
 
     if not delivery_id:
         raise HTTPException(status_code=400, detail="missing X-GitHub-Delivery header")
@@ -143,16 +143,16 @@ _MR_ACTIONS = {"open", "reopen", "update"}
 
 @router.post("/webhook/gitlab")
 async def gitlab_webhook(request: Request) -> Response:
+    token_header = request.headers.get("X-Gitlab-Token", "")
+    if not _verify_gitlab_signature(token_header):
+        return Response(status_code=401)
+
     blocked = await check_rate_limit(request)
     if blocked is not None:
         return blocked
 
     event_type = request.headers.get("X-Gitlab-Event", "")
-    token_header = request.headers.get("X-Gitlab-Token", "")
-
     body = await request.body()
-    if not _verify_gitlab_signature(token_header):
-        return Response(status_code=401)
 
     payload = json.loads(body)
     obj_attrs = payload.get("object_attributes", {})
@@ -192,17 +192,17 @@ _BITBUCKET_HANDLED_EVENTS = {
 
 @router.post("/webhook/bitbucket")
 async def bitbucket_webhook(request: Request) -> Response:
+    body = await request.body()
+    sig_header = request.headers.get("X-Hub-Signature", "")
+    if not _verify_bitbucket_signature(body, sig_header):
+        return Response(status_code=401)
+
     blocked = await check_rate_limit(request)
     if blocked is not None:
         return blocked
 
     event_type = request.headers.get("X-Event-Key", "")
-    sig_header = request.headers.get("X-Hub-Signature", "")
     delivery_id = request.headers.get("X-Request-UUID", "")
-
-    body = await request.body()
-    if not _verify_bitbucket_signature(body, sig_header):
-        return Response(status_code=401)
 
     if not delivery_id:
         delivery_id = f"bb-{datetime.now(UTC).isoformat()}"
