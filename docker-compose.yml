@@ -44,7 +44,8 @@ services:
 
   api:
     build:
-      context: ./api
+      context: .
+      dockerfile: api/Dockerfile
       target: builder
     command: >
       sh -c "alembic upgrade head &&

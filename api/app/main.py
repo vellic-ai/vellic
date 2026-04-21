@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from . import arq_pool, db
+from .features_router import router as features_router
 from .webhook import router as webhook_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="vellic-api", version="0.1.0", lifespan=lifespan)
 app.include_router(webhook_router)
+app.include_router(features_router)
 
 
 @app.get("/health")
