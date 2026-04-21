@@ -5,7 +5,9 @@ from .inheritance import CircularInheritanceError, cascade_merge, resolve_all, r
 from .models import PromptContext, PromptFile, PromptFrontmatter, ResolvedPrompt
 from .parser import load_prompts_from_dir, parse_prompt_content
 from .renderer import build_resolved_prompt, render_prompt
+from .repo_loader import load_repo_prompts, load_repo_prompts_sync
 from .schema import PromptValidationError, validate_frontmatter
+from .store import delete_override, get_override, list_overrides, upsert_override
 
 __all__ = [
     "CircularInheritanceError",
@@ -17,12 +19,18 @@ __all__ = [
     "build_prompt_context",
     "build_resolved_prompt",
     "cascade_merge",
+    "delete_override",
     "extract_symbols_from_diff",
     "fetch_prev_reviews",
+    "get_override",
+    "list_overrides",
     "load_prompts_from_dir",
+    "load_repo_prompts",
+    "load_repo_prompts_sync",
     "parse_prompt_content",
     "render_prompt",
     "resolve_all",
     "resolve_single",
+    "upsert_override",
     "validate_frontmatter",
 ]
