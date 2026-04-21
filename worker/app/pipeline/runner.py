@@ -7,9 +7,11 @@ from vellic_flags import by_key
 from ..context.ast.enricher import ASTEnricher
 from ..events import PREvent
 from ..llm.protocol import LLMProvider
+from ..rules import evaluate_rules, load_repo_config
 from .context_gatherer import gather_context
 from .diff_fetcher import fetch_diff_chunks
 from .llm_analyzer import analyze
+from .models import AnalysisResult, ReviewComment
 from .result_persister import persist
 
 logger = logging.getLogger("worker.pipeline.runner")
@@ -23,6 +25,27 @@ def _flag_enabled(key: str) -> bool:
         return False
     env = flag.read_env()
     return env if env is not None else flag.default
+
+
+def _merge_rule_violations(result: AnalysisResult, violations: list) -> AnalysisResult:
+    """Append rule violations as ReviewComments with confidence=1.0 (deterministic)."""
+    if not violations:
+        return result
+    extra = [
+        ReviewComment(
+            file=v.file,
+            line=v.line,
+            body=f"[{v.severity.upper()}] {v.description}: `{v.matched_text}`",
+            confidence=1.0,
+            rationale=f"Matched rule '{v.rule_id}'",
+        )
+        for v in violations
+    ]
+    return AnalysisResult(
+        comments=result.comments + extra,
+        summary=result.summary,
+        generic_ratio=result.generic_ratio,
+    )
 
 
 async def run_pipeline(
@@ -54,6 +77,10 @@ async def run_pipeline(
     except Exception as exc:  # pragma: no cover
         logger.warning("AST enrichment failed (non-fatal): %s", exc)
 
+    # Stage 2c: load repo-specific rules
+    repo_config = await load_repo_config(pool, context.repo)
+    logger.info("stage2c complete rules=%d repo=%s", len(repo_config.rules), context.repo)
+
     # Stage 3: LLM analysis
     if not _flag_enabled("pipeline.llm_analysis"):
         logger.info("pipeline.llm_analysis disabled — skipping LLM pass")
@@ -64,6 +91,12 @@ async def run_pipeline(
         len(result.comments),
         result.generic_ratio,
     )
+
+    # Stage 3b: apply deterministic YAML rules
+    violations = evaluate_rules(repo_config, chunks)
+    if violations:
+        logger.info("stage3b complete violations=%d repo=%s", len(violations), context.repo)
+        result = _merge_rule_violations(result, violations)
 
     # Stage 4: persist + enqueue
     pr_review_id = await persist(pool, context, result, job_id, arq_redis)
