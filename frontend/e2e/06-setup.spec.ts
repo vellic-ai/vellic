@@ -18,17 +18,15 @@ test("first-run setup: / redirects to /setup, set password auto-logs in", async 
   const newPassword = "vellic_setup_test";
 
   // Drop the existing password so setup_required becomes true.
+  // Requires VELLIC_TEST_MODE=true on the backend (set in CI; skips locally if absent).
   const apiCtx = await request.newContext({ baseURL: apiBase });
-  // Reset auth state by calling setup with empty string (drops hash if supported),
-  // or by hitting a dedicated reset endpoint. For test isolation, we call setup
-  // with a sentinel and then reset by patching to empty — backend must accept this.
-  // Use the documented approach: DELETE or PATCH with empty password if available,
-  // otherwise call the internal reset if present.
-  // The global.setup.ts always sets the password, so we patch it to empty here.
-  await apiCtx.put("/admin/auth/setup/reset", {}).catch(() => null);
-  // Fallback: some backends expose no reset; skip if not supported.
-
+  const resetRes = await apiCtx.delete("/admin/auth/setup/reset").catch(() => null);
   await apiCtx.dispose();
+
+  if (!resetRes || !resetRes.ok()) {
+    test.skip(true, "Backend test-reset endpoint unavailable (VELLIC_TEST_MODE not set)");
+    return;
+  }
 
   // Navigate to root — AuthGuard should redirect to /setup because setup_required=true.
   await page.goto("/");

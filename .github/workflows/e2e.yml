@@ -80,6 +80,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           PORT: "8001"
           VELLIC_ADMIN_V2: "1"
+          VELLIC_TEST_MODE: "true"
 
       # ── Node / Frontend ─────────────────────────────────────────────────────
       - uses: actions/setup-node@v4
