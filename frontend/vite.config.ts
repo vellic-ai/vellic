@@ -27,6 +27,19 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 5173,
+    proxy: {
+      "/admin": {
+        target: "http://localhost:8001",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://localhost:8001",
+        changeOrigin: true,
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",
