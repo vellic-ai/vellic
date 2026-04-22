@@ -514,29 +514,38 @@ function VCSAdaptersTab() {
 // ---------------------------------------------------------------------------
 
 function LLMProvidersTab() {
-  const toast = useToast();
   const { data: llmData, isLoading } = useLLMSettings();
+
+  if (isLoading || !llmData) {
+    return (
+      <div className="bg-surface border border-border rounded p-5 flex flex-col gap-3">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-[34px] w-full" />
+        <Skeleton className="h-[34px] w-full" />
+      </div>
+    );
+  }
+
+  return <LLMProvidersForm initialData={llmData} />;
+}
+
+type LLMSettingsData = NonNullable<ReturnType<typeof useLLMSettings>["data"]>;
+
+function LLMProvidersForm({ initialData }: { initialData: LLMSettingsData }) {
+  const toast = useToast();
   const { data: repos } = useRepos();
   const saveLLM = useSaveLLMSettings();
 
-  const [provider, setProvider] = useState("");
-  const [model, setModel] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  const [provider, setProvider] = useState(initialData.provider ?? "ollama");
+  const [model, setModel] = useState(initialData.model ?? "");
+  const [baseUrl, setBaseUrl] = useState(initialData.base_url ?? "");
   const [apiKey, setApiKey] = useState("");
   const [keyEdited, setKeyEdited] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (llmData) {
-      setProvider(llmData.provider ?? "ollama");
-      setModel(llmData.model ?? "");
-      setBaseUrl(llmData.base_url ?? "");
-      setApiKey("");
-      setKeyEdited(false);
-    }
-  }, [llmData]);
+  const llmData = initialData;
 
   const reposUsingProvider = (repos?.items ?? []).filter((r) => r.provider === provider);
 
@@ -568,16 +577,6 @@ function LLMProvidersTab() {
       },
     );
   };
-
-  if (isLoading) {
-    return (
-      <div className="bg-surface border border-border rounded p-5 flex flex-col gap-3">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-[34px] w-full" />
-        <Skeleton className="h-[34px] w-full" />
-      </div>
-    );
-  }
 
   return (
     <form
