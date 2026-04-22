@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { ToastRoot } from "@/lib/toast";
+import AuthGuard from "@/components/AuthGuard";
 import AuthPage from "@/pages/auth";
+import SetupPage from "@/pages/setup";
 import DashboardPage from "@/pages/dashboard";
 import DeliveriesPage from "@/pages/deliveries";
 import JobsPage from "@/pages/jobs";
@@ -25,15 +27,79 @@ const routes = [
     element: <AppRoot />,
     children: [
       { path: "/login", element: <AuthPage /> },
-      { path: "/", element: <Navigate to="/dashboard" replace /> },
-      { path: "/dashboard", element: <DashboardPage /> },
-      { path: "/deliveries", element: <DeliveriesPage /> },
-      { path: "/jobs", element: <JobsPage /> },
-      { path: "/jobs/:jobId", element: <JobsPage /> },
-      { path: "/settings", element: <SettingsPage /> },
-      { path: "/repos", element: <ReposPage /> },
-      { path: "/repos/:repoId/extensions", element: <RepoExtensionsPage /> },
-      { path: "/feature-flags", element: <FeatureFlagsPage /> },
+      { path: "/setup", element: <SetupPage /> },
+      {
+        path: "/",
+        element: (
+          <AuthGuard>
+            <Navigate to="/dashboard" replace />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/dashboard",
+        element: (
+          <AuthGuard>
+            <DashboardPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/deliveries",
+        element: (
+          <AuthGuard>
+            <DeliveriesPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/jobs",
+        element: (
+          <AuthGuard>
+            <JobsPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/jobs/:jobId",
+        element: (
+          <AuthGuard>
+            <JobsPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/settings",
+        element: (
+          <AuthGuard>
+            <SettingsPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/repos",
+        element: (
+          <AuthGuard>
+            <ReposPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/repos/:repoId/extensions",
+        element: (
+          <AuthGuard>
+            <RepoExtensionsPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/feature-flags",
+        element: (
+          <AuthGuard>
+            <FeatureFlagsPage />
+          </AuthGuard>
+        ),
+      },
       { path: "*", element: <NotFoundPage /> },
     ],
   },
