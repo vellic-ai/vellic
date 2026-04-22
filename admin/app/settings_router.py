@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import secrets
@@ -88,7 +89,7 @@ async def put_llm_settings(body: LLMSettingsIn) -> LLMSettingsOut:
             body.base_url,
             body.model,
             encrypted_key,
-            body.extra,
+            json.dumps(body.extra),
         )
 
     logger.info("llm_settings upserted provider=%s", body.provider)
