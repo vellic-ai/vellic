@@ -38,11 +38,15 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       <div className="w-full max-w-[380px]">
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4">
           <Wordmark size={28} />
         </div>
 
         <h1 className="sr-only">Vellic</h1>
+
+        <p className="text-center text-xs text-text-muted mb-5">
+          Single-admin instance — no username, password only
+        </p>
 
         <form
           onSubmit={handleSubmit}
