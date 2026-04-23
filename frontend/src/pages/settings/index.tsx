@@ -513,10 +513,19 @@ function VCSAdaptersTab() {
 // LLM providers tab (existing)
 // ---------------------------------------------------------------------------
 
+const DEFAULT_LLM_DATA = {
+  provider: "ollama",
+  model: "llama3.2",
+  base_url: null,
+  api_key: null,
+  extra: {},
+  updated_at: null,
+} as const;
+
 function LLMProvidersTab() {
   const { data: llmData, isLoading } = useLLMSettings();
 
-  if (isLoading || !llmData) {
+  if (isLoading) {
     return (
       <div className="bg-surface border border-border rounded p-5 flex flex-col gap-3">
         <Skeleton className="h-5 w-32" />
@@ -526,7 +535,7 @@ function LLMProvidersTab() {
     );
   }
 
-  return <LLMProvidersForm initialData={llmData} />;
+  return <LLMProvidersForm initialData={llmData ?? DEFAULT_LLM_DATA} />;
 }
 
 type LLMSettingsData = NonNullable<ReturnType<typeof useLLMSettings>["data"]>;
