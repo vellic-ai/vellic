@@ -1,12 +1,16 @@
 import os
 
 from cryptography.fernet import Fernet
+from fastapi import HTTPException
 
 
 def _get_fernet() -> Fernet:
     key = os.environ.get("LLM_ENCRYPTION_KEY")
     if not key:
-        raise RuntimeError("LLM_ENCRYPTION_KEY env var is not set")
+        raise HTTPException(
+            status_code=503,
+            detail="Server is not configured: LLM_ENCRYPTION_KEY env var is missing",
+        )
     return Fernet(key.encode() if isinstance(key, str) else key)
 
 
