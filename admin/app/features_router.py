@@ -60,6 +60,7 @@ def _snapshot() -> dict:
                 "cost_impact": f.cost_impact.value,
                 "requires": list(f.requires),
                 "tags": list(f.tags),
+                "has_consumers": f.has_consumers,
             }
             for f in CATALOG
         ],
