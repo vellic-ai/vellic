@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import hmac
 import logging
+import os
 import secrets
 import time
 from base64 import b64decode
@@ -27,6 +28,7 @@ UNAUTHENTICATED_PATHS = frozenset({
     "/admin/auth/status",
     "/admin/auth/setup",
     "/admin/auth/login",
+    "/admin/auth/setup/reset",
 })
 
 
@@ -209,6 +211,20 @@ async def auth_logout() -> Response:
     resp = Response(status_code=204)
     resp.delete_cookie(COOKIE_NAME)
     return resp
+
+
+@router.delete("/admin/auth/setup/reset", status_code=204)
+async def auth_setup_reset() -> Response:
+    """Test-only: remove the admin password so setup_required becomes true again.
+
+    Only available when VELLIC_TEST_MODE=true. Returns 403 otherwise.
+    """
+    if os.environ.get("VELLIC_TEST_MODE") != "true":
+        raise HTTPException(status_code=403, detail="Not available outside test mode")
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM admin_config WHERE key = 'admin_password_hash'")
+    return Response(status_code=204)
 
 
 class _ChangePasswordBody(BaseModel):

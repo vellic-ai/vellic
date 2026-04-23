@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wordmark, Spinner } from "@/components/icons";
@@ -14,10 +14,13 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  if (authStatus?.authenticated) {
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (authStatus?.authenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [authStatus?.authenticated, navigate]);
+
+  if (authStatus?.setup_required) return <Navigate to="/setup" replace />;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
