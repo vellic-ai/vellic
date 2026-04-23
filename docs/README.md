@@ -2,15 +2,18 @@
 
 Your navigation index for everything vellic. Pick a section and follow the links.
 
+Vellic is a **self-hosted platform for AI-powered developer automations**. Every automation is a *pipeline*: trigger → stages → outputs. Code review is the flagship built-in pipeline; PR summaries, issue triage, CI-failure explainers, and doc-drift detection are on the near-term roadmap. You can also author your own pipelines in `.vellic/pipelines/*.yaml`.
+
 ---
 
 ## Start here
 
 | | |
 |---|---|
-| [What is vellic?](../README.md) | Product overview, highlights, quick-start, supported platforms |
-| [Quickstart](quickstart.md) | Full install walkthrough — first config, first PR reviewed end-to-end |
-| [Architecture](architecture.md) | How the 4-stage pipeline works, service map, async job runner |
+| [What is vellic?](../README.md) | Product overview, highlights, built-in pipelines, quick-start |
+| [Quickstart](quickstart.md) | Full install walkthrough — first config, first pipeline run end-to-end |
+| [Architecture](architecture.md) | Pipeline runtime, webhook flow, stage primitives, LLM abstraction, async job runner |
+| [Roadmap](roadmap.md) | What is built and what is coming — organised around "pipelines as a platform" |
 
 ---
 
@@ -32,7 +35,7 @@ Your navigation index for everything vellic. Pick a section and follow the links
 | [Configuration reference](configuration.md) | All environment variables, ports, secret generation |
 | [LLM providers](llm-providers/index.md) | Switch between Ollama, OpenAI, Anthropic, Claude Code — plus DB-backed config (vLLM: 🚧 coming soon) |
 | [VCS integrations](vcs-integrations.md) | Connect GitHub, GitLab, Bitbucket, or a custom webhook adapter |
-| [Feature flags](feature-flags.md) | Enable/disable pipeline stages, VCS adapters, LLM providers — via Admin UI or ENV |
+| [Feature flags](feature-flags.md) | Enable/disable pipelines, stages, VCS adapters, LLM providers — via Admin UI or ENV |
 | [Security & secrets](security/index.md) | Encrypted secrets, BYOK, threat model, least-privilege guide |
 
 ---
@@ -41,8 +44,8 @@ Your navigation index for everything vellic. Pick a section and follow the links
 
 | | |
 |---|---|
-| [Rules engine](rules-engine.md) | Repo routing rules, pipeline feature flags, LLM review instructions |
-| [Prompt DSL](prompt-dsl.md) | Ship `.vellic/prompts/` alongside your code to customise review behaviour |
+| [Prompt DSL](prompt-dsl.md) | Ship `.vellic/prompts/` and `.vellic/pipelines/` alongside your code |
+| [Rules engine](rules-engine.md) | Repo routing rules, pipeline feature flags, LLM instructions |
 | [API reference](api-reference.md) | Webhook API (port 8000) and Admin API (port 8001) — endpoints, auth, examples |
 
 ---
@@ -51,9 +54,10 @@ Your navigation index for everything vellic. Pick a section and follow the links
 
 | | |
 |---|---|
-| [Plugins & MCP](plugins-mcp.md) | Upload plugin ZIPs, register per-repo tools, integrate MCP tool hosts |
+| [Plugins & MCP](plugins-mcp.md) | Attach MCP tool hosts or Python plugins as pipeline stages |
 | [VCS integrations](vcs-integrations.md) | Custom adapter guide — one file to add a new platform |
-| [Contributing](contributing.md) | Dev setup, code style, PR checklist, how to add a VCS adapter or LLM provider |
+| [LLM providers](llm-providers/index.md) | Add a new LLM backend — register + implement the two-method protocol |
+| [Contributing](contributing.md) | Dev setup, code style, PR checklist, how to add stages / pipelines / adapters |
 
 ---
 
@@ -78,7 +82,7 @@ Your navigation index for everything vellic. Pick a section and follow the links
 
 ### Cross-links
 
+- Authoring a **new pipeline**? See [Prompt DSL](prompt-dsl.md) → [Rules engine](rules-engine.md) → [Plugins & MCP](plugins-mcp.md) for custom stages.
 - Changing **LLM provider**? See [LLM providers](llm-providers/index.md) → [Configuration](configuration.md) → [Feature flags](feature-flags.md) (`llm.*` flags).
 - Connecting a **new VCS platform**? See [VCS integrations](vcs-integrations.md) → [Rules engine](rules-engine.md) → [Feature flags](feature-flags.md) (`vcs.*` flags).
-- Customising **review behaviour**? See [Prompt DSL](prompt-dsl.md) → [Rules engine](rules-engine.md).
 - Running in **production**? See [Deployment](deployment/index.md) → [Security](security/index.md) → [Configuration](configuration.md).

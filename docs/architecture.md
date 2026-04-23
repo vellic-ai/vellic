@@ -1,6 +1,8 @@
 # Architecture Deep Dive
 
-Vellic is a three-service system built around an async job queue. This document covers the complete data flow, each service's internals, the LLM and VCS abstraction layers, and how the async pipeline handles retries, deduplication, and failure.
+Vellic is a three-service system built around an async job queue that executes **pipelines**. A pipeline is a trigger (e.g. a webhook) plus a sequence of stages (fetch context, call an LLM, post an output). This document covers the complete data flow, each service's internals, the LLM and VCS abstraction layers, and how the runtime handles retries, deduplication, and failure.
+
+> **Status note.** Today the runtime ships one hard-coded pipeline — code review — implemented as four stages in `worker/app/pipeline/`. The near-term roadmap ([docs/roadmap.md](roadmap.md)) replaces that with a config-driven engine that loads pipeline definitions from `.vellic/pipelines/*.yaml`. The sections below describe what is in `main` today; the generalisation is backward-compatible and will re-express code review in the new format without user-visible changes.
 
 ---
 
@@ -8,7 +10,7 @@ Vellic is a three-service system built around an async job queue. This document 
 
 1. [System overview](#system-overview)
 2. [Webhook flow](#webhook-flow)
-3. [4-stage pipeline](#4-stage-pipeline)
+3. [Pipeline runtime](#pipeline-runtime)
 4. [Async job runner (Arq)](#async-job-runner-arq)
 5. [LLM abstraction](#llm-abstraction)
 6. [VCS platform abstraction](#vcs-platform-abstraction)
@@ -123,9 +125,13 @@ If `GITHUB_WEBHOOK_SECRET` is not set, the computed HMAC uses an empty string �
 
 ---
 
-## 4-stage pipeline
+## Pipeline runtime
 
-The pipeline lives in `worker/app/pipeline/`. It is orchestrated by `runner.py` and executed inside an Arq job.
+Every pipeline runs inside an Arq job and is orchestrated by `worker/app/pipeline/runner.py`. Today the runner is hard-coded to the four stages of the code-review pipeline; the generalisation to a config-driven stage graph is the focus of v0.2 (see [docs/roadmap.md](roadmap.md)).
+
+### Code-review pipeline (current built-in)
+
+The code-review pipeline lives in `worker/app/pipeline/`:
 
 ```
 process_webhook(ctx, delivery_id)
@@ -216,6 +222,17 @@ The analyzer instructs the LLM to respond with structured JSON:
 GitHub's Reviews API can reject inline comments if a line number no longer matches the PR's diff (returns 422). In that case, the poster retries without inline comments, ensuring a summary review is always posted.
 
 Rate-limit handling uses exponential backoff (60 s → 300 s) and inspects the `X-RateLimit-Remaining` header to proactively back off before hitting 429.
+
+### Toward config-driven pipelines (v0.2)
+
+The runner above is the *only* pipeline shape today. In v0.2 this becomes a generic stage-graph executor:
+
+- Pipeline definitions live in `.vellic/pipelines/*.yaml` in your repo and are loaded per repo/SHA.
+- Each stage is a registered primitive invoked by name: `gather_context`, `fetch_diff`, `fetch_issue`, `fetch_ci_logs`, `llm_call`, `post_review`, `post_comment`, `open_issue`, `open_pr`, plus MCP/plugin-backed stages (`use: mcp.<tool>` / `use: plugin.<name>`).
+- The current code-review pipeline is re-expressed as `code-review.yaml` and loaded by the same engine — behaviour-preserving.
+- Triggers generalise: VCS webhooks (PR, issue, CI), cron, manual-run from the Admin UI or CLI.
+
+The `PREvent` model, the Arq/Redis job runtime, retry/DLQ behaviour, the LLM abstraction, and the VCS adapter layer are all retained unchanged. Only the orchestration inside `worker/app/pipeline/runner.py` is rewritten, plus a new `pipelines` loader and admin UI.
 
 ---
 
