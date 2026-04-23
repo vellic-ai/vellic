@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
 import type { components } from "@/api/schema";
 
 export const settingsKeys = {
@@ -11,9 +11,14 @@ export function useLLMSettings() {
   return useQuery({
     queryKey: settingsKeys.llm(),
     queryFn: async () => {
-      const { data, error } = await api.GET("/admin/settings/llm");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await api.GET("/admin/settings/llm");
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
     },
     staleTime: 60_000,
   });
