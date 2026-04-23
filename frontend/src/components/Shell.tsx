@@ -124,7 +124,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           Logout
         </button>
         <span className="font-mono text-[10.5px] text-text-muted px-1.5 py-0.5 bg-surface-2 rounded">
-          v0.4.2
+          v{__APP_VERSION__}
         </span>
       </div>
     </aside>

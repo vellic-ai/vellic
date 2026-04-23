@@ -88,7 +88,7 @@ export default function AuthPage() {
         </form>
 
         <p className="text-center mt-4 text-xs text-text-muted">
-          Self-hosted instance · v0.4.2
+          Self-hosted instance · v{__APP_VERSION__}
         </p>
       </div>
     </div>
