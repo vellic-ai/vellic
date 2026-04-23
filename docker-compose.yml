@@ -91,6 +91,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434}
       LLM_MODEL: ${LLM_MODEL:-llama3.1:8b-instruct-q4_K_M}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,6 +123,7 @@ services:
       VELLIC_ADMIN_V2: ${VELLIC_ADMIN_V2:-1}
       VELLIC_PRESETS_DIR: /app/presets
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy

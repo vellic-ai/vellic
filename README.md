@@ -40,7 +40,13 @@
 
 ```bash
 git clone https://github.com/vellic-ai/vellic.git && cd vellic
-cp .env.example .env          # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
+cp .env.example .env          # fill in the three required vars below
+# Required: set a Postgres password
+# POSTGRES_PASSWORD=changeme
+# Required: webhook HMAC secret
+# GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
+# Required: Fernet key for encrypting secrets at rest
+# LLM_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
 docker compose up --build -d  # boot the full stack (includes local Ollama)
 bash scripts/health-check.sh  # confirm all services are healthy
 ```
@@ -92,7 +98,11 @@ Runtime: **Docker ≥ 24 + Docker Compose v2**.
 ```bash
 git clone https://github.com/vellic-ai/vellic.git
 cd vellic
-cp .env.example .env                    # set POSTGRES_PASSWORD + GITHUB_WEBHOOK_SECRET
+cp .env.example .env
+# Edit .env and set three required variables:
+#   POSTGRES_PASSWORD=<any password>
+#   GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
+#   LLM_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
 docker compose up --build -d            # build images and boot the stack
 bash scripts/health-check.sh            # verify all services are healthy
 ```
@@ -176,12 +186,15 @@ Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: 
 
 ## Configuration
 
-Two variables are required. Everything else has a sensible default or is configured through the **Admin UI**.
+Three variables are required. Everything else has a sensible default or is configured through the **Admin UI**.
 
 ```dotenv
 POSTGRES_PASSWORD=changeme
 GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
+LLM_ENCRYPTION_KEY=<python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'>
 ```
+
+`LLM_ENCRYPTION_KEY` is a Fernet symmetric key used to encrypt secrets at rest (LLM API keys, VCS tokens, webhook HMACs). Without it, any attempt to save credentials in the Admin UI will return HTTP 503.
 
 LLM provider, model, API keys, and per-repo settings are configured in the Admin SPA — not in `.env`. Full reference: [docs/configuration.md](docs/configuration.md)
 
