@@ -18,7 +18,7 @@ def upgrade() -> None:
     op.execute(
         "INSERT INTO llm_settings (id, provider, model, extra) "
         "VALUES (1, 'ollama', 'llama3.2', '{}') "
-        "ON CONFLICT DO NOTHING"
+        "ON CONFLICT (id) DO NOTHING"
     )
 
 

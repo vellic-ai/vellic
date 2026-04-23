@@ -507,6 +507,7 @@ export interface components {
         default: boolean;
         scope: string;
         tags: string[];
+        has_consumers: boolean;
       }>;
       snapshot_at: string;
     };

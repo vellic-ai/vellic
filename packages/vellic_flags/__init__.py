@@ -90,6 +90,9 @@ class FlagDef:
     tags: tuple[str, ...] = field(default_factory=tuple)
     """Optional free-form labels for filtering/search."""
 
+    has_consumers: bool = False
+    """True when at least one code path checks this flag at runtime."""
+
     def env_var(self) -> str:
         """Return the ENV variable name that can override this flag."""
         return "VELLIC_FEATURE_" + self.key.upper().replace(".", "_")
@@ -158,6 +161,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.TENANT,
         cost_impact=CostImpact.HIGH,
         tags=("llm", "provider"),
+        has_consumers=True,
     ),
     FlagDef(
         key="llm.anthropic",
@@ -168,6 +172,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.TENANT,
         cost_impact=CostImpact.HIGH,
         tags=("llm", "provider"),
+        has_consumers=True,
     ),
     FlagDef(
         key="llm.ollama",
@@ -178,6 +183,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.TENANT,
         cost_impact=CostImpact.LOW,
         tags=("llm", "provider", "self-hosted"),
+        has_consumers=True,
     ),
     FlagDef(
         key="llm.vllm",
@@ -188,6 +194,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.TENANT,
         cost_impact=CostImpact.LOW,
         tags=("llm", "provider", "self-hosted"),
+        has_consumers=True,
     ),
     # ------------------------------------------------------------------
     # Pipeline stages
@@ -201,6 +208,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.REPO,
         cost_impact=CostImpact.NONE,
         tags=("pipeline", "core"),
+        has_consumers=True,
     ),
     FlagDef(
         key="pipeline.context",
@@ -221,6 +229,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.REPO,
         cost_impact=CostImpact.HIGH,
         tags=("pipeline", "core"),
+        has_consumers=True,
     ),
     FlagDef(
         key="pipeline.security_scan",
@@ -428,6 +437,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.REPO,
         cost_impact=CostImpact.NONE,
         tags=("platform", "prompts"),
+        has_consumers=True,
     ),
     FlagDef(
         key="platform.vcs_settings",
@@ -458,6 +468,7 @@ CATALOG: list[FlagDef] = [
         scope=FlagScope.REPO,
         cost_impact=CostImpact.NONE,
         tags=("platform", "llm", "config"),
+        has_consumers=True,
     ),
 ]
 
