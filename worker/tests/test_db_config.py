@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from cryptography.fernet import Fernet
 
-from app.llm.config import load_env_llm_config  # noqa: E402
 from app.llm.db_config import load_llm_config_from_db  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -107,44 +106,3 @@ async def test_db_config_raises_without_encryption_key():
             await load_llm_config_from_db(pool)
 
 
-# ---------------------------------------------------------------------------
-# load_env_llm_config — env-var fallback path
-# ---------------------------------------------------------------------------
-
-def test_env_config_defaults():
-    env = {
-        "LLM_PROVIDER": "ollama",
-        "LLM_BASE_URL": "http://ollama:11434",
-        "LLM_MODEL": "llama3.1:8b-instruct-q4_K_M",
-    }
-    with patch.dict(os.environ, env):
-        cfg = load_env_llm_config()
-    assert cfg["provider"] == "ollama"
-    assert cfg["base_url"] == "http://ollama:11434"
-    assert cfg["model"] == "llama3.1:8b-instruct-q4_K_M"
-    assert cfg["api_key"] == ""
-
-
-def test_env_config_external_provider_includes_api_key():
-    env = {
-        "LLM_PROVIDER": "openai",
-        "LLM_MODEL": "gpt-4o",
-        "LLM_API_KEY": "sk-test",
-    }
-    with patch.dict(os.environ, env):
-        cfg = load_env_llm_config()
-    assert cfg["provider"] == "openai"
-    assert cfg["api_key"] == "sk-test"
-
-
-def test_env_config_claude_code_model_override():
-    env = {
-        "LLM_PROVIDER": "claude_code",
-        "LLM_MODEL": "default-model",
-        "CLAUDE_CODE_MODEL": "claude-opus-4-7",
-        "CLAUDE_CODE_BIN": "/usr/local/bin/claude",
-    }
-    with patch.dict(os.environ, env):
-        cfg = load_env_llm_config()
-    assert cfg["model"] == "claude-opus-4-7"
-    assert cfg["bin_path"] == "/usr/local/bin/claude"

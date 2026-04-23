@@ -10,7 +10,7 @@ class VLLMProvider:
         raise NotImplementedError(
             "vLLM provider is not yet implemented. "
             "Deploy a vLLM-compatible server and implement this adapter, "
-            "or set LLM_PROVIDER=ollama for local inference."
+            "or pick a different provider (Ollama, OpenAI, Anthropic) in the Admin UI."
         )
 
     async def health(self) -> bool:

@@ -8,7 +8,7 @@ from arq import Retry
 from .adapters.github import normalize_pr
 from .adapters.gitlab import normalize_mr
 from .llm import build_provider
-from .llm.config import _EXTERNAL_PROVIDERS, load_env_llm_config
+from .llm.config import _EXTERNAL_PROVIDERS
 from .llm.db_config import load_llm_config_from_db, load_repo_llm_config_from_db
 from .metrics import (
     compute_retry_delays,
@@ -189,7 +189,9 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
                 )
                 return
 
-    # Load LLM config. Resolution order: per-repo llm_configs > global llm_settings > env vars.
+    # Load LLM config. Resolution order: per-repo llm_configs > global llm_settings.
+    # Configuration is UI-driven; both rows are seeded by migration, so a missing
+    # global row means an operator wiped it and the job should fail loudly.
     cfg: dict | None = None
     if installation_id:
         try:
@@ -205,22 +207,17 @@ async def process_webhook(ctx: dict, delivery_id: str) -> None:
             logger.warning("failed to load per-repo LLM config for %s: %s", repo_full, exc)
             cfg = None
     if cfg is None:
-        try:
-            cfg = await load_llm_config_from_db(pool)
-        except Exception as exc:
-            logger.warning(
-                "failed to load global LLM config from DB, falling back to env vars: %s", exc
-            )
-            cfg = None
+        cfg = await load_llm_config_from_db(pool)
         if cfg is None:
-            cfg = load_env_llm_config()
-            logger.info("llm config: using env-var fallback (no DB row)")
-        else:
-            logger.info(
-                "llm config: loaded from global DB provider=%s model=%s",
-                cfg["provider"],
-                cfg["model"],
+            raise RuntimeError(
+                "No LLM config found. Configure a provider in the Admin UI "
+                "(Settings → LLM Provider) before enqueuing reviews."
             )
+        logger.info(
+            "llm config: loaded from global DB provider=%s model=%s",
+            cfg["provider"],
+            cfg["model"],
+        )
 
     # Per-repo config_json provider/model override (legacy path, lower priority than llm_configs).
     if installation_cfg.get("provider") and installation_cfg.get("model") and not installation_id:

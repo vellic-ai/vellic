@@ -174,13 +174,12 @@ async def test_process_webhook_happy_path():
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
                 "provider": "ollama", "model": "llama3",
                 "base_url": "http://localhost", "api_key": "",
-            },
+            }),
         ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -205,10 +204,11 @@ async def test_process_webhook_retries_on_pipeline_error():
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
+                "provider": "ollama", "model": "m", "base_url": "", "api_key": "",
+            }),
         ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -230,10 +230,11 @@ async def test_process_webhook_dead_letters_on_third_attempt():
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
+                "provider": "ollama", "model": "m", "base_url": "", "api_key": "",
+            }),
         ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -294,10 +295,11 @@ async def test_process_webhook_per_repo_llm_override():
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value={
             "config_json": {"enabled": True, "provider": "openai", "model": "gpt-4o"}
         })),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
+                "provider": "ollama", "model": "m", "base_url": "", "api_key": "",
+            }),
         ),
         patch("app.jobs.build_provider", side_effect=capture_build),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -450,10 +452,11 @@ async def test_process_webhook_gitlab_mr_path():
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={"provider": "ollama", "model": "m", "base_url": "", "api_key": ""},
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
+                "provider": "ollama", "model": "m", "base_url": "", "api_key": "",
+            }),
         ),
         patch("app.jobs.build_provider", return_value=MagicMock()),
         patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
@@ -466,29 +469,23 @@ async def test_process_webhook_gitlab_mr_path():
 
 
 @pytest.mark.asyncio
-async def test_process_webhook_llm_config_db_error_falls_back():
-    """load_llm_config_from_db raising must silently fall back to env vars."""
-    job_id = uuid.uuid4()
+async def test_process_webhook_raises_when_no_llm_config():
+    """With LLM config UI-driven, a missing global llm_settings row must surface
+    as a clean RuntimeError so an operator sees a setup problem rather than a
+    silent fall-through to hard-coded defaults."""
     pool = AsyncMock()
     pool.fetchrow = AsyncMock(
         return_value={"event_type": "pull_request", "payload": _PR_PAYLOAD}
     )
     pool.execute = AsyncMock()
-    env_cfg = {"provider": "ollama", "model": "m", "base_url": "", "api_key": ""}
 
     with (
         patch("app.jobs._get_repo_installation", new=AsyncMock(return_value=None)),
-        patch(
-            "app.jobs.load_llm_config_from_db",
-            new=AsyncMock(side_effect=RuntimeError("db down")),
-        ),
-        patch("app.jobs.load_env_llm_config", return_value=env_cfg),
-        patch("app.jobs.build_provider", return_value=MagicMock()),
-        patch("app.jobs._get_or_create_job", new=AsyncMock(return_value=job_id)),
-        patch("app.jobs.run_pipeline", new=AsyncMock(return_value="rev-1")),
+        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
     ):
         ctx = {"db_pool": pool, "redis": AsyncMock(), "job_try": 1}
-        await process_webhook(ctx, "del-fallback")  # must not raise
+        with pytest.raises(RuntimeError, match="No LLM config found"):
+            await process_webhook(ctx, "del-no-config")
 
 
 @pytest.mark.asyncio

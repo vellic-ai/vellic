@@ -42,19 +42,20 @@ Everything else — LLM provider, model, API keys, per-repo settings — is conf
 docker compose up --build -d
 ```
 
-This builds and starts five containers:
+This builds and starts six containers:
 
 | Container | Port | Role |
 |---|---|---|
 | `postgres` | 5432 | Persistent storage |
 | `redis` | 6379 | Arq job queue |
-| `ollama` | 11434 | Local LLM inference (default) |
 | `api` | 8000 | Webhook ingestion |
 | `worker` | 8002 | Async pipeline |
 | `admin` | 8001 | REST API for the SPA |
 | `frontend` | 80 | Admin SPA (nginx) |
 
 The `api` container runs Alembic migrations on startup, so the database schema is created automatically.
+
+> **LLM provider is not bundled.** Pick one in the Admin UI in step 5. For a local, privacy-first setup, either bring up the optional Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) or point Vellic at an Ollama instance you already run. See [Ollama — Local Setup Guide](llm-providers/ollama.md).
 
 ## 4. Verify health
 
@@ -77,7 +78,7 @@ All four must be healthy before proceeding. If a service is not ready, check its
 
 Open **http://localhost** in your browser. You will be prompted to create an admin password — this is the only credential for the UI.
 
-Once logged in, you can leave the default LLM configuration (Ollama with `llama3.1:8b-instruct-q4_K_M`) as-is for a local, privacy-first setup. If you want to use a cloud provider, see [LLM Providers](llm-providers.md).
+Once logged in, open **Settings → LLM Provider** and configure a backend. The stack ships without a pre-wired LLM — you must pick one here before PR reviews will run. If you want a fully local setup, start the optional Ollama overlay or point at an existing Ollama instance; for a cloud provider see [LLM Providers](llm-providers/index.md).
 
 ## 6. Connect a GitHub repository
 
@@ -122,7 +123,7 @@ Go to **http://localhost/settings**. The provider dropdown lists all supported b
 
 | Provider | When to use |
 |---|---|
-| `ollama` (default) | On-prem, no data leaves your host |
+| `ollama` | On-prem, no data leaves your host (overlay or your own instance) |
 | `vllm` | 🚧 Coming soon — self-hosted OpenAI-compatible endpoint |
 | `openai` | OpenAI API (requires API key; data sent to OpenAI) |
 | `anthropic` | Anthropic API (requires API key; data sent to Anthropic) |
@@ -147,8 +148,9 @@ Go to **http://localhost/repos** to enable or disable Vellic for specific reposi
 **Job status is `failed`**
 
 - Check `docker compose logs worker` for the Python traceback.
-- If the LLM is unreachable, the Ollama container may still be pulling the model. Watch progress with `docker compose logs ollama`.
+- If the LLM is unreachable, confirm the provider is reachable from the worker container. For the Ollama overlay, the container may still be pulling the model — watch `docker compose logs ollama`.
 - If the model is not found, update the model name in the Admin UI settings.
+- If the worker logs "No LLM config found", open **Settings → LLM Provider** in the Admin UI and save a config.
 
 **Inline comments are missing from the GitHub review**
 
@@ -157,7 +159,7 @@ The feedback poster falls back to a summary-only review when GitHub returns a 42
 **Stack does not start**
 
 - Ensure Docker Compose v2 is installed: `docker compose version`.
-- Ensure no other process is using ports 80, 8000, 8001, 8002, 5432, 6379, or 11434.
+- Ensure no other process is using ports 80, 8000, 8001, 8002, 5432, or 6379 (and 11434 if you enable the Ollama overlay).
 - Run `docker compose ps` to see which container failed, then `docker compose logs <name>`.
 
 ---

@@ -109,10 +109,13 @@ If your endpoint does not require authentication, leave the API Key field blank.
 
 ## Switching back to Ollama
 
-To restore the fully closed-loop default:
+To restore a fully closed-loop setup:
 
-1. **Admin UI → Settings → LLM Provider**
-2. Set **Provider** to `ollama`, **Base URL** to `http://ollama:11434`, **Model** to
-   `llama3.1:8b-instruct-q4_K_M`
-3. Clear the API Key field
-4. Save — no restart needed
+1. Make sure Ollama is reachable — either bring up the opt-in overlay
+   (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`)
+   or run your own instance.
+2. **Admin UI → Settings → LLM Provider**
+3. Set **Provider** to `ollama`, **Base URL** to `http://ollama:11434`
+   (or wherever your instance lives), and **Model** to the tag you pulled
+4. Clear the API Key field
+5. Save — no restart needed

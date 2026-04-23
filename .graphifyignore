@@ -1,0 +1,7 @@
+CLAUDE.md
+.claude/
+.env
+vendor/
+node_modules/
+dist/
+*.generated.py

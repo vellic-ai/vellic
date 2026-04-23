@@ -79,9 +79,15 @@ GITHUB_WEBHOOK_SECRET=<output-of: openssl rand -hex 32>
 
 # Worker
 HEALTH_PORT=8002
-LLM_PROVIDER=ollama
-LLM_BASE_URL=http://127.0.0.1:11434
-LLM_MODEL=llama3.1:8b-instruct-q4_K_M
+
+# Required — Fernet key used to encrypt API keys / tokens at rest.
+# Generate with:
+#   python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+LLM_ENCRYPTION_KEY=<fernet-key>
+
+# LLM provider, base URL, model, and API keys are configured in the Admin UI.
+# If you want a self-hosted Ollama colocated with the worker, install Ollama
+# (https://ollama.com) and then point the Admin UI at http://127.0.0.1:11434.
 EOF
 
 sudo chown root:vellic /etc/vellic/env

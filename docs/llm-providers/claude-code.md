@@ -6,8 +6,9 @@ prompt through it.
 
 > ⚠️ **Closed-loop disclaimer:** This adapter is **not** a self-hosted option. The `claude`
 > CLI routes requests to the Anthropic API. PR diff content leaves your infrastructure via
-> Anthropic's network. Ollama remains the only fully closed-loop provider. Enable this only
-> if your organization permits sending code to Anthropic's API.
+> Anthropic's network. For a fully closed-loop setup, use Ollama instead (opt-in overlay or
+> your own host). Enable this adapter only if your organization permits sending code to
+> Anthropic's API.
 
 ---
 
@@ -103,29 +104,25 @@ The worker logs a warning on startup when this provider is active:
 ```
 ⚠️  External LLM provider enabled (Claude Code).
     PR diff content will leave your infrastructure via the Anthropic API.
-    Ollama remains the only fully closed-loop option.
+    For a fully closed-loop setup, use Ollama instead.
 ```
 
 ---
 
-## Environment variable fallback
+## Environment variables (CLI binary only)
 
-If no DB config row exists, the worker falls back to environment variables:
+LLM provider and model selection are entirely UI-driven. The only
+environment variables this adapter still reads point at the `claude`
+binary itself — configure them on the worker service in
+`docker-compose.yml` or your systemd unit file:
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `ollama` | Set to `claude_code` to enable |
 | `CLAUDE_CODE_BIN` | `claude` | Path to the `claude` binary |
-| `CLAUDE_CODE_MODEL` | *(empty)* | Optional model override |
+| `CLAUDE_CODE_MODEL` | *(empty)* | Optional model override; wins over the Admin UI model field when set |
 
-```bash
-# .env override (dev only)
-LLM_PROVIDER=claude_code
-CLAUDE_CODE_BIN=/usr/local/bin/claude
-CLAUDE_CODE_MODEL=claude-sonnet-4-6
-```
-
-> The Admin UI DB config takes precedence over environment variables when a row exists.
+Pick **Provider: `claude_code`** in **Admin UI → Settings → LLM Provider**
+to enable the adapter.
 
 ---
 

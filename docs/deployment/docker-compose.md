@@ -12,7 +12,7 @@ repositories).
 | Docker Engine | 24.x |
 | Docker Compose plugin | v2.20 |
 | CPU | 2 cores |
-| RAM | 4 GB (8 GB recommended when using local Ollama) |
+| RAM | 4 GB (8 GB+ recommended if you colocate an Ollama instance on the same host) |
 | Disk | 20 GB free |
 
 The host must be able to reach `ghcr.io` to pull images, or you must push
@@ -32,29 +32,39 @@ Edit `.env` — **never commit this file**:
 # Required
 POSTGRES_PASSWORD=<strong-random-password>
 GITHUB_WEBHOOK_SECRET=<output-of: openssl rand -hex 32>
+LLM_ENCRYPTION_KEY=<output-of: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'>
 
 # Optional overrides
 POSTGRES_USER=vellic
 POSTGRES_DB=vellic
-
-# LLM backend (defaults to local Ollama)
-LLM_PROVIDER=ollama
-LLM_BASE_URL=http://ollama:11434
-LLM_MODEL=llama3.1:8b-instruct-q4_K_M
-
-# Use an external provider instead of Ollama:
-# LLM_PROVIDER=openai
-# LLM_BASE_URL=https://api.openai.com/v1
-# LLM_API_KEY=sk-...
-# LLM_MODEL=gpt-4o-mini
 ```
+
+LLM provider, model, base URL, and API keys are configured in the Admin UI
+(Settings → LLM Provider). Values are stored in the `llm_settings` table,
+with the API key encrypted at rest by `LLM_ENCRYPTION_KEY`. There are no
+`LLM_*` environment variables to set.
 
 Generate secrets:
 
 ```bash
 openssl rand -hex 32   # webhook secret
 openssl rand -base64 24  # postgres password
+python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'  # encryption key
 ```
+
+### Optional — bundle a local Ollama
+
+The default stack does not ship an LLM. For a self-contained, on-prem
+deployment, bring up the Ollama overlay alongside the base compose file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up --build -d
+```
+
+Then in the Admin UI set **Provider** to `ollama`, **Base URL** to
+`http://ollama:11434`, and **Model** to your chosen tag. Alternatively,
+run Ollama (or another OpenAI-compatible server) on a separate host and
+point the Admin UI at it.
 
 ## First run
 
@@ -145,9 +155,11 @@ gunzip -c backup-20260101-120000.sql.gz \
 
 ### Volumes
 
-Docker named volumes (`postgres_data`, `ollama_data`) can be backed up
-with any volume-snapshot tool (e.g. `docker run --rm -v postgres_data:/data
-alpine tar czf - /data > postgres_data.tar.gz`).
+The `postgres_data` named volume can be backed up with any volume-snapshot
+tool (e.g. `docker run --rm -v postgres_data:/data alpine tar czf - /data
+> postgres_data.tar.gz`). If you also enable the Ollama overlay, include
+the `ollama_data` volume in the same workflow — though in most cases it
+can be rebuilt by re-pulling the model.
 
 Schedule nightly dumps with cron:
 

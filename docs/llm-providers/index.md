@@ -3,15 +3,16 @@
 Vellic is LLM-agnostic. You configure the provider through the **Admin UI** at
 `http://localhost:8001` — no env-var editing, no restarts required.
 
-> **Privacy baseline:** Vellic defaults to **Ollama** — fully local, no data leaves your
-> infrastructure. Cloud providers (OpenAI, Anthropic, Claude Code) are opt-in and display an
-> explicit warning in the Admin UI before you save.
+> **Privacy baseline:** Vellic does not bundle an LLM. For a fully-local setup,
+> use **Ollama** (via the opt-in overlay or a host-side install) — data never
+> leaves your infrastructure. Cloud providers (OpenAI, Anthropic, Claude Code)
+> are opt-in and display an explicit warning in the Admin UI before you save.
 
 ## Provider overview
 
 | Provider | Guide | Self-hosted | Data leaves infra |
 |---|---|:---:|:---:|
-| Ollama (default) | [ollama.md](ollama.md) | ✅ | No |
+| Ollama | [ollama.md](ollama.md) | ✅ | No |
 | vLLM | (see below) | 🚧 Soon | No |
 | OpenAI / OpenAI-compatible BYOK | [byok.md](byok.md) | No | ⚠️ Yes |
 | Anthropic BYOK | [byok.md](byok.md) | No | ⚠️ Yes |
@@ -32,16 +33,19 @@ No service restart needed.
 
 ---
 
-## Quick-start: Ollama (default)
+## Quick-start: Ollama (opt-in overlay)
 
-Ollama ships pre-configured in the Docker Compose stack. To start analyzing PRs with the
-default model (`llama3.1:8b-instruct-q4_K_M`), just boot the stack:
+Ollama is shipped as an **optional** overlay alongside the core compose
+file. To bring up the whole stack with a bundled Ollama container:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
 ```
 
-See the [full Ollama guide](ollama.md) to change the model or run Ollama outside Docker.
+Then open the Admin UI and, under **Settings → LLM Provider**, set
+provider `ollama`, base URL `http://ollama:11434`, and your chosen model
+tag. See the [full Ollama guide](ollama.md) to change the model, run
+Ollama on a separate host, or switch providers later.
 
 ---
 
@@ -70,7 +74,7 @@ Once enabled:
 
 1. Go to **Admin UI → Repositories → select repo → LLM config**.
 2. Override the provider, model, API key, and base URL for that repo.
-3. The worker resolves config in order: **repo override → global config → environment default**.
+3. The worker resolves config in order: **repo override → global config**. If neither exists, the job fails with a clean `No LLM config found` error — there is no environment-variable fallback.
 
 The per-repo config is stored encrypted in PostgreSQL (same encryption used for all secrets). See [security](../security/index.md) for details.
 

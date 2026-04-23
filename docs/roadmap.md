@@ -14,7 +14,7 @@ The plan is split into four horizons. Everything in "Now" ships in `main` today.
 - [x] Async pipeline runtime — Arq on Redis, retry / DLQ, per-job tracking
 - [x] 4-stage code-review pipeline (diff → context → LLM → feedback), hard-coded
 - [x] VCS Reviews API integration (inline PR comments, grouped review)
-- [x] 4 LLM provider adapters — Ollama (default), OpenAI, Anthropic, Claude Code
+- [x] 4 LLM provider adapters — Ollama, OpenAI, Anthropic, Claude Code (pick one in the Admin UI; no LLM is bundled by default)
 - [x] Prompt DSL — `.vellic/prompts/` loaded per repo
 - [x] Feature flags — per-repo, per-tenant control over stages, adapters, providers
 - [x] DB-backed LLM config — per-repo provider overrides via Admin UI

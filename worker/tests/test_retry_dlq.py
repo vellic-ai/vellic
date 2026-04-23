@@ -102,15 +102,14 @@ async def test_process_webhook_retries_on_failure():
     with (
         patch("app.jobs.get_max_retries", return_value=3),
         patch("app.jobs.get_retry_base_delay", return_value=5),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
                 "provider": "anthropic",
                 "model": "claude-haiku-4-5-20251001",
                 "api_key": "k",
                 "base_url": "",
-            },
+            }),
         ),
         patch("app.jobs.build_provider"),
         patch("app.jobs.run_pipeline", new=AsyncMock(side_effect=RuntimeError("transient"))),
@@ -135,15 +134,14 @@ async def test_process_webhook_dead_letters_on_max_attempts():
     with (
         patch("app.jobs.get_max_retries", return_value=3),
         patch("app.jobs.get_retry_base_delay", return_value=5),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
                 "provider": "anthropic",
                 "model": "claude-haiku-4-5-20251001",
                 "api_key": "k",
                 "base_url": "",
-            },
+            }),
         ),
         patch("app.jobs.build_provider"),
         patch("app.jobs.run_pipeline", new=AsyncMock(side_effect=RuntimeError("terminal"))),
@@ -167,15 +165,14 @@ async def test_process_webhook_second_retry_uses_longer_delay():
     with (
         patch("app.jobs.get_max_retries", return_value=3),
         patch("app.jobs.get_retry_base_delay", return_value=5),
-        patch("app.jobs.load_llm_config_from_db", new=AsyncMock(return_value=None)),
         patch(
-            "app.jobs.load_env_llm_config",
-            return_value={
+            "app.jobs.load_llm_config_from_db",
+            new=AsyncMock(return_value={
                 "provider": "anthropic",
                 "model": "claude-haiku-4-5-20251001",
                 "api_key": "k",
                 "base_url": "",
-            },
+            }),
         ),
         patch("app.jobs.build_provider"),
         patch("app.jobs.run_pipeline", new=AsyncMock(side_effect=RuntimeError("transient"))),

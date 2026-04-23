@@ -22,7 +22,10 @@ class AnthropicProvider:
     ) -> None:
         logger.warning(_CLOSED_LOOP_WARNING)
         if not api_key:
-            raise ValueError("Anthropic provider requires LLM_API_KEY to be set.")
+            raise ValueError(
+                "Anthropic provider requires an API key. "
+                "Set one in the Admin UI (Settings → LLM Provider → API Key)."
+            )
         self._model = model
         self._client = httpx.AsyncClient(
             base_url=_API_BASE,

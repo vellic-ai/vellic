@@ -6,13 +6,12 @@ PUT  /api/repos/{repo_id}/llm-config         Upsert config (encrypts api_key).
 POST /api/repos/{repo_id}/llm-config/test    Probe the configured provider.
 
 All endpoints are gated behind the platform.llm_config_ui feature flag.
-Resolution order for the worker: DB config > env vars (handled in worker/app/llm/db_config.py).
+LLM configuration is UI-driven — the worker loads it exclusively from the database.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime
 from typing import Any
 
@@ -191,15 +190,11 @@ async def test_llm_config(repo_id: str) -> dict:
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to decrypt api_key") from exc
 
-    # Resolve effective values: DB config > env vars
-    effective_base_url = base_url or os.getenv("LLM_BASE_URL", "")
-    effective_api_key = api_key or os.getenv("LLM_API_KEY", "")
-
     try:
         if provider in ("openai", "anthropic", "claude_code"):
-            await _probe_openai_compat(effective_base_url, effective_api_key, model, provider)
+            await _probe_openai_compat(base_url, api_key, model, provider)
         elif provider in ("ollama", "vllm"):
-            await _probe_ollama_compat(effective_base_url, model)
+            await _probe_ollama_compat(base_url, model)
         else:
             raise HTTPException(status_code=422, detail=f"Unsupported provider: {provider!r}")
     except HTTPException:

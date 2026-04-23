@@ -19,7 +19,10 @@ class OpenAIProvider:
     def __init__(self, api_key: str, model: str = "gpt-4o", **_: object) -> None:
         logger.warning(_CLOSED_LOOP_WARNING)
         if not api_key:
-            raise ValueError("OpenAI provider requires LLM_API_KEY to be set.")
+            raise ValueError(
+                "OpenAI provider requires an API key. "
+                "Set one in the Admin UI (Settings → LLM Provider → API Key)."
+            )
         self._model = model
         self._client = httpx.AsyncClient(
             base_url=_API_BASE,

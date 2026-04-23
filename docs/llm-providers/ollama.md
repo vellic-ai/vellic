@@ -1,49 +1,65 @@
 # Ollama — Local Setup Guide
 
-Ollama is the default LLM provider for Vellic. It runs entirely within your infrastructure —
-PR diff content never leaves your network.
+Ollama runs entirely within your infrastructure — PR diff content never leaves your network.
+Vellic does not bundle Ollama in the default compose stack; you either bring up the opt-in
+overlay described below or point Vellic at an Ollama server you already run.
 
-**Default model:** `llama3.1:8b-instruct-q4_K_M` (quantized 4-bit, ~5 GB VRAM / ~8 GB RAM)
+**Suggested starter model:** `llama3.1:8b-instruct-q4_K_M` (quantized 4-bit, ~5 GB VRAM / ~8 GB RAM)
 
 ---
 
-## Docker Compose setup (recommended)
+## Option 1 — Docker Compose overlay (recommended for dev / small on-prem)
 
-The default `docker-compose.yml` ships a pre-configured Ollama service. No changes needed for
-a standard local or on-prem deployment.
+The repo ships `docker-compose.ollama.yml` as an opt-in overlay:
 
 ```bash
-# Start the full stack (Ollama included)
-docker compose up -d
+# Start the full stack alongside the Ollama overlay
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
 
 # Confirm Ollama is healthy
 docker compose exec ollama ollama list
 ```
 
-The `ollama` service pulls `llama3.1:8b-instruct-q4_K_M` on first boot and serves it on
-`http://ollama:11434` (internal Docker network).
+The `ollama` service pulls `$OLLAMA_MODEL` on first boot (default
+`nomic-embed-text`; set the env var in `.env` to pull a larger generation
+model instead) and serves it on `http://ollama:11434` on the internal
+Docker network.
 
-### Admin UI — default config
+### Admin UI — first-time setup
 
-Navigate to **Settings → LLM Provider** in the Admin panel:
+Open **Settings → LLM Provider** in the Admin panel and save:
 
-| Field | Default value |
+| Field | Value |
 |---|---|
 | Provider | `ollama` |
 | Base URL | `http://ollama:11434` |
-| Model | `llama3.1:8b-instruct-q4_K_M` |
+| Model | whichever tag you pulled (e.g. `llama3.1:8b-instruct-q4_K_M`) |
 | API Key | *(not required)* |
 
-<!-- screenshot: admin-llm-ollama-default.png -->
-> **[Admin UI — LLM Provider screen with Ollama selected and default model]**
+Click **Save**, then **Test** to verify the worker can reach Ollama.
 
-Click **Save** to persist. The worker reads this from the DB on the next job run.
+---
+
+## Option 2 — External Ollama instance (recommended for production)
+
+Run Ollama on a dedicated host (bare-metal, a GPU-equipped VM, or another
+container outside this stack) and point the worker at it:
+
+1. Install Ollama on the target host and pull your model: `ollama pull <tag>`.
+2. In **Admin UI → Settings → LLM Provider**, set:
+   - **Provider:** `ollama`
+   - **Base URL:** `http://<your-ollama-host>:11434`
+   - **Model:** the model tag pulled on that host
+3. Ensure the Ollama host is reachable from the worker container on port `11434`.
+
+There are no `LLM_*` environment variables — all LLM configuration is
+UI-driven and stored in the `llm_settings` table.
 
 ---
 
 ## Changing the model
 
-### Pull a different model at runtime
+### With the overlay
 
 ```bash
 # Pull Mistral 7B (example)
@@ -55,36 +71,25 @@ docker compose exec ollama ollama list
 
 Then update the **Model** field in **Admin UI → Settings → LLM Provider** and save.
 
+### On an external Ollama host
+
+```bash
+# On the Ollama host
+ollama pull mistral:7b-instruct
+ollama list
+```
+
+Then update the **Model** field in the Admin UI.
+
 ### Recommended models by hardware
 
 | Model | VRAM required | Notes |
 |---|---|---|
-| `llama3.1:8b-instruct-q4_K_M` | ~5 GB | Default — good balance of speed and quality |
+| `llama3.1:8b-instruct-q4_K_M` | ~5 GB | Good balance of speed and quality |
 | `llama3.1:8b-instruct` (fp16) | ~16 GB | Higher accuracy, needs GPU |
 | `mistral:7b-instruct` | ~5 GB | Fast, strong on code review tasks |
 | `codellama:13b-instruct` | ~10 GB | Code-focused, better for large diffs |
 | `llama3.1:70b-instruct-q4_K_M` | ~40 GB | Best quality, requires high-VRAM GPU |
-
----
-
-## External Ollama instance
-
-To use an Ollama server running outside Docker (e.g. on a dedicated GPU host):
-
-1. In **Admin UI → Settings → LLM Provider**, set:
-   - **Provider:** `ollama`
-   - **Base URL:** `http://<your-ollama-host>:11434`
-   - **Model:** the model tag pulled on that host
-
-2. Ensure the Ollama host is reachable from the worker container on port `11434`.
-
-Alternatively, override the environment variable before starting:
-
-```bash
-LLM_BASE_URL=http://192.168.1.50:11434 docker compose up -d worker
-```
-
-> The Admin UI setting takes precedence over environment variables when a DB row exists.
 
 ---
 
@@ -106,8 +111,11 @@ The worker pings `GET /api/tags` on the Ollama base URL before each job. If Olla
 unreachable, the job is retried with exponential back-off and eventually moved to the DLQ.
 
 ```bash
-# Manual health check
+# Manual health check (overlay)
 curl http://localhost:11434/api/tags
+
+# Manual health check (external host)
+curl http://<your-ollama-host>:11434/api/tags
 ```
 
 ---
@@ -115,10 +123,13 @@ curl http://localhost:11434/api/tags
 ## Troubleshooting
 
 **`model not found` error** — The model tag in the Admin UI doesn't match what's pulled
-locally. Run `docker compose exec ollama ollama list` to see available tags and update
-the Admin UI to match.
+on the Ollama host. Run `ollama list` (or `docker compose exec ollama ollama list` for
+the overlay) and update the Admin UI to match.
 
 **Slow first response** — Ollama loads the model into memory on first request. Subsequent
 requests are faster. Consider pre-warming with a test prompt after pulling a model.
 
 **Out of memory** — Switch to a smaller quantized model (e.g. `q4_K_M`) or add a GPU.
+
+**Worker logs `No LLM config found`** — You haven't saved an Admin UI config yet. Open
+**Settings → LLM Provider**, fill it in, and click Save.

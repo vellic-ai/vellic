@@ -15,3 +15,10 @@ infra/k8s/**/secret.yaml
 frontend/playwright/.auth/
 frontend/playwright-results/
 frontend/playwright-report/
+
+CLAUDE.md
+
+# Graphify (https://github.com/safishamsi/graphify)
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json

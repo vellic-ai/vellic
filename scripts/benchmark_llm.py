@@ -2,18 +2,19 @@
 """
 Benchmark vellic LLM providers for the BYOL blog post (VEL-104).
 
-Usage:
+Standalone dev utility — does not read from the DB. Configure via env vars:
+
     # Ollama (local GPU/CPU):
-    LLM_PROVIDER=ollama LLM_BASE_URL=http://localhost:11434 \
-        LLM_MODEL=llama3.1:8b-instruct-q4_K_M python scripts/benchmark_llm.py
+    BENCH_PROVIDER=ollama BENCH_BASE_URL=http://localhost:11434 \
+        BENCH_MODEL=llama3.1:8b-instruct-q4_K_M python scripts/benchmark_llm.py
 
     # OpenAI BYOK:
-    LLM_PROVIDER=openai LLM_API_KEY=sk-... LLM_MODEL=gpt-4o \
+    BENCH_PROVIDER=openai BENCH_API_KEY=sk-... BENCH_MODEL=gpt-4o \
         python scripts/benchmark_llm.py
 
     # Anthropic BYOK:
-    LLM_PROVIDER=anthropic LLM_API_KEY=sk-ant-... \
-        LLM_MODEL=claude-3-5-sonnet-20241022 python scripts/benchmark_llm.py
+    BENCH_PROVIDER=anthropic BENCH_API_KEY=sk-ant-... \
+        BENCH_MODEL=claude-3-5-sonnet-20241022 python scripts/benchmark_llm.py
 
 Output: median review latency in seconds + quality signal notes per provider.
 """
@@ -28,9 +29,20 @@ from pathlib import Path
 # Make sure worker/app is importable when run from project root
 sys.path.insert(0, str(Path(__file__).parent.parent / "worker"))
 
-from app.llm.config import load_env_llm_config
 from app.llm.providers import ollama, openai, anthropic, claude_code  # noqa: F401 – side effects
 from app.llm.registry import build_provider
+
+
+def _load_bench_config() -> dict:
+    """Read benchmark-only env vars (isolated from the runtime DB-config flow)."""
+    provider = os.getenv("BENCH_PROVIDER", "ollama")
+    return {
+        "provider": provider,
+        "base_url": os.getenv("BENCH_BASE_URL", "http://localhost:11434"),
+        "model": os.getenv("BENCH_MODEL", "llama3.1:8b-instruct-q4_K_M"),
+        "api_key": os.getenv("BENCH_API_KEY", ""),
+        "bin_path": os.getenv("BENCH_CLAUDE_CODE_BIN", "claude"),
+    }
 from app.pipeline.llm_analyzer import analyze
 from app.pipeline.models import DiffChunk, PRContext
 
@@ -350,7 +362,7 @@ async def benchmark_provider(provider_label: str, llm) -> dict:
 
 
 async def main():
-    cfg = load_env_llm_config()
+    cfg = _load_bench_config()
     provider_name = cfg["provider"]
     model = cfg.get("model", "")
     label = f"{provider_name} / {model}" if model else provider_name

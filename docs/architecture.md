@@ -79,7 +79,8 @@ GitHub (or any VCS)
 | `frontend` | 80 | React SPA served by nginx; consumes the admin REST API |
 | `postgres` | 5432 | Persistent storage — webhooks, jobs, reviews, config |
 | `redis` | 6379 | Arq job queue and result cache |
-| `ollama` | 11434 | Default local LLM inference (swappable via Admin UI) |
+
+No LLM is bundled. Configure a provider in the Admin UI (Settings → LLM Provider). For a fully local setup, enable the opt-in Ollama overlay with `docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`, or point at an Ollama / vLLM / OpenAI-compatible endpoint you already run.
 
 ---
 
@@ -311,22 +312,21 @@ At runtime, `build_provider(name, **kwargs)` looks up the name and instantiates 
 ### Config loading (priority order)
 
 ```
-1. DB config    llm_settings table (row id=1), set via Admin UI
+1. Per-repo     llm_configs row for the installation (set via Admin UI)
+2. Global       llm_settings table (row id=1, seeded by migration, edited in Admin UI)
                 api_key stored encrypted (Fernet, key in LLM_ENCRYPTION_KEY env var)
-2. Env fallback LLM_PROVIDER, LLM_BASE_URL, LLM_MODEL, LLM_API_KEY
-3. Per-repo     installations table (org-wide or specific repo override)
 ```
 
-Per-repo overrides win for a given repository but do not affect the global default.
+Per-repo overrides win for a given repository but do not affect the global default. If both lookups return nothing, the worker raises a clean `No LLM config found` error and the job is retried/DLQ'd — there is no environment-variable fallback. All LLM configuration is UI-driven.
 
 ### Available providers
 
 | Name | Self-hosted | Notes |
 |---|---|---|
-| `ollama` | Yes | Default; ships in compose stack |
+| `ollama` | Yes | Opt-in overlay (`docker-compose.ollama.yml`) or point at your own instance |
 | `vllm` | Yes | 🚧 Coming soon — OpenAI-compatible endpoint (stub, not yet implemented) |
-| `openai` | No | Requires `LLM_API_KEY`; data sent to OpenAI |
-| `anthropic` | No | Requires `LLM_API_KEY`; data sent to Anthropic |
+| `openai` | No | Paste API key in Admin UI; data sent to OpenAI |
+| `anthropic` | No | Paste API key in Admin UI; data sent to Anthropic |
 | `claude_code` | No | Wraps `claude --print` CLI; requires CLI installed in worker container |
 
 The `openai` and `anthropic` providers are currently stubs that raise `NotImplementedError`. Implementing them requires adding the provider logic in `worker/app/llm/providers/` — the registry and config layer are already in place.
@@ -506,7 +506,7 @@ Postgres and Redis are single-instance in the reference compose setup. In produc
 
 ### Ollama
 
-The bundled Ollama container is for local development. In production, deploy Ollama on a GPU-equipped instance and point `LLM_BASE_URL` at it (or switch to a cloud provider in the Admin UI).
+Ollama is not bundled with Vellic by default. For development, enable the opt-in overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`). In production, deploy Ollama on a GPU-equipped instance and set the base URL via the Admin UI (Settings → LLM Provider → Base URL), or switch to a cloud provider.
 
 ---
 

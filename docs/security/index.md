@@ -52,7 +52,7 @@ Set `GITHUB_WEBHOOK_SECRET` (or the equivalent for your VCS platform) in `.env`.
 
 ### Privacy-first default
 
-The default compose stack ships **Ollama** as the LLM provider. Your code never leaves your infrastructure. If you switch to a cloud LLM provider (OpenAI, Anthropic), the Admin UI shows a **privacy warning** to make the data flow explicit.
+Vellic does not bundle an LLM. For a fully on-prem setup, enable the opt-in Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) or run your own Ollama / vLLM / OpenAI-compatible server on infrastructure you control — in both cases code never leaves your network. If you switch to a cloud LLM provider (OpenAI, Anthropic), the Admin UI shows a **privacy warning** to make the data flow explicit.
 
 ---
 
@@ -64,7 +64,7 @@ The default compose stack ships **Ollama** as the LLM provider. Your code never 
 | Admin UI / API (port 8001) | Session authentication, admin password required on first launch |
 | Postgres | Not exposed outside Docker network by default |
 | Redis | Not exposed outside Docker network by default |
-| Ollama | Not exposed outside Docker network by default |
+| Ollama (if overlay enabled) | Not exposed outside Docker network by default |
 | MCP subprocesses | Sandboxed cwd, no env inheritance, process group isolation |
 
 For a full threat analysis see [threat-model.md](threat-model.md).
@@ -74,7 +74,7 @@ For a full threat analysis see [threat-model.md](threat-model.md).
 ## Hardening checklist (production)
 
 - [ ] Set a strong `SECRET_KEY`, `POSTGRES_PASSWORD`, and `GITHUB_WEBHOOK_SECRET`.
-- [ ] Expose only the `api` service (port 8000) and `frontend` (port 80) to the internet. Keep `admin`, `postgres`, `redis`, and `ollama` internal.
+- [ ] Expose only the `api` service (port 8000) and `frontend` (port 80) to the internet. Keep `admin`, `postgres`, `redis`, and any LLM host (e.g. ollama if you enable the overlay) internal.
 - [ ] Use TLS termination (nginx / ingress controller) in front of `api` and `frontend`.
 - [ ] Rotate `GITHUB_WEBHOOK_SECRET` and update it in your VCS platform settings on a schedule.
 - [ ] If using a cloud LLM, ensure your provider has a DPA in place.

@@ -34,7 +34,7 @@
 - Ship **AI code review** on every PR out of the box — the flagship built-in pipeline.
 - Run **PR summaries**, **issue triage**, **CI-failure explanations**, and **doc-drift detection** as optional built-ins.
 - **Build your own pipeline** by dropping a YAML file in your repo: pick a trigger (webhook, cron, manual), chain stages (fetch context, call an LLM, post a comment, open an issue), deploy.
-- Keep everything on your infrastructure — default stack ships with local Ollama, no data leaves your network.
+- Keep everything on your infrastructure — every LLM provider is pluggable, and a one-flag overlay or your own Ollama instance keeps the whole pipeline on-prem.
 
 **Who it's for:**
 
@@ -53,11 +53,11 @@ cp .env.example .env          # fill in the three required vars below
 # GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
 # Required: Fernet key for encrypting secrets at rest
 # LLM_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
-docker compose up --build -d  # boot the full stack (includes local Ollama)
+docker compose up --build -d  # boot the full stack
 bash scripts/health-check.sh  # confirm all services are healthy
 ```
 
-Point your GitHub webhook at `https://<your-host>/webhook/github`, open a PR, and the **code review** pipeline runs immediately. Enable more pipelines (or add your own) from the Admin UI.
+Open **http://localhost** and finish setup in the Admin UI — create your password, then pick an LLM provider under **Settings → LLM Provider**. The stack does not bundle an LLM; for a fully local setup either enable the optional Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) or point Vellic at an Ollama instance you already run. Then point your GitHub webhook at `https://<your-host>/webhook/github`, open a PR, and the **code review** pipeline runs immediately. Enable more pipelines (or add your own) from the Admin UI.
 
 **Where to go next:**
 
@@ -73,12 +73,12 @@ Point your GitHub webhook at `https://<your-host>/webhook/github`, open a PR, an
 - **[Pipeline engine](docs/architecture.md)** — every automation is a pipeline: trigger → stages → outputs. The same runtime powers code review and anything you build yourself.
 - **[Build-your-own pipelines](docs/prompt-dsl.md)** — drop `.vellic/pipelines/*.yaml` in your repo. Compose stage primitives (`fetch_diff`, `fetch_issue`, `fetch_ci_logs`, `llm_call`, `post_review`, `post_comment`, `open_issue`, …) without writing Python.
 - **[VCS-agnostic adapter](docs/vcs-integrations.md)** — normalises GitHub, GitLab, Bitbucket, and custom webhooks into one platform-agnostic event model. Adding a new platform is one file.
-- **[LLM-agnostic registry](docs/llm-providers/index.md)** — Ollama (default, on-prem), OpenAI, Anthropic, Claude Code. Swap providers from the Admin UI, no restart. Per-pipeline or per-repo model overrides. (vLLM: 🚧 coming soon)
+- **[LLM-agnostic registry](docs/llm-providers/index.md)** — Ollama (on-prem), OpenAI, Anthropic, Claude Code. Pick your provider in the Admin UI, no restart. Per-pipeline or per-repo model overrides. (vLLM: 🚧 coming soon)
 - **[MCP / plugin stages](docs/plugins-mcp.md)** — attach MCP tool hosts or Python plugins as pipeline stages. Give your LLM real tools — linters, test runners, API clients — scoped per pipeline.
 - **[Admin SPA](http://localhost:80)** — catalog of pipelines, run history, replay, per-repo enable/disable, live metrics, LLM config.
 - **[Feature flags](docs/feature-flags.md)** — granular control over every pipeline, every stage, every adapter.
 - **[Kubernetes-ready](docs/deployment/kubernetes.md)** — manifest-first, no Helm required. Worker HPA scales 1→10 replicas at 70% CPU.
-- **Privacy-first by default** — self-hosted Ollama ships in the compose stack. Cloud LLM providers show an explicit warning before you save.
+- **Privacy-first by default** — every provider is opt-in from the Admin UI, and a one-flag Ollama overlay keeps the entire pipeline on-prem. Cloud LLM providers show an explicit warning before you save.
 
 ---
 
@@ -224,7 +224,7 @@ Point your VCS webhook at `https://<your-host>/webhook/<platform>`. Full setup: 
 
 | Provider | On-prem | BYOK |
 |---|---|---|
-| Ollama (default) | ✅ | — |
+| Ollama | ✅ | — |
 | vLLM | 🚧 Soon | — |
 | OpenAI | — | ✅ |
 | Anthropic | — | ✅ |
@@ -336,7 +336,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 - Check `http://localhost:80/jobs` — look at the failed job's error log.
 - Confirm the LLM provider is reachable: Admin UI → Settings → LLM Provider → test connection.
-- If using Ollama, wait for the model to finish pulling: `docker compose logs ollama`.
+- If using Ollama via the optional overlay, wait for the model to finish pulling: `docker compose logs ollama`. (Not using the overlay? Check whatever host runs your Ollama instance.)
 
 **Admin UI not loading**
 
@@ -347,7 +347,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 **LLM returns empty or garbled output**
 
 - Check model name in Admin UI → Settings → LLM Provider.
-- For Ollama: run `docker compose exec ollama ollama list` to confirm the model is available.
+- For Ollama via the overlay: run `docker compose exec ollama ollama list` to confirm the model is available. For an external Ollama host, run `ollama list` on that host.
 - For cloud providers: verify your API key has sufficient quota.
 
 **Worker crashes immediately**
@@ -370,7 +370,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 - Large diffs can exceed the LLM's context window. Use a model with a larger context limit.
 - Enable the `pipeline.context` flag selectively per repo via the Admin UI to reduce payload size.
-- For Ollama, increase `OLLAMA_NUM_CTX` in `docker-compose.yml`.
+- For Ollama, increase `OLLAMA_NUM_CTX` on your Ollama host (or in `docker-compose.ollama.yml` if you use the overlay).
 
 ---
 
@@ -383,7 +383,7 @@ Vellic's mission: every repeated, context-heavy task in the software lifecycle s
 - [x] GitHub webhook ingestion with HMAC validation
 - [x] GitLab MR integration
 - [x] Async pipeline runtime (Arq-backed, Redis-queued, deduped)
-- [x] 4 LLM provider adapters (Ollama, OpenAI, Anthropic, Claude Code)
+- [x] 4 LLM provider adapters — Ollama, OpenAI, Anthropic, Claude Code (pick in the Admin UI; no LLM is bundled)
 - [x] Code-review pipeline (the flagship built-in)
 - [x] Prompt DSL — ship prompts alongside your code
 - [x] Feature flags — per-repo, per-tenant control
@@ -431,10 +431,10 @@ Full roadmap: [docs/roadmap.md](docs/roadmap.md)
 Yes. Vellic is self-hosted — it runs in your infrastructure and connects to your VCS platform via webhooks. It never touches GitHub.com / GitLab.com / Bitbucket.org directly; the diff (or issue, or CI log) is fetched from your VCS platform's API using the credentials you configure.
 
 **Can I self-host the LLM too?**
-Yes. The default stack ships Ollama with a local model — no data leaves your infrastructure at all. Cloud providers (OpenAI, Anthropic) are available but opt-in, and the Admin UI shows an explicit warning before you save. vLLM support (OpenAI-compatible self-hosted inference) is coming soon.
+Yes. Vellic itself does not bundle an LLM, but the repo ships an opt-in Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) and you can always point at your own Ollama / vLLM / other OpenAI-compatible instance. Cloud providers (OpenAI, Anthropic) are available but opt-in, and the Admin UI shows an explicit warning before you save. vLLM support (OpenAI-compatible self-hosted inference) is coming soon.
 
 **What data leaves my infrastructure?**
-With the default Ollama setup: nothing. Repo data is fetched from your VCS, processed inside the worker container, and results are posted back. If you switch to a cloud LLM provider, whatever the pipeline sends to `llm_call` (diff, issue body, CI log) is sent to that provider's API — the Admin UI makes this explicit with a warning.
+With an on-prem LLM (Ollama overlay or your own server): nothing. Repo data is fetched from your VCS, processed inside the worker container, and results are posted back. If you switch to a cloud LLM provider, whatever the pipeline sends to `llm_call` (diff, issue body, CI log) is sent to that provider's API — the Admin UI makes this explicit with a warning.
 
 **How do I set up BYOK (Bring Your Own Key)?**
 In the Admin UI: Settings → LLM Provider → select OpenAI / Anthropic → paste your API key → Save. The key is encrypted at rest with AES-256-GCM. See [docs/llm-providers/byok.md](docs/llm-providers/byok.md) for full details.
@@ -446,10 +446,10 @@ No — it's the flagship built-in and the best-tested pipeline today. PR summari
 GitHub and GitLab are fully supported. Bitbucket and Gitea are in alpha (enable via feature flag). Any platform that emits webhooks can be added with a single adapter file. See [docs/vcs-integrations.md](docs/vcs-integrations.md).
 
 **Which LLM providers are supported?**
-Ollama (default, local), OpenAI, Anthropic, and Claude Code CLI. vLLM (self-hosted OpenAI-compatible inference) is 🚧 coming soon. See [docs/llm-providers/index.md](docs/llm-providers/index.md).
+Ollama (local), OpenAI, Anthropic, and Claude Code CLI. vLLM (self-hosted OpenAI-compatible inference) is 🚧 coming soon. See [docs/llm-providers/index.md](docs/llm-providers/index.md).
 
 **How much does it cost to run?**
-The self-hosted stack with Ollama has zero LLM API cost — only your compute cost. With a cloud LLM, cost depends on each pipeline's token usage. A typical 200-line diff through the code-review pipeline costs ~$0.01–0.05 with GPT-4o or Claude Haiku. Enable heavier pipelines (doc-drift, CI-explainer) only for repos where the cost-benefit is clear.
+With a self-hosted Ollama (via the optional overlay or your own server), there is zero LLM API cost — only your compute cost. With a cloud LLM, cost depends on each pipeline's token usage. A typical 200-line diff through the code-review pipeline costs ~$0.01–0.05 with GPT-4o or Claude Haiku. Enable heavier pipelines (doc-drift, CI-explainer) only for repos where the cost-benefit is clear.
 
 **Can I customise what the LLM looks for?**
 Yes — two layers. Prompts live in `.vellic/prompts/` (loaded automatically by any `llm_call` stage). Entire pipeline shapes live in `.vellic/pipelines/*.yaml`. See [docs/prompt-dsl.md](docs/prompt-dsl.md).

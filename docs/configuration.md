@@ -10,6 +10,7 @@ Infrastructure configuration (database, Redis, ports) is done through environmen
 |---|---|
 | `POSTGRES_PASSWORD` | Postgres password. Must match across services. |
 | `GITHUB_WEBHOOK_SECRET` | HMAC secret for `X-Hub-Signature-256` validation. Generate with `openssl rand -hex 32`. |
+| `LLM_ENCRYPTION_KEY` | Fernet key used to encrypt LLM API keys, VCS tokens, and webhook HMACs at rest. Generate with `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`. |
 
 ## Database
 
@@ -40,7 +41,7 @@ Infrastructure configuration (database, Redis, ports) is done through environmen
 | worker (health) | `8002` | `HEALTH_PORT` |
 | PostgreSQL | `5432` | Compose port mapping |
 | Redis | `6379` | Compose port mapping |
-| Ollama | `11434` | Compose port mapping |
+| Ollama (optional overlay) | `11434` | `docker-compose.ollama.yml` |
 
 ## Generating secrets
 
@@ -50,4 +51,7 @@ openssl rand -hex 32
 
 # Postgres password
 openssl rand -base64 24
+
+# Fernet encryption key (for secrets at rest)
+python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 ```
