@@ -65,6 +65,8 @@ function FlagToggle({
   );
 }
 
+const SCAFFOLD_TOOLTIP = "Toggling persists, but the gated feature is not wired yet";
+
 function FlagRow({
   flag,
   onToggle,
@@ -75,11 +77,22 @@ function FlagRow({
   pendingKey: string | null;
 }) {
   const isPending = pendingKey === flag.key;
+  const isScaffold = !flag.has_consumers;
 
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-3 pl-4 pr-3 align-top">
-        <code className="font-mono text-[12.5px] text-text">{flag.key}</code>
+        <div className="flex items-center gap-2 flex-wrap">
+          <code className="font-mono text-[12.5px] text-text">{flag.key}</code>
+          {isScaffold && (
+            <span
+              className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border bg-surface-2 border-border text-text-muted font-medium leading-none"
+              title={SCAFFOLD_TOOLTIP}
+            >
+              scaffolding only
+            </span>
+          )}
+        </div>
         {flag.description && (
           <div className="text-xs text-text-muted mt-0.5 leading-snug">
             {flag.description}
@@ -140,7 +153,11 @@ export default function FeatureFlagsPage() {
       { key: flag.key, body: { enabled: next } },
       {
         onSuccess: () => {
-          toast.success(`${flag.key} ${next ? "enabled" : "disabled"}`);
+          if (!flag.has_consumers) {
+            toast.info("Saved — feature wiring in progress (see VEL-89)");
+          } else {
+            toast.success(`${flag.key} ${next ? "enabled" : "disabled"}`);
+          }
         },
         onError: (e) => {
           toast.error(e.message || "Failed to update flag");
