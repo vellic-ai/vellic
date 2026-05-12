@@ -69,7 +69,10 @@ def mock_arq_pool():
 
 @pytest.fixture()
 def env_secret(monkeypatch):
-    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+    async def _fake_load():
+        return SECRET
+
+    monkeypatch.setattr("app.webhook._load_webhook_secret", _fake_load)
 
 
 @pytest.fixture()
@@ -100,7 +103,10 @@ class TestSignatureValidation:
         assert resp.status_code == 401
 
     async def test_no_secret_configured_rejects(self, client, monkeypatch):
-        monkeypatch.delenv("GITHUB_WEBHOOK_SECRET", raising=False)
+        async def _unset():
+            return None
+
+        monkeypatch.setattr("app.webhook._load_webhook_secret", _unset)
         body = json.dumps(PR_PAYLOAD).encode()
         headers = {
             "X-GitHub-Delivery": DELIVERY_ID,

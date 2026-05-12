@@ -1,24 +1,36 @@
 #!/usr/bin/env bash
 # Sends a sample pull_request.opened payload to the local API with a valid
 # HMAC-SHA256 signature, matching GitHub's X-Hub-Signature-256 format.
+#
+# Reads the webhook HMAC secret directly from Postgres (webhook_config.hmac), the
+# same place the api service reads it from. Requires `docker compose` to be running.
 set -euo pipefail
 
 API_URL="${API_URL:-http://localhost:8000}"
 SECRET="${GITHUB_WEBHOOK_SECRET:-}"
 
 if [[ -z "$SECRET" ]]; then
-  # Try loading from .env in repo root
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ENV_FILE="$SCRIPT_DIR/../.env"
-  if [[ -f "$ENV_FILE" ]]; then
-    # shellcheck disable=SC1090
-    source <(grep -E '^GITHUB_WEBHOOK_SECRET=' "$ENV_FILE")
-    SECRET="${GITHUB_WEBHOOK_SECRET:-}"
+  # Fetch the encrypted HMAC from Postgres and decrypt it via the admin container.
+  if ! docker compose ps admin --format '{{.Name}}' | grep -q .; then
+    echo "ERROR: admin container is not running; start the stack with 'make up' first." >&2
+    exit 1
   fi
+  SECRET=$(docker compose exec -T admin python -c "
+import asyncio, sys; sys.path.insert(0, '/app')
+from app.db import init_pool, close_pool, get_pool
+from app.crypto import decrypt
+async def run():
+    await init_pool()
+    row = await get_pool().fetchrow('SELECT hmac FROM webhook_config WHERE id = 1')
+    await close_pool()
+    print(decrypt(row['hmac']) if row and row['hmac'] else '')
+asyncio.run(run())
+" | tr -d '\r\n')
 fi
 
 if [[ -z "$SECRET" ]]; then
-  echo "ERROR: GITHUB_WEBHOOK_SECRET is not set. Export it or define it in .env" >&2
+  echo "ERROR: could not fetch webhook HMAC from webhook_config." >&2
+  echo "       Open Admin UI → Settings → Webhook and click 'Rotate' first." >&2
   exit 1
 fi
 

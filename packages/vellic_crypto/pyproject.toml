@@ -1,0 +1,19 @@
+[project]
+name = "vellic-crypto"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["cryptography>=42"]
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["vellic_crypto*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

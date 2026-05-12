@@ -81,7 +81,9 @@ async def test_db_config_decrypts_api_key():
         "extra": {},
     }
     pool = _make_pool(row)
-    with patch.dict(os.environ, {"LLM_ENCRYPTION_KEY": key}):
+    env = {k: v for k, v in os.environ.items() if k != "LLM_ENCRYPTION_KEY"}
+    env["LLM_ENCRYPTION_KEY"] = key
+    with patch.dict(os.environ, env, clear=True):
         result = await load_llm_config_from_db(pool)
     assert result["api_key"] == "sk-real-key"
     assert result["provider"] == "openai"
@@ -89,9 +91,11 @@ async def test_db_config_decrypts_api_key():
 
 
 @pytest.mark.asyncio
-async def test_db_config_raises_without_encryption_key():
-    key = _make_key()
-    encrypted = _encrypt("sk-real-key", key)
+async def test_db_config_raises_on_wrong_encryption_key(tmp_path):
+    """Ciphertext produced with key A must fail to decrypt with key B."""
+    from cryptography.fernet import InvalidToken
+
+    encrypted = _encrypt("sk-real-key", _make_key())  # encrypted with a throwaway key
     row = {
         "provider": "openai",
         "base_url": None,
@@ -100,9 +104,12 @@ async def test_db_config_raises_without_encryption_key():
         "extra": {},
     }
     pool = _make_pool(row)
+    wrong_key = _make_key()
     env = {k: v for k, v in os.environ.items() if k != "LLM_ENCRYPTION_KEY"}
+    env["LLM_ENCRYPTION_KEY"] = wrong_key
+    env["VELLIC_SECRETS_DIR"] = str(tmp_path)
     with patch.dict(os.environ, env, clear=True):
-        with pytest.raises(RuntimeError, match="LLM_ENCRYPTION_KEY"):
+        with pytest.raises(InvalidToken):
             await load_llm_config_from_db(pool)
 
 

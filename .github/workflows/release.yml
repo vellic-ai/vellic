@@ -73,7 +73,6 @@ jobs:
             up --build -d --wait
         env:
           POSTGRES_PASSWORD: vellic_ci
-          GITHUB_WEBHOOK_SECRET: ci-smoke-secret
 
       - name: Smoke assertions
         run: |
@@ -123,7 +122,6 @@ jobs:
             logs --tail=100
         env:
           POSTGRES_PASSWORD: vellic_ci
-          GITHUB_WEBHOOK_SECRET: ci-smoke-secret
 
   github-release:
     name: Create GitHub Release

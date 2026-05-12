@@ -623,6 +623,17 @@ wheels = [
 ]
 
 [[package]]
+name = "vellic-crypto"
+version = "0.1.0"
+source = { directory = "../packages/vellic_crypto" }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=42" }]
+
+[[package]]
 name = "vellic-flags"
 version = "0.1.0"
 source = { directory = "../packages/vellic_flags" }
@@ -639,6 +650,7 @@ dependencies = [
     { name = "prometheus-client" },
     { name = "pyyaml" },
     { name = "redis" },
+    { name = "vellic-crypto" },
 ]
 
 [package.optional-dependencies]
@@ -673,6 +685,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "redis", specifier = ">=5.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
+    { name = "vellic-crypto", directory = "../packages/vellic_crypto" },
     { name = "vellic-flags", marker = "extra == 'dev'", directory = "../packages/vellic_flags" },
 ]
 provides-extras = ["dev"]

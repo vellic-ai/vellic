@@ -12,6 +12,12 @@ from app import rate_limit as rl_module
 from app.main import app
 
 SECRET = "test-secret"
+
+
+async def _fake_load_secret():
+    return SECRET
+
+
 PR_PAYLOAD = {
     "action": "opened",
     "pull_request": {"number": 1, "title": "feat: test"},
@@ -86,7 +92,7 @@ class TestRateLimiting:
     async def test_within_limit_returns_non_429(
         self, client, low_limit, monkeypatch, mock_db_conn, mock_arq_pool
     ):
-        monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+        monkeypatch.setattr("app.webhook._load_webhook_secret", _fake_load_secret)
         mock_db_conn.fetchrow = AsyncMock(return_value=MagicMock())
         body = json.dumps(PR_PAYLOAD).encode()
 
@@ -101,7 +107,7 @@ class TestRateLimiting:
     async def test_exceeding_limit_returns_429(
         self, client, low_limit, monkeypatch, mock_db_conn, mock_arq_pool
     ):
-        monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+        monkeypatch.setattr("app.webhook._load_webhook_secret", _fake_load_secret)
         mock_db_conn.fetchrow = AsyncMock(return_value=MagicMock())
         body = json.dumps(PR_PAYLOAD).encode()
 
@@ -122,7 +128,7 @@ class TestRateLimiting:
     async def test_429_response_includes_retry_after(
         self, client, low_limit, monkeypatch, mock_db_conn, mock_arq_pool
     ):
-        monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+        monkeypatch.setattr("app.webhook._load_webhook_secret", _fake_load_secret)
         mock_db_conn.fetchrow = AsyncMock(return_value=MagicMock())
         body = json.dumps(PR_PAYLOAD).encode()
 

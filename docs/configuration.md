@@ -2,15 +2,20 @@
 
 Infrastructure configuration (database, Redis, ports) is done through environment variables. In local dev they are read from `docker-compose.yml`. In production, inject via Kubernetes Secrets or an external secrets manager.
 
-**LLM provider selection, model, API keys, and per-repository settings are configured through the Admin UI** (`http://localhost:8001`), not through environment variables.
+**Everything else — LLM provider, GitHub webhook secret, GitHub App / personal access token, GitLab token, per-repository settings — is configured through the Admin UI** (`http://localhost:8001`), stored encrypted in Postgres, and survives container restarts.
 
 ## Required variables
 
 | Variable | Description |
 |---|---|
 | `POSTGRES_PASSWORD` | Postgres password. Must match across services. |
-| `GITHUB_WEBHOOK_SECRET` | HMAC secret for `X-Hub-Signature-256` validation. Generate with `openssl rand -hex 32`. |
-| `LLM_ENCRYPTION_KEY` | Fernet key used to encrypt LLM API keys, VCS tokens, and webhook HMACs at rest. Generate with `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`. |
+
+## Optional variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_ENCRYPTION_KEY` | auto-generated | Fernet key used to encrypt secrets at rest (LLM API keys, VCS tokens, webhook HMACs). When unset, the admin container generates one on first boot and writes it to `/data/secrets/llm_encryption_key` inside the shared `vellic_secrets` Docker volume. Set this env var only if you want to manage the key externally (e.g. inject from Vault). **Losing the key locks you out of every encrypted setting — back up the `vellic_secrets` volume alongside `postgres_data`.** |
+| `VELLIC_SECRETS_DIR` | `/data/secrets` | Where the auto-generated key file lives inside each container. Override in tests or bare-metal deploys. |
 
 ## Database
 
@@ -43,15 +48,16 @@ Infrastructure configuration (database, Redis, ports) is done through environmen
 | Redis | `6379` | Compose port mapping |
 | Ollama (optional overlay) | `11434` | `docker-compose.ollama.yml` |
 
-## Generating secrets
+## Generating the Postgres password
 
 ```bash
-# Webhook secret
-openssl rand -hex 32
-
-# Postgres password
 openssl rand -base64 24
+```
 
-# Fernet encryption key (for secrets at rest)
+## Generating a Fernet key manually (optional)
+
+Only needed if you want to manage `LLM_ENCRYPTION_KEY` externally. Otherwise the admin generates one on first boot.
+
+```bash
 python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 ```

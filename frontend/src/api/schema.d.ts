@@ -174,6 +174,16 @@ export interface paths {
     };
   };
 
+  "/admin/settings/github/token": {
+    put: {
+      requestBody: { content: { "application/json": components["schemas"]["GitHubTokenIn"] } };
+      responses: {
+        200: { content: { "application/json": components["schemas"]["WebhookSettingsOut"] } };
+        422: { content: { "application/json": components["schemas"]["ErrorDetail"] } };
+      };
+    };
+  };
+
   "/admin/settings/gitlab": {
     put: {
       requestBody: { content: { "application/json": components["schemas"]["GitLabIn"] } };
@@ -518,6 +528,7 @@ export interface components {
       github_app_id: string;
       github_installation_id: string;
       github_key_set: boolean;
+      github_token_set: boolean;
       gitlab_token_set: boolean;
     };
 
@@ -529,6 +540,10 @@ export interface components {
       app_id: string;
       installation_id: string;
       private_key: string | null;
+    };
+
+    GitHubTokenIn: {
+      token: string | null;
     };
 
     GitLabIn: {

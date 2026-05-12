@@ -15,7 +15,7 @@ cd vellic
 
 ## 2. Configure
 
-Copy the example environment file and fill in two required values:
+Copy the example environment file and set the one required value:
 
 ```bash
 cp .env.example .env
@@ -25,16 +25,16 @@ Open `.env` and set:
 
 ```dotenv
 POSTGRES_PASSWORD=<a strong password>
-GITHUB_WEBHOOK_SECRET=<output of: openssl rand -hex 32>
 ```
 
-Everything else — LLM provider, model, API keys, per-repo settings — is configured in the Admin UI after the stack is running. You do not need to edit `.env` further.
+Everything else — LLM provider, model, API keys, GitHub webhook secret, GitHub App / PAT, GitLab token, per-repo settings — is configured in the Admin UI after the stack is running. You do not need to edit `.env` further.
 
-> **Generate secrets quickly:**
+> **Generate a strong Postgres password quickly:**
 > ```bash
 > echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)"
-> echo "GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)"
 > ```
+
+The Fernet key that encrypts secrets at rest is generated on first boot and stored in the `vellic_secrets` Docker volume. Back that volume up alongside `postgres_data`.
 
 ## 3. Start the stack
 
@@ -84,14 +84,15 @@ Once logged in, open **Settings → LLM Provider** and configure a backend. The 
 
 ### Create a webhook in GitHub
 
-1. Go to your repository → **Settings → Webhooks → Add webhook**.
-2. Set **Payload URL** to `https://<your-public-host>/webhook/github`.
-3. Set **Content type** to `application/json`.
-4. Set **Secret** to the same value you put in `GITHUB_WEBHOOK_SECRET`.
-5. Under "Which events", select **Let me select individual events**, then check:
+1. In the Admin UI go to **Settings → Webhook** and click **Rotate** to get a fresh secret. Copy it.
+2. In GitHub, go to your repository → **Settings → Webhooks → Add webhook**.
+3. Set **Payload URL** to `https://<your-public-host>/webhook/github`.
+4. Set **Content type** to `application/json`.
+5. Paste the secret from step 1 into **Secret**.
+6. Under "Which events", select **Let me select individual events**, then check:
    - **Pull requests**
    - **Pull request reviews**
-6. Click **Add webhook**.
+7. Click **Add webhook**.
 
 > **Local development:** GitHub cannot reach `localhost`. Use [ngrok](https://ngrok.com/) or a similar tunnelling tool:
 > ```bash
@@ -142,7 +143,7 @@ Go to **http://localhost/repos** to enable or disable Vellic for specific reposi
 **No deliveries appear after opening a PR**
 
 - Confirm the webhook is enabled in GitHub (green checkmark).
-- Confirm `GITHUB_WEBHOOK_SECRET` in `.env` matches the secret you set in GitHub.
+- Confirm the webhook secret in GitHub matches what Admin UI → Settings → Webhook shows. Click **Rotate** to get a new one if unsure.
 - Check the api logs: `docker compose logs api`.
 
 **Job status is `failed`**

@@ -1036,6 +1036,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "vellic-crypto" },
     { name = "vellic-flags" },
 ]
 
@@ -1072,6 +1073,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29.0" },
+    { name = "vellic-crypto", directory = "../packages/vellic_crypto" },
     { name = "vellic-flags", directory = "../packages/vellic_flags" },
 ]
 provides-extras = ["dev"]
@@ -1083,6 +1085,17 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
 ]
+
+[[package]]
+name = "vellic-crypto"
+version = "0.1.0"
+source = { directory = "../packages/vellic_crypto" }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=42" }]
 
 [[package]]
 name = "vellic-flags"

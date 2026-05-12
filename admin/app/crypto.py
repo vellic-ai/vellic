@@ -1,28 +1,27 @@
-import os
+"""Thin wrapper around :mod:`vellic_crypto` that surfaces a 503 for this FastAPI app."""
 
-from cryptography.fernet import Fernet
+import vellic_crypto
 from fastapi import HTTPException
+from vellic_crypto import mask
 
-
-def _get_fernet() -> Fernet:
-    key = os.environ.get("LLM_ENCRYPTION_KEY")
-    if not key:
-        raise HTTPException(
-            status_code=503,
-            detail="Server is not configured: LLM_ENCRYPTION_KEY env var is missing",
-        )
-    return Fernet(key.encode() if isinstance(key, str) else key)
+__all__ = ["encrypt", "decrypt", "mask"]
 
 
 def encrypt(plaintext: str) -> str:
-    return _get_fernet().encrypt(plaintext.encode()).decode()
+    try:
+        return vellic_crypto.encrypt(plaintext)
+    except vellic_crypto.KeyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Server is not configured: {exc}",
+        ) from exc
 
 
 def decrypt(ciphertext: str) -> str:
-    return _get_fernet().decrypt(ciphertext.encode()).decode()
-
-
-def mask(plaintext: str) -> str:
-    """Return first 4 chars (or fewer) followed by ****."""
-    prefix = plaintext[:4] if len(plaintext) >= 4 else plaintext
-    return f"{prefix}****"
+    try:
+        return vellic_crypto.decrypt(ciphertext)
+    except vellic_crypto.KeyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Server is not configured: {exc}",
+        ) from exc

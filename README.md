@@ -46,18 +46,12 @@
 
 ```bash
 git clone https://github.com/vellic-ai/vellic.git && cd vellic
-cp .env.example .env          # fill in the three required vars below
-# Required: set a Postgres password
-# POSTGRES_PASSWORD=changeme
-# Required: webhook HMAC secret
-# GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
-# Required: Fernet key for encrypting secrets at rest
-# LLM_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+cp .env.example .env          # only POSTGRES_PASSWORD is required
 docker compose up --build -d  # boot the full stack
 bash scripts/health-check.sh  # confirm all services are healthy
 ```
 
-Open **http://localhost** and finish setup in the Admin UI — create your password, then pick an LLM provider under **Settings → LLM Provider**. The stack does not bundle an LLM; for a fully local setup either enable the optional Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) or point Vellic at an Ollama instance you already run. Then point your GitHub webhook at `https://<your-host>/webhook/github`, open a PR, and the **code review** pipeline runs immediately. Enable more pipelines (or add your own) from the Admin UI.
+Open **http://localhost** and finish setup in the Admin UI — create your password, then configure everything else from **Settings**: LLM provider, GitHub webhook secret (click **Rotate** and paste it into GitHub), GitHub App credentials or a personal access token, and the GitLab token if you use it. The stack does not bundle an LLM; for a fully local setup either enable the optional Ollama overlay (`docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`) or point Vellic at an Ollama instance you already run. Then point your GitHub webhook at `https://<your-host>/webhook/github`, open a PR, and the **code review** pipeline runs immediately. Enable more pipelines (or add your own) from the Admin UI.
 
 **Where to go next:**
 
@@ -166,10 +160,9 @@ Runtime: **Docker ≥ 24 + Docker Compose v2**.
 git clone https://github.com/vellic-ai/vellic.git
 cd vellic
 cp .env.example .env
-# Edit .env and set three required variables:
-#   POSTGRES_PASSWORD=<any password>
-#   GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
-#   LLM_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+# Only POSTGRES_PASSWORD is required in .env. Everything else is configured
+# from the Admin UI and encrypted at rest with a Fernet key that is generated
+# on first boot and persisted to the vellic_secrets Docker volume.
 docker compose up --build -d            # build images and boot the stack
 bash scripts/health-check.sh            # verify all services are healthy
 ```
@@ -259,17 +252,15 @@ The trade-off: you host and operate it yourself. If you want a hosted agent that
 
 ## Configuration
 
-Three variables are required. Everything else has a sensible default or is configured through the **Admin UI**.
+One variable is required. Everything else has a sensible default or is configured through the **Admin UI**.
 
 ```dotenv
 POSTGRES_PASSWORD=changeme
-GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32>
-LLM_ENCRYPTION_KEY=<python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'>
 ```
 
-`LLM_ENCRYPTION_KEY` is a Fernet symmetric key used to encrypt secrets at rest (LLM API keys, VCS tokens, webhook HMACs). Without it, any attempt to save credentials in the Admin UI will return HTTP 503.
+The Fernet key used to encrypt secrets at rest (LLM API keys, VCS tokens, webhook HMACs) is generated on first boot and persisted to the `vellic_secrets` Docker volume. Set `LLM_ENCRYPTION_KEY` only if you want to manage the key externally (e.g. from Vault). **Back up that volume alongside `postgres_data` — deleting it locks you out of every encrypted setting.**
 
-LLM provider, model, API keys, and per-repo settings are configured in the Admin SPA — not in `.env`. Full reference: [docs/configuration.md](docs/configuration.md)
+LLM provider, GitHub webhook secret, GitHub App / PAT, GitLab token, model, and per-repo settings are configured in the Admin SPA — not in `.env`. Full reference: [docs/configuration.md](docs/configuration.md)
 
 ---
 
@@ -329,7 +320,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 - Check `http://localhost:80/deliveries` — if the delivery appears there, the issue is downstream in the pipeline.
 - Confirm your webhook URL matches `https://<host>/webhook/github` (or `/gitlab`, `/bitbucket`).
-- Verify the webhook secret matches `GITHUB_WEBHOOK_SECRET` in `.env`.
+- Verify the webhook secret in GitHub matches the one shown in Admin UI → Settings → Webhook.
 - Ensure the VCS platform can reach your host (ngrok or similar for local dev).
 
 **Pipeline ran but no comments posted**
@@ -340,7 +331,6 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 **Admin UI not loading**
 
-- Confirm `VELLIC_ADMIN_V2=1` is set on the `admin` service in `docker-compose.yml`.
 - Check `docker compose ps` — both `admin` and `frontend` services must be running.
 - Hard-refresh your browser (`Ctrl+Shift+R`) to clear stale assets.
 
@@ -357,7 +347,7 @@ Common causes: `POSTGRES_PASSWORD` not set in `.env`, port conflicts (8000/8001/
 
 **GitLab MRs not triggering pipelines**
 
-- Ensure `GITLAB_WEBHOOK_SECRET` matches the token set in GitLab webhook settings.
+- Ensure the shared webhook secret in Admin UI → Settings → Webhook matches the `X-Gitlab-Token` value configured in GitLab.
 - Check `GITLAB_BASE_URL` is set if using a self-managed GitLab instance.
 
 **Bitbucket / Gitea webhooks not processed**

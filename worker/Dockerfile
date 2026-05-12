@@ -2,7 +2,8 @@ FROM python:3.12-slim AS builder
 WORKDIR /app
 RUN pip install --no-cache-dir uv
 COPY packages/vellic_flags /packages/vellic_flags
-RUN uv pip install --system --no-cache /packages/vellic_flags
+COPY packages/vellic_crypto /packages/vellic_crypto
+RUN uv pip install --system --no-cache /packages/vellic_flags /packages/vellic_crypto
 COPY worker/pyproject.toml .
 RUN uv pip install --system --no-cache ".[dev]"
 

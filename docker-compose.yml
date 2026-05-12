@@ -8,6 +8,11 @@ x-datastore-deps: &datastore-deps
   redis:
     condition: service_healthy
 
+x-secrets-mount: &secrets-mount
+  type: volume
+  source: vellic_secrets
+  target: /data/secrets
+
 x-python-healthcheck: &python-healthcheck
   interval: 10s
   timeout: 5s
@@ -55,13 +60,13 @@ services:
       - ./api/app:/app/app
       - ./api/alembic:/app/alembic
       - ./api/alembic.ini:/app/alembic.ini
+      - *secrets-mount
     ports:
       - "8000:8000"
     networks: [vellic]
     environment:
       <<: *datastore-env
       PORT: "8000"
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
     depends_on:
       <<: *datastore-deps
     healthcheck:
@@ -76,13 +81,13 @@ services:
     command: python -m app.main
     volumes:
       - ./worker/app:/app/app
+      - *secrets-mount
     ports:
       - "8002:8002"
     networks: [vellic]
     environment:
       <<: *datastore-env
       HEALTH_PORT: "8002"
-      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
     depends_on:
       <<: *datastore-deps
       api:
@@ -99,16 +104,14 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     volumes:
       - ./admin/app:/app/app
+      - *secrets-mount
     ports:
       - "8001:8001"
     networks: [vellic]
     environment:
       <<: *datastore-env
       PORT: "8001"
-      VELLIC_ADMIN_V2: ${VELLIC_ADMIN_V2:-1}
       VELLIC_PRESETS_DIR: /app/presets
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
     depends_on:
       <<: *datastore-deps
       api:
@@ -140,3 +143,4 @@ networks:
 
 volumes:
   postgres_data:
+  vellic_secrets:

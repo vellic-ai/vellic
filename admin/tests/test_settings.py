@@ -185,3 +185,42 @@ def test_encrypt_decrypt_roundtrip():
 
     original = "super-secret-key-123"
     assert decrypt(encrypt(original)) == original
+
+
+# ---------------------------------------------------------------------------
+# LLM_ENCRYPTION_KEY validation
+# ---------------------------------------------------------------------------
+
+
+def test_encrypt_auto_generates_key_when_unset(monkeypatch, tmp_path):
+    """With no env var, vellic_crypto generates and persists a key transparently."""
+    from app.crypto import decrypt, encrypt
+
+    monkeypatch.delenv("LLM_ENCRYPTION_KEY", raising=False)
+    monkeypatch.setenv("VELLIC_SECRETS_DIR", str(tmp_path))
+    assert decrypt(encrypt("hello")) == "hello"
+    assert (tmp_path / "llm_encryption_key").exists()
+
+
+def test_encrypt_invalid_env_key_raises_503(monkeypatch):
+    """A malformed LLM_ENCRYPTION_KEY env override surfaces as 503, not 500."""
+    from fastapi import HTTPException
+
+    from app.crypto import encrypt
+
+    monkeypatch.setenv("LLM_ENCRYPTION_KEY", "not-a-valid-fernet-key")
+    with pytest.raises(HTTPException) as excinfo:
+        encrypt("anything")
+    assert excinfo.value.status_code == 503
+    assert "Fernet" in excinfo.value.detail
+
+
+async def test_put_gitlab_invalid_key_returns_503(client, monkeypatch):
+    """PUT /admin/settings/gitlab with a bad key should 503, not 500."""
+    from app.settings_router import router as settings_router_module  # noqa: F401
+
+    monkeypatch.setenv("LLM_ENCRYPTION_KEY", "bogus-not-fernet")
+    async with client as c:
+        r = await c.put("/admin/settings/gitlab", json={"token": "glpat-xyz"})
+    assert r.status_code == 503
+    assert "Fernet" in r.json()["detail"]

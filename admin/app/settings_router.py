@@ -119,6 +119,10 @@ class GitHubAppIn(BaseModel):
     private_key: str | None = None
 
 
+class GitHubTokenIn(BaseModel):
+    token: str | None = None
+
+
 class GitLabIn(BaseModel):
     token: str | None = None
 
@@ -130,6 +134,7 @@ def _row_to_webhook_out(row: dict) -> dict:
         "github_app_id": row.get("github_app_id") or "",
         "github_installation_id": row.get("github_installation_id") or "",
         "github_key_set": bool(row.get("github_private_key")),
+        "github_token_set": bool(row.get("github_token")),
         "gitlab_token_set": bool(row.get("gitlab_token")),
     }
 
@@ -210,6 +215,27 @@ async def put_github_settings(body: GitHubAppIn) -> dict:
                 body.app_id, body.installation_id,
             )
     logger.info("github app settings updated app_id=%s", body.app_id)
+    return _row_to_webhook_out(dict(row))
+
+
+@router.put("/admin/settings/github/token", status_code=200)
+async def put_github_token(body: GitHubTokenIn) -> dict:
+    if not body.token:
+        raise HTTPException(status_code=422, detail="token is required")
+    encrypted = encrypt(body.token)
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO webhook_config (id, github_token, updated_at)
+            VALUES (1, $1, NOW())
+            ON CONFLICT (id) DO UPDATE SET github_token = EXCLUDED.github_token,
+                                           updated_at = NOW()
+            RETURNING *
+            """,
+            encrypted,
+        )
+    logger.info("github token updated")
     return _row_to_webhook_out(dict(row))
 
 

@@ -128,6 +128,7 @@ const webhookSettings: components["schemas"]["WebhookSettingsOut"] = {
   github_app_id: "123456",
   github_installation_id: "789",
   github_key_set: true,
+  github_token_set: false,
   gitlab_token_set: false,
 };
 
@@ -237,6 +238,10 @@ export const apiHandlers = [
 
   http.post("/admin/settings/github/test", () =>
     HttpResponse.json({ ok: true }),
+  ),
+
+  http.put("/admin/settings/github/token", () =>
+    HttpResponse.json({ ...webhookSettings, github_token_set: true }),
   ),
 
   http.put("/admin/settings/gitlab", () =>

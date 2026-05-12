@@ -2,10 +2,11 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 from datetime import UTC, datetime
 
+import asyncpg
 from fastapi import APIRouter, HTTPException, Request, Response
+from vellic_crypto import decrypt
 
 from .arq_pool import get_pool as get_arq_pool
 from .db import get_pool as get_db_pool
@@ -20,36 +21,62 @@ _HANDLED_EVENTS = {"pull_request", "pull_request_review"}
 
 
 # ---------------------------------------------------------------------------
+# Shared HMAC secret (webhook_config.hmac) — used by all VCS adapters.
+# ---------------------------------------------------------------------------
+
+
+async def _load_webhook_secret() -> str | None:
+    """Return the decrypted webhook HMAC secret from the DB, or None if unset."""
+    pool = get_db_pool()
+    async with pool.acquire() as conn:
+        try:
+            row = await conn.fetchrow("SELECT hmac FROM webhook_config WHERE id = 1")
+        except asyncpg.exceptions.UndefinedTableError:
+            # Pre-migration — treat as unconfigured so all webhooks are rejected.
+            return None
+    if not row or not row["hmac"]:
+        return None
+    try:
+        return decrypt(row["hmac"])
+    except Exception as exc:
+        logger.error("failed to decrypt webhook_config.hmac: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Signature verification
 # ---------------------------------------------------------------------------
 
 
-def _verify_github_signature(body: bytes, sig_header: str) -> bool:
-    secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
-    if not secret:
-        logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting all webhooks")
-        return False
+def _verify_hmac_signature(body: bytes, sig_header: str, secret: str) -> bool:
     expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, sig_header)
 
 
-def _verify_gitlab_signature(token_header: str) -> bool:
-    """GitLab sends X-Gitlab-Token as a plain shared secret (no HMAC)."""
-    secret = os.environ.get("GITLAB_WEBHOOK_SECRET", "")
+async def _verify_github_signature(body: bytes, sig_header: str) -> bool:
+    secret = await _load_webhook_secret()
     if not secret:
-        logger.error("GITLAB_WEBHOOK_SECRET not set — rejecting all webhooks")
+        logger.error("webhook_config.hmac not configured — rejecting all webhooks")
+        return False
+    return _verify_hmac_signature(body, sig_header, secret)
+
+
+async def _verify_gitlab_signature(token_header: str) -> bool:
+    """GitLab sends X-Gitlab-Token as a plain shared secret (no HMAC)."""
+    secret = await _load_webhook_secret()
+    if not secret:
+        logger.error("webhook_config.hmac not configured — rejecting all webhooks")
         return False
     return hmac.compare_digest(secret, token_header)
 
 
-def _verify_bitbucket_signature(body: bytes, sig_header: str) -> bool:
+async def _verify_bitbucket_signature(body: bytes, sig_header: str) -> bool:
     """Bitbucket Cloud sends X-Hub-Signature: sha256=<hex>."""
-    secret = os.environ.get("BITBUCKET_WEBHOOK_SECRET", "")
+    secret = await _load_webhook_secret()
     if not secret:
-        logger.error("BITBUCKET_WEBHOOK_SECRET not set — rejecting all webhooks")
+        logger.error("webhook_config.hmac not configured — rejecting all webhooks")
         return False
-    expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, sig_header)
+    return _verify_hmac_signature(body, sig_header, secret)
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +135,7 @@ async def github_webhook(request: Request) -> Response:
     sig_header = request.headers.get("X-Hub-Signature-256", "")
 
     body = await request.body()
-    if not _verify_github_signature(body, sig_header):
+    if not await _verify_github_signature(body, sig_header):
         return Response(status_code=401)
 
     if not delivery_id:
@@ -151,7 +178,7 @@ async def gitlab_webhook(request: Request) -> Response:
     token_header = request.headers.get("X-Gitlab-Token", "")
 
     body = await request.body()
-    if not _verify_gitlab_signature(token_header):
+    if not await _verify_gitlab_signature(token_header):
         return Response(status_code=401)
 
     payload = json.loads(body)
@@ -201,7 +228,7 @@ async def bitbucket_webhook(request: Request) -> Response:
     delivery_id = request.headers.get("X-Request-UUID", "")
 
     body = await request.body()
-    if not _verify_bitbucket_signature(body, sig_header):
+    if not await _verify_bitbucket_signature(body, sig_header):
         return Response(status_code=401)
 
     if not delivery_id:

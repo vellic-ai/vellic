@@ -69,7 +69,10 @@ async def client(mock_db_pool, mock_arq_pool):
 
 @pytest.fixture()
 def env_secret(monkeypatch):
-    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+    async def _fake_load():
+        return SECRET
+
+    monkeypatch.setattr("app.webhook._load_webhook_secret", _fake_load)
 
 
 class TestGitHubSignatureValidation:
@@ -93,7 +96,10 @@ class TestGitHubSignatureValidation:
         assert resp.status_code == 401
 
     async def test_missing_secret_env_returns_401(self, client, monkeypatch):
-        monkeypatch.delenv("GITHUB_WEBHOOK_SECRET", raising=False)
+        async def _unset():
+            return None
+
+        monkeypatch.setattr("app.webhook._load_webhook_secret", _unset)
         body = json.dumps(PR_PAYLOAD).encode()
         resp = await client.post(
             "/webhook/github", content=body, headers=_valid_headers(body)

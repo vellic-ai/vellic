@@ -1,5 +1,4 @@
 import logging
-import os
 
 import httpx
 
@@ -73,10 +72,9 @@ async def fetch_diff_chunks(
     """
     validate_outbound_url(diff_url, context="diff_fetcher")
 
-    resolved_token = token or os.getenv("GITHUB_TOKEN", "")
     headers = {"Accept": "application/json"}
-    if resolved_token:
-        headers["Authorization"] = f"Bearer {resolved_token}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(diff_url, headers=headers)

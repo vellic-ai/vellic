@@ -79,7 +79,7 @@ jobs:
           DATABASE_URL: postgresql://vellic:vellic_test@localhost:5432/vellic
           REDIS_URL: redis://localhost:6379
           PORT: "8001"
-          VELLIC_ADMIN_V2: "1"
+          VELLIC_SECRETS_DIR: /tmp/vellic-secrets
           VELLIC_TEST_MODE: "true"
 
       # ── Node / Frontend ─────────────────────────────────────────────────────

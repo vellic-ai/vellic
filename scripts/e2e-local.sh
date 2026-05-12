@@ -37,11 +37,11 @@ echo "==> Running DB migrations..."
 echo "==> Seeding E2E test data..."
 PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U vellic -d vellic -f "$SCRIPT_DIR/e2e-seed.sql"
 
-echo "==> Starting admin service (VELLIC_ADMIN_V2=1)..."
+echo "==> Starting admin service..."
 (cd "$ROOT/admin" && \
   DATABASE_URL="postgresql://vellic:${POSTGRES_PASSWORD}@localhost:5432/vellic" \
   REDIS_URL="redis://localhost:6379" \
-  VELLIC_ADMIN_V2=1 \
+  VELLIC_SECRETS_DIR="${VELLIC_SECRETS_DIR:-/tmp/vellic-secrets}" \
   PORT="$ADMIN_PORT" \
   uvicorn app.main:app --host 0.0.0.0 --port "$ADMIN_PORT" &)
 

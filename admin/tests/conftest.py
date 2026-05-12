@@ -8,6 +8,12 @@ from app import db
 
 
 @pytest.fixture(autouse=True)
+def _tmp_secrets_dir(monkeypatch, tmp_path):
+    """Point vellic_crypto at a tmp dir so auto-generated keys don't touch /data."""
+    monkeypatch.setenv("VELLIC_SECRETS_DIR", str(tmp_path / "secrets"))
+
+
+@pytest.fixture(autouse=True)
 def mock_db_pool(monkeypatch):
     """Stub the asyncpg pool so unit tests never need a real database."""
     conn = AsyncMock()

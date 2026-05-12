@@ -19,7 +19,6 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
 import re
 import zipfile
 
@@ -44,6 +43,19 @@ router = APIRouter()
 
 _GLOBAL_REPO_ID = "__global__"
 _GITHUB_API_BASE = "https://api.github.com"
+
+
+async def _load_github_token() -> str:
+    pool = db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT github_token FROM webhook_config WHERE id = 1")
+    if not row or not row["github_token"]:
+        return ""
+    try:
+        return decrypt(row["github_token"])
+    except Exception as exc:
+        logger.warning("failed to decrypt webhook_config.github_token: %s", exc)
+        return ""
 
 
 def _require_prompt_dsl() -> None:
@@ -211,7 +223,7 @@ def _context_from_row(row: dict) -> PromptContext:
 
 
 async def _fetch_diff_chunks(repo: str, pr_number: int) -> list[dict]:
-    token = os.getenv("GITHUB_TOKEN", "")
+    token = await _load_github_token()
     url = f"{_GITHUB_API_BASE}/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Accept": "application/vnd.github+json"}
     if token:

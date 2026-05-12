@@ -102,6 +102,20 @@ export function useTestGitHubConnection() {
   });
 }
 
+export function useSaveGitHubToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["GitHubTokenIn"]) => {
+      const { data, error } = await api.PUT("/admin/settings/github/token", { body });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(settingsKeys.webhook(), data);
+    },
+  });
+}
+
 export function useSaveGitLabSettings() {
   const qc = useQueryClient();
   return useMutation({

@@ -17,6 +17,7 @@ from ..prompts.models import PromptContext
 from ..prompts.renderer import build_resolved_prompt
 from ..prompts.repo_loader import load_repo_prompts
 from ..rules import evaluate_rules, load_repo_config
+from ..vcs_tokens import get_github_token
 from .context_gatherer import gather_context
 from .diff_fetcher import fetch_diff_chunks
 from .llm_analyzer import analyze
@@ -127,7 +128,8 @@ async def run_pipeline(
             if not _flag_enabled("pipeline.diff"):
                 logger.info("pipeline.diff disabled — skipping diff fetch; aborting pipeline")
                 return ""
-            chunks = await fetch_diff_chunks(event.diff_url)
+            gh_token = await get_github_token(pool) if event.platform == "github" else None
+            chunks = await fetch_diff_chunks(event.diff_url, token=gh_token)
             logger.info("stage2 complete chunks=%d", len(chunks))
 
             # Stage 2b: AST enrichment (best-effort; failures are non-fatal)

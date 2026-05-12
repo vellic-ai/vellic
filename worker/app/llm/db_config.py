@@ -1,18 +1,9 @@
 import logging
-import os
 
 import asyncpg
-from cryptography.fernet import Fernet
+from vellic_crypto import decrypt as _decrypt
 
 logger = logging.getLogger("worker.llm.db_config")
-
-
-def _decrypt(ciphertext: str) -> str:
-    key = os.environ.get("LLM_ENCRYPTION_KEY")
-    if not key:
-        raise RuntimeError("LLM_ENCRYPTION_KEY env var is not set")
-    raw = key.encode() if isinstance(key, str) else key
-    return Fernet(raw).decrypt(ciphertext.encode()).decode()
 
 
 async def load_llm_config_from_db(pool: asyncpg.Pool) -> dict | None:

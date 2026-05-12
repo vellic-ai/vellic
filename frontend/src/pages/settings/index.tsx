@@ -10,6 +10,7 @@ import {
   useRepos,
   useWebhookSettings,
   useSaveGitHubSettings,
+  useSaveGitHubToken,
   useTestGitHubConnection,
   useSaveGitLabSettings,
   useTestGitLabConnection,
@@ -297,6 +298,99 @@ function GitHubSection({ webhookLoading }: { webhookLoading: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
+// GitHub token section (simpler alternative to the GitHub App)
+// ---------------------------------------------------------------------------
+
+function GitHubTokenSection({ webhookLoading }: { webhookLoading: boolean }) {
+  const toast = useToast();
+  const { data: webhook } = useWebhookSettings();
+  const saveToken = useSaveGitHubToken();
+
+  const [token, setToken] = useState("");
+  const [tokenEdited, setTokenEdited] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const connected = webhook?.github_token_set ?? false;
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenEdited || !token) {
+      toast.error("Enter a token to save.");
+      return;
+    }
+    setSaving(true);
+    saveToken.mutate(
+      { token },
+      {
+        onSuccess: () => {
+          setSaving(false);
+          setTokenEdited(false);
+          setToken("");
+          toast.success("GitHub token saved");
+        },
+        onError: (err) => {
+          setSaving(false);
+          toast.error(err.message || "Save failed");
+        },
+      },
+    );
+  };
+
+  return (
+    <Section
+      icon={<Icons.github size={16} />}
+      title="GitHub Personal Access Token"
+      badge={webhookLoading ? <Skeleton className="h-5 w-24" /> : <StatusBadge connected={connected} />}
+    >
+      {webhookLoading ? (
+        <Skeleton className="h-[34px] w-full" />
+      ) : (
+        <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel htmlFor="gh-token">Token</FieldLabel>
+            <input
+              id="gh-token"
+              data-testid="github-token"
+              type="password"
+              value={tokenEdited ? token : (connected ? "••••••••••••••••••••••••" : "")}
+              onFocus={() => {
+                if (!tokenEdited) {
+                  setTokenEdited(true);
+                  setToken("");
+                }
+              }}
+              onChange={(e) => {
+                setTokenEdited(true);
+                setToken(e.target.value);
+              }}
+              placeholder="ghp_…"
+              className={inputClass}
+            />
+            <p className="text-xs text-text-muted">
+              Simpler alternative to the GitHub App: paste a classic PAT with <code>repo</code> scope.
+              Used by the worker to fetch diffs and post review comments.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end pt-2 border-t border-border">
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={saving}
+              data-testid="github-token-save"
+            >
+              {saving && <Spinner size={11} />}
+              Save
+            </Button>
+          </div>
+        </form>
+      )}
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // GitLab section
 // ---------------------------------------------------------------------------
 
@@ -503,6 +597,7 @@ function VCSAdaptersTab() {
   return (
     <div className="flex flex-col gap-4">
       <GitHubSection webhookLoading={isLoading} />
+      <GitHubTokenSection webhookLoading={isLoading} />
       <GitLabSection webhookLoading={isLoading} />
       <WebhookSection webhookLoading={isLoading} />
     </div>

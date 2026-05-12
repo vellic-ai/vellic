@@ -67,13 +67,12 @@ async def post_github_review(
     token: str | None = None,
 ) -> str:
     """Post analysis as a GitHub PR review. Returns the GitHub review ID as a string."""
-    resolved_token = token or os.getenv("GITHUB_TOKEN", "")
     headers: dict[str, str] = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    if resolved_token:
-        headers["Authorization"] = f"Bearer {resolved_token}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
     body, event = _build_review_body(result)
     inline = _build_inline_comments(result.comments)
@@ -138,10 +137,9 @@ async def post_gitlab_discussion(
 
     Returns the discussion ID of the summary note.
     """
-    resolved_token = token or os.getenv("GITLAB_TOKEN", "")
     headers: dict[str, str] = {"Content-Type": "application/json"}
-    if resolved_token:
-        headers["PRIVATE-TOKEN"] = resolved_token
+    if token:
+        headers["PRIVATE-TOKEN"] = token
 
     body = _build_gitlab_note_body(result)
     project_path = quote(repo, safe="")

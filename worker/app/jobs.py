@@ -26,6 +26,7 @@ from .pipeline.feedback_poster import (
 )
 from .pipeline.models import AnalysisResult, ReviewComment
 from .pipeline.runner import run_pipeline
+from .vcs_tokens import get_github_token, get_gitlab_token
 
 logger = logging.getLogger("worker.jobs")
 
@@ -324,20 +325,24 @@ async def post_feedback(ctx: dict, pr_review_id: str) -> None:
 
     try:
         if platform == "gitlab":
+            gitlab_token = await get_gitlab_token(pool)
             platform_id = await post_gitlab_discussion(
                 repo=row["repo"],
                 mr_iid=row["pr_number"],
                 commit_sha=row["commit_sha"],
                 result=result,
+                token=gitlab_token or None,
             )
             id_col = "gitlab_discussion_id"
             dedup_clause = "AND gitlab_discussion_id IS NULL"
         else:
+            github_token = await get_github_token(pool)
             platform_id = await post_github_review(
                 repo=row["repo"],
                 pr_number=row["pr_number"],
                 commit_sha=row["commit_sha"],
                 result=result,
+                token=github_token or None,
             )
             id_col = "github_review_id"
             dedup_clause = "AND github_review_id IS NULL"
